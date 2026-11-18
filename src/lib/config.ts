@@ -211,6 +211,8 @@ export const ENDPOINTS = {
     `/knowledge/knowledge-items/${id}/publish/`,
   // Vector storage (used / limit / by kind, in bytes) and item counts. Django.
   fetchKnowledgeStats: () => `/knowledge/knowledge-items/stats/`,
+  // The knowledge categories with how many items are filed under each. Django.
+  fetchKnowledgeCategories: () => `/knowledge/knowledge-items/categories/`,
   // Website URL discovery: POST a site URL, get back the pages found on it
   // (url, title, word count) so the user can pick which to index. Django.
   discoverKnowledgeUrls: () => `/knowledge/knowledge-items/discover-urls/`,
@@ -385,6 +387,8 @@ export const ENDPOINTS = {
   notifications: () => createAPIUrl("/support/notifications/", "django"),
   notificationCounts: () =>
     createAPIUrl("/support/notifications/counts/", "django"),
+  notificationsMarkAllRead: () =>
+    createAPIUrl("/support/notifications/mark/read/", "django"),
   notificationMarkRead: (notification_id: number) =>
     createAPIUrl(
       `/support/notifications/${notification_id}/mark/read/`,
@@ -866,6 +870,13 @@ export const ACTIVE_QUEUE_STYLE =
 export const ACTIVE_ASSIGNEE_STYLE =
   "border-sky-300 bg-sky-50 text-sky-700 hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-950/30 dark:text-sky-300 dark:hover:bg-sky-950/50";
 export const ALL_FILTER_VALUE = "all" as const;
+/**
+ * date-fns format of the plain dates the date pickers emit and the APIs take
+ * as `from`/`to`. Everything that writes or reads those values uses it.
+ */
+export const API_DATE_FORMAT = "yyyy-MM-dd";
+/** date-fns format a picked day is shown in. */
+export const DISPLAY_DATE_FORMAT = "MMM dd, yyyy";
 export const ANY_FILTER_VALUE = "any" as const;
 export const DEFAULT_HELPDESK_QUEUE = "open" as const;
 export const DEFAULT_CUSTOMER_ORDERING = "-total_spent" as const;
@@ -887,3 +898,41 @@ export const GMAIL_STEPS = [
   'Confirm it in Gmail, then select "Forward a copy of incoming mail to" the new address and Save Changes.',
   "Come back here and send the test email.",
 ];
+
+// Knowledge storage: the share of the plan's vector storage used from which
+// the library shows a warning (yellow here, red once it is full).
+export const KNOWLEDGE_STORAGE_WARNING_SHARE = 0.9;
+
+// Knowledge limits, the same as the backend's `KNOWLEDGE_TITLE_MIN_LENGTH`,
+// `KNOWLEDGE_TITLE_MAX_LENGTH` and `KNOWLEDGE_ARTICLE_MAX_LENGTH`. The title is the same for every URL and
+// article; the article body counts visible text only.
+export const KNOWLEDGE_TITLE_MIN_LENGTH = 3;
+export const KNOWLEDGE_TITLE_MAX_LENGTH = 100;
+export const ARTICLE_BODY_MAX_LENGTH = 30_000;
+
+// The "category" of the knowledge that is filed under no knowledge category: its
+// value in the knowledge API's `knowledge_category` filter (the backend's
+// `KNOWLEDGE_UNCATEGORIZED_FILTER`), and the name it goes by in the page URL
+// (/knowledge/categories/uncategorized).
+export const KNOWLEDGE_UNCATEGORIZED_FILTER = "none";
+export const KNOWLEDGE_UNCATEGORIZED_ROUTE = "uncategorized";
+
+// The Add knowledge screen's limits. The caps match the backend's
+// `KNOWLEDGE_MAX_FAQS_PER_REQUEST`, `KNOWLEDGE_MAX_URLS_PER_REQUEST` and
+// `KNOWLEDGE_DISCOVERY_MAX_SPECIFIC_PAGES`; the address length is its URL field's
+// `max_length`.
+export const KNOWLEDGE_FAQ_CAP = 20;
+// Pages and links that can be added in one request.
+export const KNOWLEDGE_WEBSITE_URL_CAP = 100;
+// Specific pages that can be listed in the field at once.
+export const KNOWLEDGE_SPECIFIC_PAGE_CAP = 20;
+export const KNOWLEDGE_FILE_CAP = 15;
+export const KNOWLEDGE_URL_MAX_LENGTH = 2048;
+// How long the pages field waits after typing stops before it is read.
+export const KNOWLEDGE_URL_INPUT_DELAY_MS = 500;
+
+// What knowledge filed under no knowledge category is called, and what its card
+// says about it.
+export const KNOWLEDGE_UNCATEGORIZED_NAME = "No category";
+export const KNOWLEDGE_UNCATEGORIZED_DESCRIPTION =
+  "Knowledge that isn't filed under any category yet";

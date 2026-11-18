@@ -2,27 +2,38 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   IconArrowLeft,
+  IconArrowRight,
   IconCircleCheck,
   IconPlus,
   IconTrash,
-  IconX,
+  IconWorldSearch,
 } from "@tabler/icons-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Typography } from "@/components/ui/typography";
-import { isValidUrl, normalizeUrl } from "@/lib/url";
+import { BADGE_TONE_STYLES } from "@/lib/badge-tones";
+import {
+  KNOWLEDGE_FAQ_CAP,
+  KNOWLEDGE_FILE_CAP,
+  KNOWLEDGE_SPECIFIC_PAGE_CAP,
+  KNOWLEDGE_TITLE_MAX_LENGTH,
+  KNOWLEDGE_TITLE_MIN_LENGTH,
+  KNOWLEDGE_URL_INPUT_DELAY_MS,
+  KNOWLEDGE_WEBSITE_URL_CAP,
+} from "@/lib/config";
+import { useDebounce } from "@/hooks/use-debounce";
+import {
+  isSiteAddress,
+  parseUrlList,
+  spacesToNewLines,
+  stripUrlSpaces,
+  urlListProblem,
+} from "@/lib/url";
 import { randomId } from "@/lib/utils";
 
 import {
@@ -42,6 +53,12 @@ import {
   KNOWLEDGE_FILE_MAX_SIZE_BYTES,
   MultiFileUploadDropzone,
 } from "@/components/custom/knowledge/file-upload-dropzone";
+import {
+  KnowledgeCategoriesField,
+  useKnowledgeCategoryOptions,
+  type KnowledgeCategoryOption,
+} from "@/components/custom/knowledge/knowledge-category-picker";
+import { KnowledgeStorageNotice } from "@/components/custom/knowledge/knowledge-storage-notice";
 import { KnowledgeScopePanel } from "@/components/custom/knowledge/knowledge-scope-panel";
 import {
   DEFAULT_KNOWLEDGE_SCOPE,
@@ -49,10 +66,7 @@ import {
   validateScope,
   type KnowledgeScope,
 } from "@/components/custom/knowledge/knowledge-scope";
-import {
-  FAQ_ANSWER_MAX_LENGTH,
-  POLICY_TYPE_OPTIONS,
-} from "@/components/custom/knowledge/knowledge-meta";
+import { FAQ_ANSWER_MAX_LENGTH } from "@/components/custom/knowledge/knowledge-meta";
 import { WebsiteUrlDiscovery } from "@/components/custom/knowledge/website-url-discovery";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
@@ -62,28 +76,20 @@ import {
   type DiscoveredPage,
 } from "@/redux/api-slice/knowledge-rag-slice";
 
-const FAQ_CAP = 20;
-/** Pages and links that can be added in one request (the backend's
- * `KNOWLEDGE_MAX_URLS_PER_REQUEST`). */
-const WEBSITE_URL_CAP = 100;
-const FILE_CAP = 15;
-
 type ContentSource = Exclude<AddableSource, "article">;
 
 type FaqRow = { localId: string; question: string; answer: string };
-/** A link typed in under "Add a link", beside the pages found by the scan. */
-type LinkRow = { localId: string; url: string; pageType: string };
+/** A chosen document with the knowledge categories it is filed under. */
+type DocumentRow = { localId: string; file: File; categories: number[] };
+
+/** Server errors for the last submit, by the id of the row each belongs to. */
+type ServerErrors = Record<string, Record<string, unknown>>;
 
 const emptyFaqRow = (): FaqRow => ({
   localId: randomId(),
   question: "",
   answer: "",
 });
-
-/** A page type the user can tag a link with; it becomes the item's title. */
-const LINK_TYPE_OPTIONS = POLICY_TYPE_OPTIONS.filter(
-  (option) => option.value !== "generic_link",
-);
 
 const TIPS: Record<ContentSource, { title: string; body: string }> = {
   url: {
@@ -139,6 +145,8 @@ export function NewKnowledgePage() {
   const { DiscoverWebsiteUrlsListData: discoveredPages } = useAppSelector(
     (state) => state.GetKnowledgeRagReducer.DiscoverWebsiteUrlsState,
   );
+  const { options: categoryOptions, isLoading: categoriesLoading } =
+    useKnowledgeCategoryOptions();
   const { CreateKnowledgeItemsBulkIsLoading: isSubmitting } = useAppSelector(
     (state) => state.GetKnowledgeRagReducer.CreateKnowledgeItemsBulkState,
   );
@@ -156,19 +164,28 @@ export function NewKnowledgePage() {
   const [scope, setScope] = useState<KnowledgeScope>(DEFAULT_KNOWLEDGE_SCOPE);
 
   const [selectedPageUrls, setSelectedPageUrls] = useState<string[]>([]);
-  const [linkRows, setLinkRows] = useState<LinkRow[]>([]);
-  const [files, setFiles] = useState<File[]>([]);
+  // The categories of each page ticked from a scan, by its address.
+  const [pageCategories, setPageCategories] = useState<
+    Record<string, number[]>
+  >({});
+  const [documents, setDocuments] = useState<DocumentRow[]>([]);
   const [faqRows, setFaqRows] = useState<FaqRow[]>([emptyFaqRow()]);
+  // One set of categories for every question added together.
+  const [faqCategories, setFaqCategories] = useState<number[]>([]);
 
   const [showErrors, setShowErrors] = useState(false);
   const [banner, setBanner] = useState<string | null>(null);
-  // Server errors from the last failed submit, one entry per item sent.
-  const [serverErrors, setServerErrors] = useState<
-    Record<string, unknown>[] | null
-  >(null);
-  const [added, setAdded] = useState<{ count: number; label: string } | null>(
-    null,
-  );
+  // Server errors from the last failed submit, by the stable id of the row each
+  // came from (never by position, which shifts when a row is removed).
+  const [serverErrors, setServerErrors] = useState<ServerErrors>({});
+  // The page the banner is about, so it goes when that page is deselected.
+  const [bannerUrl, setBannerUrl] = useState<string | null>(null);
+  const [added, setAdded] = useState<{
+    count: number;
+    label: string;
+    /** How many were sent, so the ones declined for storage can be counted. */
+    sent: number;
+  } | null>(null);
 
   useEffect(() => {
     if (storeCode) dispatch(FetchKnowledgeStats({ storeCode }));
@@ -190,9 +207,9 @@ export function NewKnowledgePage() {
   );
   const readyCount =
     source === "url"
-      ? selectedPageUrls.length + linkRows.length
+      ? selectedPageUrls.length
       : source === "file"
-        ? files.length
+        ? documents.length
         : completeFaqs.length;
   const alreadyAdded = discoveredPages.filter(
     (page) => page.alreadyAdded,
@@ -202,15 +219,27 @@ export function NewKnowledgePage() {
   const hasScopeError = Boolean(scopeErrors.aiScope || scopeErrors.selection);
   const hasIncompleteFaq =
     source === "faq" && filledFaqs.length > completeFaqs.length;
+  // A scanned page brings its own title when it could be read; without one the
+  // backend titles the page by its address.
+  const scannedTitle = (url: string) => {
+    const title = (
+      discoveredPages.find((page) => page.url === url)?.title ?? ""
+    )
+      .trim()
+      .slice(0, KNOWLEDGE_TITLE_MAX_LENGTH);
+    return title.length >= KNOWLEDGE_TITLE_MIN_LENGTH ? title : "";
+  };
 
   const resetContent = () => {
     setSelectedPageUrls([]);
-    setLinkRows([]);
-    setFiles([]);
+    setPageCategories({});
+    setDocuments([]);
     setFaqRows([emptyFaqRow()]);
+    setFaqCategories([]);
     setShowErrors(false);
     setBanner(null);
-    setServerErrors(null);
+    setBannerUrl(null);
+    setServerErrors({});
   };
 
   const handleContinue = () => {
@@ -227,36 +256,37 @@ export function NewKnowledgePage() {
 
     setShowErrors(true);
     setBanner(null);
-    setServerErrors(null);
+    setBannerUrl(null);
+    setServerErrors({});
     if (readyCount === 0 || hasScopeError || hasIncompleteFaq) return;
 
     // Which row of the form each submitted item came from, so a server error
     // for item N can be shown on the right row.
     let items: BulkKnowledgeItemContent[] | undefined;
-    let itemLabels: string[] = [];
+    // The stable id of each item sent, in the order sent.
+    let itemIds: string[] = [];
 
     if (source === "url") {
-      const byUrl = new Map(
-        discoveredPages.map((page: DiscoveredPage) => [page.url, page]),
-      );
-      items = [
-        ...selectedPageUrls.map((url) => ({
+      // Each page carries its own categories, which replace the request's.
+      const withCategories = (categories: number[]) =>
+        categories.length > 0 ? { knowledge_categories: categories } : {};
+      items = selectedPageUrls.map((url) => {
+        const title = scannedTitle(url);
+        return {
           url,
-          title: byUrl.get(url)?.title || undefined,
-        })),
-        ...linkRows.map((row) => ({
-          url: normalizeUrl(row.url),
-          title:
-            LINK_TYPE_OPTIONS.find((option) => option.value === row.pageType)
-              ?.label ?? undefined,
-        })),
-      ];
-      itemLabels = [...selectedPageUrls, ...linkRows.map((row) => row.url)];
+          ...(title ? { title } : {}),
+          ...withCategories(pageCategories[url] ?? []),
+        };
+      });
+      itemIds = selectedPageUrls;
     } else if (source === "faq") {
       items = completeFaqs.map((row) => ({
         question: row.question.trim(),
         answer: row.answer.trim(),
       }));
+      itemIds = completeFaqs.map((row) => row.localId);
+    } else if (source === "file") {
+      itemIds = documents.map((row) => row.localId);
     }
 
     // Everything but an article goes live as soon as it is added.
@@ -266,13 +296,20 @@ export function NewKnowledgePage() {
         source,
         ...scopeToPayload(scope),
         publish: true,
-        ...(source === "file" ? { files } : { items }),
+        ...(source === "faq" ? { knowledgeCategoryIds: faqCategories } : {}),
+        ...(source === "file"
+          ? {
+              files: documents.map((row) => row.file),
+              fileKnowledgeCategoryIds: documents.map((row) => row.categories),
+            }
+          : { items }),
       }),
     );
 
     if (CreateKnowledgeItemsBulk.fulfilled.match(result)) {
       setAdded({
         count: result.payload.length,
+        sent: readyCount,
         label:
           source === "url"
             ? plural(result.payload.length, "website page")
@@ -290,13 +327,19 @@ export function NewKnowledgePage() {
       | undefined;
     if (Array.isArray(payload?.data)) {
       const errors = payload.data as Record<string, unknown>[];
-      setServerErrors(errors);
+      const byId: ServerErrors = {};
+      errors.forEach((entry, index) => {
+        const id = itemIds[index];
+        if (id && entry && Object.keys(entry).length > 0) byId[id] = entry;
+      });
+      setServerErrors(byId);
       const failed = errors.findIndex(
         (entry) => entry && Object.keys(entry).length > 0,
       );
       if (source === "url" && failed >= 0) {
+        setBannerUrl(itemIds[failed] ?? null);
         setBanner(
-          `${itemLabels[failed] ? `${itemLabels[failed]}: ` : ""}${
+          `${itemIds[failed] ? `${itemIds[failed]}: ` : ""}${
             firstErrorMessage(errors[failed]) ?? "This page couldn't be added."
           }`,
         );
@@ -322,19 +365,23 @@ export function NewKnowledgePage() {
   const meta = source && source !== "article" ? SOURCE_META[source] : null;
   const tip = source && source !== "article" ? TIPS[source] : null;
 
+  // With no storage left nothing can be added, so the button is off.
+  const storage = stats?.vector_storage;
+  const isStorageFull = storage ? storage.total >= storage.limit : false;
   const primaryLabel =
     source === "url"
       ? `Add ${plural(readyCount, "page")}`
       : source === "file"
         ? `Add ${plural(readyCount, "document")}`
         : `Add ${plural(readyCount, "question")}`;
-  const footerMessage =
-    source === "url"
+  const footerMessage = isStorageFull
+    ? "Your storage is full. Free up space or upgrade your plan to add more."
+    : source === "url"
       ? `${plural(readyCount, "page")} selected${
           alreadyAdded > 0 ? ` · ${alreadyAdded} already in your knowledge` : ""
         }`
       : source === "file"
-        ? `${plural(files.length, "file")} ready`
+        ? `${plural(documents.length, "file")} ready`
         : `${plural(completeFaqs.length, "question")} ready${
             faqRows.length > completeFaqs.length && !hasIncompleteFaq
               ? " · the empty one is skipped"
@@ -348,6 +395,7 @@ export function NewKnowledgePage() {
           variant="ghost"
           size="sm"
           className="-ml-2 w-fit"
+          disabled={isSubmitting}
           onClick={goToLibrary}
         >
           <IconArrowLeft className="size-4" />
@@ -364,6 +412,8 @@ export function NewKnowledgePage() {
       </div>
 
       <AddKnowledgeStepper step={step} />
+
+      <KnowledgeStorageNotice storage={stats?.vector_storage ?? null} />
 
       {banner && (
         <div
@@ -402,6 +452,7 @@ export function NewKnowledgePage() {
             title={meta.title}
             icon={meta.icon}
             tone={meta.tone}
+            changeSourceDisabled={isSubmitting}
             onChangeSource={() => {
               resetContent();
               setStep("source");
@@ -420,26 +471,37 @@ export function NewKnowledgePage() {
             {source === "url" && (
               <WebsiteContent
                 storeCode={storeCode}
-                defaultUrl={storeUrl}
+                storeUrl={storeUrl}
                 selectedPageUrls={selectedPageUrls}
-                onSelectedPageUrlsChange={setSelectedPageUrls}
-                linkRows={linkRows}
-                onLinkRowsChange={setLinkRows}
-                pageCap={WEBSITE_URL_CAP}
+                onSelectedPageUrlsChange={(next) => {
+                  setSelectedPageUrls(next);
+                  if (bannerUrl && !next.includes(bannerUrl)) {
+                    setBanner(null);
+                    setBannerUrl(null);
+                  }
+                }}
+                pageCategories={pageCategories}
+                onPageCategoriesChange={setPageCategories}
+                categoryOptions={categoryOptions}
+                categoriesLoading={categoriesLoading}
+                siteCap={KNOWLEDGE_WEBSITE_URL_CAP}
+                pageCap={KNOWLEDGE_SPECIFIC_PAGE_CAP}
                 error={
                   showErrors && readyCount === 0
-                    ? "Select at least one page, or add a link"
+                    ? "Enter a website to scan, or the page links to add, then select the pages"
                     : undefined
                 }
               />
             )}
             {source === "file" && (
               <DocumentsContent
-                files={files}
-                onFilesChange={setFiles}
+                documents={documents}
+                onDocumentsChange={setDocuments}
+                categoryOptions={categoryOptions}
+                categoriesLoading={categoriesLoading}
                 serverErrors={serverErrors}
                 error={
-                  showErrors && files.length === 0
+                  showErrors && documents.length === 0
                     ? "Select at least one file"
                     : undefined
                 }
@@ -449,9 +511,13 @@ export function NewKnowledgePage() {
               <FaqContent
                 rows={faqRows}
                 onRowsChange={setFaqRows}
+                categories={faqCategories}
+                onCategoriesChange={setFaqCategories}
+                categoryOptions={categoryOptions}
+                categoriesLoading={categoriesLoading}
                 showErrors={showErrors}
                 serverErrors={serverErrors}
-                completeRows={completeFaqs}
+                onServerErrorsChange={setServerErrors}
                 error={
                   showErrors && completeFaqs.length === 0 && !hasIncompleteFaq
                     ? "Add at least one question and answer"
@@ -462,7 +528,12 @@ export function NewKnowledgePage() {
           </ContentLayout>
 
           <StepFooter message={footerMessage}>
-            <Button type="button" variant="ghost" onClick={goToLibrary}>
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={isSubmitting}
+              onClick={goToLibrary}
+            >
               Cancel
             </Button>
             <Button
@@ -479,7 +550,7 @@ export function NewKnowledgePage() {
             <PrimaryAction
               type="button"
               loading={isSubmitting}
-              disabled={readyCount === 0}
+              disabled={readyCount === 0 || isStorageFull}
               onClick={() => void handleSubmit()}
             >
               {primaryLabel}
@@ -494,6 +565,16 @@ export function NewKnowledgePage() {
           <Typography variant="h4" as="h2">
             {added.label} added
           </Typography>
+          {added.sent > added.count && (
+            <p
+              role="status"
+              className={`rounded-lg border px-3 py-2 text-sm ${BADGE_TONE_STYLES.warning}`}
+            >
+              {added.sent - added.count} of {added.sent} weren&apos;t added
+              because they would go over your storage limit. Free up space or
+              upgrade your plan, then add them again.
+            </p>
+          )}
           <Typography variant="muted">
             {source === "faq"
               ? "Your assistant can use them straight away."
@@ -513,179 +594,257 @@ export function NewKnowledgePage() {
   );
 }
 
-/** The website step: pages found by scanning the site, plus links typed in. */
+/** How long to wait after typing stops before reading the field. */
+
+/**
+ * The website step, one field for everything. A site's own address is scanned
+ * (on "Find pages") and its pages listed to choose from. Links to specific
+ * pages are checked on "Next" (each must be a page that can be read) and
+ * listed the same way, all ticked to start with. Nothing is scanned or checked
+ * until that button is pressed. Either way, every ticked page has its own
+ * categories field. The two can't be mixed.
+ */
 function WebsiteContent({
   storeCode,
-  defaultUrl,
+  storeUrl,
   selectedPageUrls,
   onSelectedPageUrlsChange,
-  linkRows,
-  onLinkRowsChange,
+  pageCategories,
+  onPageCategoriesChange,
+  categoryOptions,
+  categoriesLoading,
+  siteCap,
   pageCap,
   error,
 }: {
   storeCode: string | null | undefined;
-  defaultUrl: string;
+  /** The store's own site, offered as a shortcut. */
+  storeUrl: string;
   selectedPageUrls: string[];
   onSelectedPageUrlsChange: (next: string[]) => void;
-  linkRows: LinkRow[];
-  onLinkRowsChange: (next: LinkRow[]) => void;
+  /** The categories of each ticked page, by its address. */
+  pageCategories: Record<string, number[]>;
+  onPageCategoriesChange: (next: Record<string, number[]>) => void;
+  categoryOptions: KnowledgeCategoryOption[];
+  categoriesLoading: boolean;
+  /** Most pages that can be ticked from a site scan. */
+  siteCap: number;
+  /** Most specific pages that can be listed in the field. */
   pageCap: number;
   error?: string;
 }) {
-  const [linkInput, setLinkInput] = useState("");
-  const [linkError, setLinkError] = useState<string | null>(null);
+  const [text, setText] = useState("");
+  // Set once the button was pressed for what the field holds (`key`: the site,
+  // or the pages joined); `run` makes it a fresh scan.
+  const [scan, setScan] = useState<{
+    kind: "site" | "pages";
+    key: string;
+    run: number;
+  } | null>(null);
 
-  const addLink = () => {
-    const value = linkInput.trim();
-    if (!value) return;
-    if (!isValidUrl(value)) {
-      setLinkError(
-        "Enter a valid page address, e.g. https://store.com/pages/faq",
-      );
-      return;
-    }
-    const url = normalizeUrl(value);
-    if (
-      linkRows.some((row) => normalizeUrl(row.url) === url) ||
-      selectedPageUrls.includes(url)
-    ) {
-      setLinkError("This page is already in your list");
-      return;
-    }
-    if (selectedPageUrls.length + linkRows.length >= pageCap) {
-      setLinkError(`You can add up to ${pageCap} pages at a time`);
-      return;
-    }
-    setLinkError(null);
-    setLinkInput("");
-    onLinkRowsChange([...linkRows, { localId: randomId(), url, pageType: "" }]);
-  };
+  // What the field holds is read once typing pauses, not on every key.
+  const settledText = useDebounce(text, KNOWLEDGE_URL_INPUT_DELAY_MS);
+  const parsed = useMemo(() => parseUrlList(settledText), [settledText]);
+  const problem = urlListProblem(parsed, pageCap);
+  const kind: "none" | "site" | "pages" =
+    problem || parsed.urls.length === 0
+      ? "none"
+      : parsed.urls.length === 1 && isSiteAddress(parsed.urls[0])
+        ? "site"
+        : "pages";
+  // What the button would scan or check, once the field holds something valid.
+  const scanKey = kind === "none" ? null : parsed.urls.join("\n");
+
+  // Only pages from the current kind of input can stay ticked.
+  useEffect(() => {
+    if (kind === "none") onSelectedPageUrlsChange([]);
+    // Only a change in what the field holds matters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kind]);
+
+  const typing = text !== settledText;
+  // Nothing is scanned or checked until the button is pressed.
+  const started = Boolean(
+    scan && !typing && scan.kind === kind && scan.key === scanKey,
+  );
+
+  // The categories field at the right of each ticked page.
+  const renderCategories = (page: DiscoveredPage) => (
+    <KnowledgeCategoriesField
+      compact
+      options={categoryOptions}
+      isLoading={categoriesLoading}
+      value={pageCategories[page.url] ?? []}
+      onChange={(categories) =>
+        onPageCategoriesChange({ ...pageCategories, [page.url]: categories })
+      }
+    />
+  );
 
   return (
     <div className="flex flex-col gap-5">
-      <WebsiteUrlDiscovery
-        storeCode={storeCode}
-        defaultUrl={defaultUrl}
-        selectedUrls={selectedPageUrls}
-        onSelectedUrlsChange={onSelectedPageUrlsChange}
-        maxSelection={pageCap}
-        error={error}
-      />
-
-      <section className="flex flex-col gap-2 border-t pt-4">
-        <h3 className="text-sm font-semibold">Add a link</h3>
-        <div className="flex gap-2">
-          <Input
-            placeholder="https://store.com/pages/…"
-            autoComplete="off"
-            aria-label="Page address"
-            value={linkInput}
-            onChange={(event) => setLinkInput(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                addLink();
-              }
-            }}
-            aria-invalid={Boolean(linkError)}
-          />
-          <Button type="button" variant="outline" onClick={addLink}>
-            Add
-          </Button>
-        </div>
-        {linkError && <p className="text-xs text-destructive">{linkError}</p>}
-
-        {linkRows.length > 0 && (
-          <ul className="flex flex-col divide-y rounded-lg border">
-            {linkRows.map((row) => (
-              <li
-                key={row.localId}
-                className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2.5"
+      <section className="flex flex-col gap-2">
+        <label htmlFor="website-address" className="text-sm font-semibold">
+          Website or page links
+        </label>
+        <Textarea
+          id="website-address"
+          className="max-h-48 min-h-16 resize-y"
+          placeholder={`${storeUrl || "https://store.com"} to scan a website\nor paste up to ${pageCap} page links, one per line`}
+          autoComplete="off"
+          spellCheck={false}
+          value={text}
+          // Addresses never hold a space: typing one does nothing, and spaces
+          // in pasted text start a new line. Several addresses are one per line.
+          onKeyDown={(event) => {
+            if (event.key === " ") event.preventDefault();
+          }}
+          onPaste={(event) => {
+            event.preventDefault();
+            const field = event.currentTarget;
+            const pasted = spacesToNewLines(
+              event.clipboardData.getData("text"),
+            );
+            setText(
+              stripUrlSpaces(
+                field.value.slice(0, field.selectionStart) +
+                  pasted +
+                  field.value.slice(field.selectionEnd),
+              ),
+            );
+            setScan(null);
+          }}
+          onChange={(event) => {
+            setText(stripUrlSpaces(event.target.value));
+            // A scan belongs to the address it was run for.
+            setScan(null);
+          }}
+          aria-invalid={Boolean(problem) && !typing}
+        />
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="min-w-0 flex-1 basis-60 text-xs text-muted-foreground">
+            A website&apos;s own address (https://store.com) is scanned and you
+            pick from the pages found. Links to specific pages (up to {pageCap})
+            are checked when you press Next, then listed for you to pick from.
+          </p>
+          <div className="flex items-center gap-1">
+            {storeUrl && !text.trim() && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-primary"
+                onClick={() => setText(storeUrl)}
               >
-                <p
-                  className="min-w-0 flex-1 basis-48 truncate text-sm"
-                  title={row.url}
-                >
-                  {row.url}
-                </p>
-                <Select
-                  value={row.pageType || undefined}
-                  onValueChange={(pageType) =>
-                    onLinkRowsChange(
-                      linkRows.map((entry) =>
-                        entry.localId === row.localId
-                          ? { ...entry, pageType }
-                          : entry,
-                      ),
-                    )
-                  }
-                >
-                  <SelectTrigger size="sm" className="w-44">
-                    <SelectValue placeholder="Page type (optional)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {LINK_TYPE_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label={`Remove ${row.url}`}
-                  onClick={() =>
-                    onLinkRowsChange(
-                      linkRows.filter((entry) => entry.localId !== row.localId),
-                    )
-                  }
-                >
-                  <IconX className="size-4" />
-                </Button>
-              </li>
-            ))}
-          </ul>
+                Use my store
+              </Button>
+            )}
+            {/* Once it has started, its own list takes over. */}
+            {kind !== "none" && scanKey && !typing && !started && (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!storeCode}
+                onClick={() => setScan({ kind, key: scanKey, run: Date.now() })}
+              >
+                {kind === "site" ? (
+                  <>
+                    <IconWorldSearch className="size-4" />
+                    Find pages
+                  </>
+                ) : (
+                  <>
+                    Next
+                    <IconArrowRight className="size-4" />
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
+        </div>
+        {problem && !typing && (
+          <p role="alert" className="text-xs text-destructive">
+            {problem}
+          </p>
         )}
-        <p className="text-xs text-muted-foreground">
-          One page per link. If a page changes later, use &quot;Read the page
-          again&quot; in Knowledge.
-        </p>
       </section>
+
+      {started && scan && (
+        <WebsiteUrlDiscovery
+          key={scan.run}
+          storeCode={storeCode}
+          {...(scan.kind === "site"
+            ? { websiteUrl: parsed.urls[0] }
+            : { pageUrls: parsed.urls })}
+          selectedUrls={selectedPageUrls}
+          onSelectedUrlsChange={onSelectedPageUrlsChange}
+          maxSelection={scan.kind === "site" ? siteCap : pageCap}
+          renderSelectedExtra={renderCategories}
+        />
+      )}
+
+      {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   );
 }
 
-/** The documents step: the drop area and the files chosen so far. */
+/** The documents step: the drop area and the files chosen so far, each with
+ * the categories it is filed under. */
 function DocumentsContent({
-  files,
-  onFilesChange,
+  documents,
+  onDocumentsChange,
+  categoryOptions,
+  categoriesLoading,
   serverErrors,
   error,
 }: {
-  files: File[];
-  onFilesChange: (next: File[]) => void;
-  serverErrors: Record<string, unknown>[] | null;
+  documents: DocumentRow[];
+  onDocumentsChange: (next: DocumentRow[]) => void;
+  categoryOptions: KnowledgeCategoryOption[];
+  categoriesLoading: boolean;
+  serverErrors: ServerErrors;
   error?: string;
 }) {
   return (
     <div className="flex flex-col gap-2">
       <MultiFileUploadDropzone
-        files={files}
+        files={documents.map((row) => row.file)}
         onFilesSelected={(selected) =>
-          onFilesChange([...files, ...selected].slice(0, FILE_CAP))
+          onDocumentsChange(
+            [
+              ...documents,
+              ...selected.map((file) => ({
+                localId: randomId(),
+                file,
+                categories: [],
+              })),
+            ].slice(0, KNOWLEDGE_FILE_CAP),
+          )
         }
         onRemoveFile={(index) =>
-          onFilesChange(files.filter((_, i) => i !== index))
+          onDocumentsChange(documents.filter((_, i) => i !== index))
         }
-        errors={files.map(
-          (_, index) =>
-            (serverErrors?.[index] && firstErrorMessage(serverErrors[index])) ||
-            undefined,
+        renderFileExtra={(_, index) => (
+          <KnowledgeCategoriesField
+            compact
+            options={categoryOptions}
+            isLoading={categoriesLoading}
+            value={documents[index]?.categories ?? []}
+            onChange={(categories) =>
+              onDocumentsChange(
+                documents.map((row, i) =>
+                  i === index ? { ...row, categories } : row,
+                ),
+              )
+            }
+          />
         )}
-        maxFiles={FILE_CAP}
+        errors={documents.map((row) =>
+          serverErrors[row.localId]
+            ? firstErrorMessage(serverErrors[row.localId])
+            : undefined,
+        )}
+        maxFiles={KNOWLEDGE_FILE_CAP}
         maxFileSizeBytes={KNOWLEDGE_FILE_MAX_SIZE_BYTES}
       />
       {error && <p className="text-xs text-destructive">{error}</p>}
@@ -697,33 +856,53 @@ function DocumentsContent({
 function FaqContent({
   rows,
   onRowsChange,
+  categories,
+  onCategoriesChange,
+  categoryOptions,
+  categoriesLoading,
   showErrors,
   serverErrors,
-  completeRows,
+  onServerErrorsChange,
   error,
 }: {
   rows: FaqRow[];
   onRowsChange: (next: FaqRow[]) => void;
+  /** The categories every question added here is filed under. */
+  categories: number[];
+  onCategoriesChange: (next: number[]) => void;
+  categoryOptions: KnowledgeCategoryOption[];
+  categoriesLoading: boolean;
   showErrors: boolean;
-  serverErrors: Record<string, unknown>[] | null;
-  /** The rows that are filled in, in the order they are sent. */
-  completeRows: FaqRow[];
+  serverErrors: ServerErrors;
+  onServerErrorsChange: (next: ServerErrors) => void;
   error?: string;
 }) {
-  const update = (localId: string, patch: Partial<FaqRow>) =>
+  const update = (localId: string, patch: Partial<FaqRow>) => {
     onRowsChange(
       rows.map((row) => (row.localId === localId ? { ...row, ...patch } : row)),
     );
+    // The row changed, so what the server said about it no longer applies.
+    if (serverErrors[localId]) {
+      onServerErrorsChange(
+        Object.fromEntries(
+          Object.entries(serverErrors).filter(([id]) => id !== localId),
+        ),
+      );
+    }
+  };
 
   return (
     <div className="flex flex-col gap-4">
+      <KnowledgeCategoriesField
+        options={categoryOptions}
+        isLoading={categoriesLoading}
+        value={categories}
+        onChange={onCategoriesChange}
+        hint="Applies to all the questions below."
+      />
       {rows.map((row, index) => {
         const isFilled = Boolean(row.question.trim() || row.answer.trim());
-        // The server only saw the complete rows, so map its errors back.
-        const sentIndex = completeRows.findIndex(
-          (entry) => entry.localId === row.localId,
-        );
-        const serverError = sentIndex >= 0 ? serverErrors?.[sentIndex] : null;
+        const serverError = serverErrors[row.localId] ?? null;
         const questionError =
           (showErrors && isFilled && !row.question.trim()
             ? "Question is required"
@@ -823,7 +1002,7 @@ function FaqContent({
         variant="outline"
         size="sm"
         className="w-fit"
-        disabled={rows.length >= FAQ_CAP}
+        disabled={rows.length >= KNOWLEDGE_FAQ_CAP}
         onClick={() => onRowsChange([...rows, emptyFaqRow()])}
       >
         <IconPlus className="size-4" />

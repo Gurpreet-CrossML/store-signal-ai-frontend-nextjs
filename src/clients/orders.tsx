@@ -28,7 +28,7 @@ import {
   type OrderOrdering,
 } from "@/redux/api-slice/order-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { ACTIVE_FILTER_STYLE, DEFAULT_ORDER_ORDERING } from "@/lib/config";
+import { ACTIVE_FILTER_STYLE } from "@/lib/config";
 import { cn } from "@/lib/utils";
 
 const PER_PAGE = 25;
@@ -68,8 +68,14 @@ export default function Orders() {
   );
 
   const [page, setPage] = useState(1);
-  const [searchInput, setSearchInput] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  // Arriving from a customer's page fills the search with their email, so
+  // the list opens scoped to that shopper and the filter shows in the box.
+  const [searchInput, setSearchInput] = useState(
+    () => searchParams?.get("search")?.trim() ?? "",
+  );
+  const [debouncedSearch, setDebouncedSearch] = useState(
+    () => searchParams?.get("search")?.trim() ?? "",
+  );
   const [ordering, setOrdering] = useState<OrderOrdering>("-created_at");
 
   const [draftFilters, setDraftFilters] =
@@ -178,10 +184,8 @@ export default function Orders() {
             }}
           >
             <SelectTrigger
-              className={cn(
-                "w-44",
-                ordering !== DEFAULT_ORDER_ORDERING && ACTIVE_FILTER_STYLE,
-              )}
+              // A sort order is always applied, including the default.
+              className={cn("w-44", ACTIVE_FILTER_STYLE)}
               aria-label="Sort orders"
             >
               <SelectValue />

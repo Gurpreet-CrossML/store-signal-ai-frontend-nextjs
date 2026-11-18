@@ -1,18 +1,14 @@
-import { Suspense } from "react";
-import KnowledgeLibraryTabContent from "@/components/custom/knowledge/knowledge-library-tab-content";
+import KnowledgeOverview from "@/components/custom/knowledge/knowledge-overview";
 
 export const metadata = {
   title: "Knowledge",
 };
 
-// Knowledge is a single screen, so the main sidebar's "Knowledge" entry opens
-// the library directly — no area menu or sub-sidebar in between. The library
-// renders its own heading, because its actions depend on what it has loaded.
+// Knowledge is a single area, so the main sidebar's "Knowledge" entry opens
+// it directly — no area menu or sub-sidebar in between. It shows the storage
+// used and the knowledge categories; each category opens its own list under
+// /knowledge/categories/[slug]. The screen renders its own heading, because
+// its actions depend on what it has loaded.
 export default function Page() {
-  return (
-    // The library reads useSearchParams; prerender needs a Suspense boundary.
-    <Suspense fallback={null}>
-      <KnowledgeLibraryTabContent />
-    </Suspense>
-  );
+  return <KnowledgeOverview />;
 }

@@ -63,6 +63,8 @@ import {
   type WhatsAppTemplate,
 } from "@/redux/api-slice/social-ai-slice";
 import { toast } from "sonner";
+import { ACTIVE_FILTER_STYLE } from "@/lib/config";
+import { cn } from "@/lib/utils";
 
 const ALL = "all";
 
@@ -113,9 +115,7 @@ export default function WhatsAppTemplates() {
   );
 
   const [search, setSearch] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState(ALL);
   const [statusFilter, setStatusFilter] = useState(ALL);
-  const [languageFilter, setLanguageFilter] = useState(ALL);
   const [previewTemplate, setPreviewTemplate] =
     useState<WhatsAppTemplate | null>(null);
   const [pagination, setPagination] = useState<PaginationState>({
@@ -131,8 +131,8 @@ export default function WhatsAppTemplates() {
   const [resubmitName, setResubmitName] = useState("");
   const [resubmitting, setResubmitting] = useState(false);
 
-  // Filter option lists come from what's actually in the data, so the menus
-  // never offer a value that would just filter the table to nothing.
+  // The categories feed the stat card; the statuses feed the filter menu,
+  // taken from the data so it never offers a value that filters to nothing.
   const categories = useMemo(
     () => Array.from(new Set(templates.map((t) => t.category))).sort(),
     [templates],
@@ -141,24 +141,16 @@ export default function WhatsAppTemplates() {
     () => Array.from(new Set(templates.map((t) => t.status))).sort(),
     [templates],
   );
-  const languages = useMemo(
-    () => Array.from(new Set(templates.map((t) => t.language))).sort(),
-    [templates],
-  );
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
     return templates.filter((template) => {
-      if (categoryFilter !== ALL && template.category !== categoryFilter)
-        return false;
       if (statusFilter !== ALL && template.status !== statusFilter)
-        return false;
-      if (languageFilter !== ALL && template.language !== languageFilter)
         return false;
       if (query && !template.name.toLowerCase().includes(query)) return false;
       return true;
     });
-  }, [templates, search, categoryFilter, statusFilter, languageFilter]);
+  }, [templates, search, statusFilter]);
 
   // The shared DataTable uses manualPagination — it renders exactly the rows
   // it's handed — so we slice the client-side-filtered list to the current
@@ -394,58 +386,28 @@ export default function WhatsAppTemplates() {
             className="w-full sm:w-64"
           />
           <Select
-            value={categoryFilter}
-            onValueChange={(value) => {
-              setCategoryFilter(value);
-              resetToFirstPage();
-            }}
-          >
-            <SelectTrigger className="w-[160px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>All Categories</SelectItem>
-              {categories.map((category) => (
-                <SelectItem key={category} value={category}>
-                  {titleCase(category)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select
             value={statusFilter}
             onValueChange={(value) => {
               setStatusFilter(value);
               resetToFirstPage();
             }}
           >
-            <SelectTrigger className="w-[160px]">
+            <SelectTrigger
+              className={cn(
+                "w-[160px]",
+                statusFilter !== ALL && ACTIVE_FILTER_STYLE,
+              )}
+              aria-label="Filter by status"
+            >
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            {/* popper: the default "item-aligned" mode lays the selected
+                option over the trigger, hiding it while the menu is open. */}
+            <SelectContent position="popper">
               <SelectItem value={ALL}>All Status</SelectItem>
               {statuses.map((status) => (
                 <SelectItem key={status} value={status}>
                   {titleCase(status.replace(/_/g, " "))}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select
-            value={languageFilter}
-            onValueChange={(value) => {
-              setLanguageFilter(value);
-              resetToFirstPage();
-            }}
-          >
-            <SelectTrigger className="w-[160px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>All Languages</SelectItem>
-              {languages.map((language) => (
-                <SelectItem key={language} value={language}>
-                  {language}
                 </SelectItem>
               ))}
             </SelectContent>

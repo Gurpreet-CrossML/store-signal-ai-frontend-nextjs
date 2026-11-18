@@ -102,7 +102,11 @@ import {
 import { LoadingState } from "@/components/custom/loading-state";
 import { SearchInput } from "@/components/custom/search-input";
 
-import { DEFAULT_HELPDESK_QUEUE, ENDPOINTS } from "@/lib/config";
+import {
+  ACTIVE_FILTER_STYLE,
+  DEFAULT_HELPDESK_QUEUE,
+  ENDPOINTS,
+} from "@/lib/config";
 import {
   SUPPORT_ATTACHMENT_ALLOWED_EXTENSIONS,
   prepareSupportAttachments,
@@ -609,7 +613,10 @@ function TicketListPanel({
         <Button
           variant="outline"
           size="icon"
-          className="relative"
+          className={cn(
+            "relative",
+            activeFilterCount > 0 && ACTIVE_FILTER_STYLE,
+          )}
           aria-label="Filter Tickets"
         >
           <IconFilter className="size-4" />
@@ -1558,6 +1565,8 @@ function ConversationPanel({
                       {chatHref ? (
                         <Link
                           href={chatHref}
+                          target="_blank"
+                          rel="noreferrer"
                           className="hidden shrink-0 text-xs font-medium text-primary underline md:inline"
                         >
                           View chat
@@ -1568,6 +1577,8 @@ function ConversationPanel({
                     {chatHref ? (
                       <Link
                         href={chatHref}
+                        target="_blank"
+                        rel="noreferrer"
                         className="mt-1 inline-block text-sm font-medium text-primary underline md:hidden"
                       >
                         View chat
@@ -1910,6 +1921,18 @@ export default function HelpDesk() {
     },
     [dispatch],
   );
+  // A ticket linked with its status (`?status=`) lands on that tab. The list
+  // waits for the switch, so its first load is on that tab and the linked
+  // ticket stays open.
+  const pendingQueueRef = useRef(
+    queues.find((queue) => queue.key === searchParams?.get("status"))?.key ??
+      null,
+  );
+  useEffect(() => {
+    if (pendingQueueRef.current) {
+      dispatch(setHelpdeskQueue(pendingQueueRef.current));
+    }
+  }, [dispatch]);
   const [supportTikcetMessages, setSupportTicketMessages] = useState<
     SupportTicketMessage[]
   >([]);
@@ -1972,8 +1995,14 @@ export default function HelpDesk() {
       : [];
 
   // Support Ticket Search Filters
-  const [searchValue, setSearchValue] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  // One customer's tickets, from "View all" in the customer panel: their
+  // email arrives as `?search=` and fills the search box.
+  const [searchValue, setSearchValue] = useState(
+    () => searchParams?.get("search")?.trim() ?? "",
+  );
+  const [debouncedSearch, setDebouncedSearch] = useState(
+    () => searchParams?.get("search")?.trim() ?? "",
+  );
   const [tagPage, setTagPage] = useState(1);
   const [tagSearchInput, setTagSearchInput] = useState("");
   const [tagSearch, setTagSearch] = useState("");
@@ -2455,6 +2484,10 @@ export default function HelpDesk() {
 
   useEffect(() => {
     if (!storeCode) return;
+    if (pendingQueueRef.current) {
+      if (pendingQueueRef.current !== activeQueue) return;
+      pendingQueueRef.current = null;
+    }
 
     const filters: SupportTicketFilters = {
       status: listStatuses,
@@ -2471,9 +2504,10 @@ export default function HelpDesk() {
 
     // Did this fetch come from changing what the list is filtered by? The
     // first fetch is not one: it must leave a deep-linked ticket alone.
+    // The search is left out on purpose: searching should only filter the
+    // list, and must not replace the ticket that is currently open.
     const filterKey = JSON.stringify([
       activeFilter,
-      debouncedSearch,
       appliedFilters,
       listStatuses,
     ]);
@@ -2563,6 +2597,24 @@ export default function HelpDesk() {
 
     return () => window.clearTimeout(timeout);
   }, [searchValue, debouncedSearch]);
+
+  // Keep `?search=` in step with the search box, so a refresh or a shared
+  // link shows the same results. Skipped when it already matches, so it
+  // cannot loop.
+  useEffect(() => {
+    if (!pathname) return;
+
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
+    if ((params.get("search") ?? "") === debouncedSearch) return;
+
+    if (debouncedSearch) params.set("search", debouncedSearch);
+    else params.delete("search");
+
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, {
+      scroll: false,
+    });
+  }, [debouncedSearch, pathname, router, searchParams]);
 
   // Debounced like the ticket search above, and back to the first page: the
   // tags already loaded say nothing about which ones match.
@@ -2915,6 +2967,11 @@ export default function HelpDesk() {
           };
         });
 
+        // The change is now part of the ticket's history.
+        if (currentActiveSupportTicketIdRef.current) {
+          loadActivity(currentActiveSupportTicketIdRef.current);
+        }
+
         closeTagPicker();
 
         toast.success(`Tag assigned: ${assignedTag.name}`);
@@ -2962,6 +3019,11 @@ export default function HelpDesk() {
               }
             : current,
         );
+
+        // The change is now part of the ticket's history.
+        if (currentActiveSupportTicketIdRef.current) {
+          loadActivity(currentActiveSupportTicketIdRef.current);
+        }
 
         closeTagPicker();
 
@@ -3445,6 +3507,10 @@ export default function HelpDesk() {
 
       if (updatedPriority) {
         applyTicketRowUpdate(ticketId, { priority: updatedPriority.priority });
+        // The change is now part of the ticket's history.
+        if (currentActiveSupportTicketIdRef.current === ticketId) {
+          loadActivity(ticketId);
+        }
 
         toast.success("Ticket priority", {
           description: `Ticket priority updated to ${updatedPriority.priority}.`,
@@ -3469,6 +3535,10 @@ export default function HelpDesk() {
 
       if (updated) {
         applyTicketRowUpdate(ticketId, updated);
+        // The change is now part of the ticket's history.
+        if (currentActiveSupportTicketIdRef.current === ticketId) {
+          loadActivity(ticketId);
+        }
 
         toast.success("Ticket updated", {
           description: "Ticket language and sentiment saved.",

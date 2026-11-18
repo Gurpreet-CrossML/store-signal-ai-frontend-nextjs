@@ -270,9 +270,6 @@ export default function ThreadFilteration({
           to={filters.to}
           onRangeChange={(from, to) => onChange({ ...filters, from, to })}
           disabled={{ after: new Date() }}
-          className={
-            filters.from || filters.to ? ACTIVE_FILTER_STYLE : undefined
-          }
         />
 
         <FilterSelect

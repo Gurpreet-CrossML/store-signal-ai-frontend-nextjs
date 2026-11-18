@@ -1119,14 +1119,26 @@ export const SupportTicketPriorityUpdate = createAsyncThunk(
   },
 );
 
-/** One line of a ticket's history: its creation, a status change or an assignment. */
+/** A change to a ticket's priority, language, sentiment or tags. */
+export const SUPPORT_TICKET_CHANGE_TYPES = {
+  PRIORITY_CHANGED: "priority_changed",
+  LANGUAGE_CHANGED: "language_changed",
+  SENTIMENT_CHANGED: "sentiment_changed",
+  TAG_ADDED: "tag_added",
+  TAG_REMOVED: "tag_removed",
+} as const;
+
+export type SupportTicketChangeType =
+  (typeof SUPPORT_TICKET_CHANGE_TYPES)[keyof typeof SUPPORT_TICKET_CHANGE_TYPES];
+
+/** One line of a ticket's history: its creation, a status change, an assignment or another change. */
 export type SupportTicketActivityItem = {
-  type: "created" | "status_changed" | "assigned";
+  type: "created" | "status_changed" | "assigned" | SupportTicketChangeType;
   /** Who did it, or null when the system did (creation) or the name is unknown. */
   actor: string | null;
-  /** Previous status or agent; for "created" always null. */
+  /** Previous status, agent or value; for "created" and "tag_added" always null. */
   from_value: string | null;
-  /** New status or agent; for "created" who opened it (ai, agent, rule). */
+  /** New status, agent or value; for "created" who opened it (ai, agent, rule); for "tag_removed" null. */
   to_value: string | null;
   created_at: string;
 };

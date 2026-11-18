@@ -116,7 +116,7 @@ import { useSession } from "next-auth/react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { toast } from "sonner";
-import { ENDPOINTS } from "@/lib/config";
+import { ACTIVE_FILTER_STYLE, ENDPOINTS } from "@/lib/config";
 import { can } from "@/lib/access-rules";
 import type { ThreadCloseReason } from "@/lib/thread-options";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
@@ -2597,7 +2597,11 @@ export default function Support() {
                   <Button
                     variant="outline"
                     size="icon-sm"
-                    className="relative shrink-0"
+                    className={cn(
+                      "relative shrink-0",
+                      hasAppliedThreadFilters(appliedThreadFilters) &&
+                        ACTIVE_FILTER_STYLE,
+                    )}
                     aria-label="Filter conversations"
                   >
                     <IconFilter className="size-4" />

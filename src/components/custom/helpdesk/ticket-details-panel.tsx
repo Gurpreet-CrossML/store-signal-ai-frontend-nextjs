@@ -14,6 +14,7 @@ import {
   IconCopy,
   IconMail,
   IconMapPin,
+  IconPencil,
   IconPhone,
   IconPlus,
   IconRefresh,
@@ -61,8 +62,10 @@ import {
   CHANNEL_META,
   DEFAULT_TICKET_LANGUAGE,
   DEFAULT_TICKET_SENTIMENT,
+  isTicketChange,
   SUPPORTED_LANGUAGES,
   TICKET_SENTIMENTS,
+  ticketChangeTitle,
   type TicketLanguage,
   type TicketSentiment,
 } from "@/lib/ticket-options";
@@ -77,6 +80,7 @@ import type {
   SupportTicketStatus,
   SupportTicketTagData,
 } from "@/redux/api-slice/support-ticket-slice";
+import { SUPPORT_TICKET_CHANGE_TYPES } from "@/redux/api-slice/support-ticket-slice";
 import type { StaffMember } from "@/redux/api-slice/tenancy-slice";
 import type {
   OrderData,
@@ -1146,14 +1150,20 @@ function TicketTab(props: TicketDetailsProps) {
   );
 
   const createdRow = (
-    <FieldRow label="Created" className={insetRow}>
-      <span className={cn("truncate", textClass)}>
-        {phone
-          ? `${formatShortDate(ticket.created_at)}, ${formatTicketTime(ticket.created_at)}`
-          : formatTicketDateTime(ticket.created_at)}
-        {creator ? ` by ${creator}` : ""}
-      </span>
-    </FieldRow>
+    <>
+      {creator ? (
+        <FieldRow label="Created by" className={insetRow}>
+          <span className={cn("truncate", textClass)}>{creator}</span>
+        </FieldRow>
+      ) : null}
+      <FieldRow label="Created at" className={insetRow}>
+        <span className={cn("truncate", textClass)}>
+          {phone
+            ? `${formatShortDate(ticket.created_at)}, ${formatTicketTime(ticket.created_at)}`
+            : formatTicketDateTime(ticket.created_at)}
+        </span>
+      </FieldRow>
+    </>
   );
 
   const tags = <TagsSection {...props} />;
@@ -1233,10 +1243,7 @@ function CustomerTab({
   otherTickets,
   otherTicketsLoading,
   onLinkCustomer,
-  onOpenTicket,
 }: TicketDetailsProps) {
-  const [allOrders, setAllOrders] = useState(false);
-  const [allTickets, setAllTickets] = useState(false);
   const orders = useMemo(() => customer?.orders ?? [], [customer?.orders]);
   const linked = findLinkedOrder(ticket.order_id, orders);
 
@@ -1277,20 +1284,12 @@ function CustomerTab({
     (sum, order) => sum + (Number(order.total_price) || 0),
     0,
   );
-  const allCustomerTickets = [{ status: ticket.status }, ...otherTickets];
-  const openTickets = allCustomerTickets.filter(
-    (item) => item.status === "open" || item.status === "reopen",
-  ).length;
   const otherOpen = otherTickets.filter(
     (item) => item.status === "open" || item.status === "reopen",
   ).length;
   const others = orders.filter((order) => order.id !== linked?.id);
-  const shownOrders = allOrders
-    ? others
-    : others.slice(0, VISIBLE_OTHER_ORDERS);
-  const shownTickets = allTickets
-    ? otherTickets
-    : otherTickets.slice(0, VISIBLE_OTHER_TICKETS);
+  const shownOrders = others.slice(0, VISIBLE_OTHER_ORDERS);
+  const shownTickets = otherTickets.slice(0, VISIBLE_OTHER_TICKETS);
   const isShopify = customer.admin_url?.startsWith(
     "https://admin.shopify.com/",
   );
@@ -1303,33 +1302,29 @@ function CustomerTab({
         <div className="flex items-start gap-3">
           <CustomerAvatar name={customerName} size="size-11" />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-base font-semibold">{customerName}</p>
+            {/* The name stands in for the old Shopify/Profile button: store
+                admin when there is one, else our own customer page, either
+                way in a new tab so the ticket stays open here. */}
+            <Link
+              href={customer.admin_url || `/crm/customers/${customer.id}`}
+              target="_blank"
+              rel="noreferrer"
+              className="flex max-w-full items-center gap-1 text-base font-semibold hover:underline"
+            >
+              <span className="truncate">{customerName}</span>
+              <IconArrowUpRight className="size-4 shrink-0 text-muted-foreground" />
+            </Link>
             <p className="text-xs text-muted-foreground">
               {platform} · {orders.length} order{orders.length === 1 ? "" : "s"}
             </p>
           </div>
-          <Button variant="outline" size="sm" asChild>
-            {customer.admin_url ? (
-              <a href={customer.admin_url} target="_blank" rel="noreferrer">
-                {isShopify ? "Shopify" : "Store admin"}
-                <IconArrowUpRight data-icon="inline-end" />
-              </a>
-            ) : (
-              <Link href={`/crm/customers/${customer.id}`}>
-                Profile
-                <IconArrowUpRight data-icon="inline-end" />
-              </Link>
-            )}
-          </Button>
         </div>
 
         <div className="mt-4 divide-y rounded-lg border text-sm">
-          <div className="flex items-center gap-3 px-3 py-2.5">
-            <IconMail className="size-4 shrink-0 text-muted-foreground" />
-            <span className="min-w-0 flex-1 truncate">
-              {customer.email || "No email on file"}
-            </span>
-            {customer.email ? (
+          {customer.email ? (
+            <div className="flex items-center gap-3 px-3 py-2.5">
+              <IconMail className="size-4 shrink-0 text-muted-foreground" />
+              <span className="min-w-0 flex-1 truncate">{customer.email}</span>
               <Button
                 variant="ghost"
                 size="icon-xs"
@@ -1341,20 +1336,20 @@ function CustomerTab({
               >
                 <IconCopy className="size-3.5" />
               </Button>
-            ) : null}
-          </div>
-          <div className="flex items-center gap-3 px-3 py-2.5">
-            <IconPhone className="size-4 shrink-0 text-muted-foreground" />
-            <span className={cn("truncate", !phone && "text-muted-foreground")}>
-              {phone || "No phone on file"}
-            </span>
-          </div>
-          <div className="flex items-center gap-3 px-3 py-2.5">
-            <IconMapPin className="size-4 shrink-0 text-muted-foreground" />
-            <span className={cn("truncate", !place && "text-muted-foreground")}>
-              {place || "No address on file"}
-            </span>
-          </div>
+            </div>
+          ) : null}
+          {phone ? (
+            <div className="flex items-center gap-3 px-3 py-2.5">
+              <IconPhone className="size-4 shrink-0 text-muted-foreground" />
+              <span className="truncate">{phone}</span>
+            </div>
+          ) : null}
+          {place ? (
+            <div className="flex items-center gap-3 px-3 py-2.5">
+              <IconMapPin className="size-4 shrink-0 text-muted-foreground" />
+              <span className="truncate">{place}</span>
+            </div>
+          ) : null}
           <div className="flex items-center gap-3 px-3 py-2.5">
             <IconClockHour4 className="size-4 shrink-0 text-muted-foreground" />
             <span className="truncate">
@@ -1375,18 +1370,12 @@ function CustomerTab({
         <div className="grid grid-cols-2 gap-2">
           {[
             { label: "Lifetime value", value: formatMoney(lifetime, currency) },
-            { label: "Orders", value: String(orders.length) },
             {
               label: "Avg. order value",
               value: formatMoney(
                 orders.length ? lifetime / orders.length : 0,
                 currency,
               ),
-            },
-            {
-              label: "Open tickets",
-              value: String(openTickets),
-              danger: openTickets > 0,
             },
           ].map((stat) => (
             <div
@@ -1396,12 +1385,7 @@ function CustomerTab({
               <p className="truncate text-xs text-muted-foreground">
                 {stat.label}
               </p>
-              <p
-                className={cn(
-                  "mt-0.5 truncate text-lg font-semibold",
-                  stat.danger && "text-red-600",
-                )}
-              >
+              <p className="mt-0.5 truncate text-lg font-semibold">
                 {stat.value}
               </p>
             </div>
@@ -1426,13 +1410,14 @@ function CustomerTab({
               />
             </Button>
             {others.length > VISIBLE_OTHER_ORDERS ? (
-              <button
-                type="button"
+              <Link
+                href={`/crm/orders?search=${encodeURIComponent(customer.email)}`}
+                target="_blank"
+                rel="noreferrer"
                 className="text-sm font-medium text-primary hover:underline"
-                onClick={() => setAllOrders((shown) => !shown)}
               >
-                {allOrders ? "Show less" : `View all ${orders.length}`}
-              </button>
+                View all {orders.length}
+              </Link>
             ) : null}
           </div>
         }
@@ -1467,11 +1452,12 @@ function CustomerTab({
         ) : (
           <div className="flex flex-col gap-2">
             {shownTickets.map((item) => (
-              <button
+              <Link
                 key={item.id}
-                type="button"
+                href={`/helpdesk?ticket=${item.id}&status=${item.status}`}
+                target="_blank"
+                rel="noreferrer"
                 className="flex items-center gap-2 rounded-lg border px-3 py-2.5 text-left hover:bg-muted/50"
-                onClick={() => onOpenTicket(item.id)}
               >
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-semibold">
@@ -1484,18 +1470,17 @@ function CustomerTab({
                   </span>
                 </span>
                 <IconChevronRight className="size-4 shrink-0 text-muted-foreground" />
-              </button>
+              </Link>
             ))}
             {otherTickets.length > VISIBLE_OTHER_TICKETS ? (
-              <button
-                type="button"
+              <Link
+                href={`/helpdesk?search=${encodeURIComponent(customer.email)}`}
+                target="_blank"
+                rel="noreferrer"
                 className="self-start text-sm font-medium text-primary hover:underline"
-                onClick={() => setAllTickets((shown) => !shown)}
               >
-                {allTickets
-                  ? "Show fewer tickets"
-                  : `View all tickets from ${firstName}`}
-              </button>
+                View all tickets from {firstName}
+              </Link>
             ) : null}
           </div>
         )}
@@ -1559,6 +1544,11 @@ function ActivityTab({
         const icon =
           item.type === "created" ? (
             <IconPlus className="size-3.5 text-primary" />
+          ) : item.type === SUPPORT_TICKET_CHANGE_TYPES.TAG_ADDED ||
+            item.type === SUPPORT_TICKET_CHANGE_TYPES.TAG_REMOVED ? (
+            <IconTag className="size-3.5 text-violet-600" />
+          ) : isTicketChange(item) ? (
+            <IconPencil className="size-3.5 text-amber-600" />
           ) : item.type === "assigned" ? (
             <IconArrowUpRight className="size-3.5 text-blue-600" />
           ) : (
@@ -1567,6 +1557,8 @@ function ActivityTab({
         const title =
           item.type === "created" ? (
             "Ticket created"
+          ) : isTicketChange(item) ? (
+            ticketChangeTitle(item)
           ) : item.type === "status_changed" ? (
             <span className="flex flex-wrap items-center gap-1.5">
               Status changed
