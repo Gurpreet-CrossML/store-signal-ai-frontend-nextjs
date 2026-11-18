@@ -12,6 +12,7 @@ import type {
   SupportTicketFilterCounts,
   SupportTicket,
   SupportTicketFilters,
+  SupportTicketStatus,
 } from "@/redux/api-slice/support-ticket-slice";
 
 /**
@@ -25,6 +26,15 @@ import type {
  * This file is the one place that turns a `filter` into a ticket list query
  * and into the panel's rows, so the two cannot drift apart.
  */
+
+/**
+ * The statuses the list's tabs show. The panel's counts always cover these,
+ * plus any resolved or closed ones picked in the filter.
+ */
+export const HELPDESK_ACTIVE_STATUSES: SupportTicketStatus[] = [
+  "open",
+  "reopen",
+];
 
 const FIXED_VIEWS: Record<
   string,
