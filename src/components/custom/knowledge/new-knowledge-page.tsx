@@ -7,6 +7,7 @@ import {
   IconArrowLeft,
   IconArrowRight,
   IconCircleCheck,
+  IconPencil,
   IconPlus,
   IconTrash,
   IconWorldSearch,
@@ -689,6 +690,25 @@ function WebsiteContent({
     scan && !typing && scan.kind === kind && scan.key === scanKey,
   );
 
+  // The field (a website, or page links) is locked while it is being scanned or
+  // checked and once its pages are listed, so the list can't be left showing
+  // another address's pages. Only "Change" unlocks it; a failed scan does too,
+  // so the address can be fixed.
+  const {
+    DiscoverWebsiteUrlsIsLoading: scanning,
+    DiscoverWebsiteUrlsIsSuccess: scanned,
+    DiscoverWebsiteUrlsIsError: scanFailed,
+  } = useAppSelector(
+    (state) => state.GetKnowledgeRagReducer.DiscoverWebsiteUrlsState,
+  );
+  const locked = started && !scanFailed;
+
+  const changeAddress = () => {
+    // The pages ticked came from the address being left.
+    onSelectedPageUrlsChange([]);
+    setScan(null);
+  };
+
   // The categories field at the right of each ticked page.
   const renderCategories = (page: DiscoveredPage) => (
     <KnowledgeCategoriesField
@@ -715,6 +735,7 @@ function WebsiteContent({
           autoComplete="off"
           spellCheck={false}
           value={text}
+          disabled={locked}
           // Addresses never hold a space: typing one does nothing, and spaces
           // in pasted text start a new line. Several addresses are one per line.
           onKeyDown={(event) => {
@@ -758,6 +779,12 @@ function WebsiteContent({
                 onClick={() => setText(storeUrl)}
               >
                 Use my store
+              </Button>
+            )}
+            {locked && scanned && !scanning && (
+              <Button type="button" variant="outline" onClick={changeAddress}>
+                <IconPencil className="size-4" />
+                Change
               </Button>
             )}
             {/* Once it has started, its own list takes over. */}

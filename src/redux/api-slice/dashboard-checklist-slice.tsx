@@ -8,6 +8,7 @@ export type ChecklistStepKey =
   | "connected"
   | "widget_live"
   | "brand_voice"
+  | "knowledge"
   | "social";
 
 export type ChecklistStep = {

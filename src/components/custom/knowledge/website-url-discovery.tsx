@@ -360,7 +360,8 @@ export function WebsiteUrlDiscovery({
 
       {!isLoading && hasScanned && !checkingPages && pages.length === 0 && (
         <p className="rounded-lg border border-dashed border-border/60 px-4 py-6 text-center text-sm text-muted-foreground">
-          No pages were found on this website.
+          No help or policy pages were found in this website&apos;s sitemap. You
+          can still add specific pages by pasting their links.
         </p>
       )}
 
