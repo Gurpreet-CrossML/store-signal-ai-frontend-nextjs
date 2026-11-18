@@ -60,6 +60,7 @@ import {
   clearWhatsAppTemplates,
   fetchWhatsAppTemplates,
   updateWhatsAppTemplate,
+  updateWhatsAppTemplateActive,
   type WhatsAppTemplate,
 } from "@/redux/api-slice/social-ai-slice";
 import { toast } from "sonner";
@@ -125,6 +126,10 @@ export default function WhatsAppTemplates() {
   const [templateToDelete, setTemplateToDelete] =
     useState<WhatsAppTemplate | null>(null);
   const [deleting, setDeleting] = useState(false);
+  // Switching off asks first; switching on doesn't.
+  const [templateToDeactivate, setTemplateToDeactivate] =
+    useState<WhatsAppTemplate | null>(null);
+  const [togglingId, setTogglingId] = useState<number | null>(null);
 
   const [templateToResubmit, setTemplateToResubmit] =
     useState<WhatsAppTemplate | null>(null);
@@ -268,6 +273,42 @@ export default function WhatsAppTemplates() {
     }
   };
 
+  const setTemplateActive = useCallback(
+    async (template: WhatsAppTemplate, isActive: boolean) => {
+      if (!storeCode || !account) return;
+      setTogglingId(template.id);
+      try {
+        await dispatch(
+          updateWhatsAppTemplateActive({
+            storeCode,
+            accountId: String(account.id),
+            templateId: template.id,
+            isActive,
+          }),
+        ).unwrap();
+        toast.success(isActive ? "Template turned on" : "Template turned off", {
+          description: isActive
+            ? `${template.display_name || template.name} will be sent to customers again.`
+            : `${template.display_name || template.name} won't be sent to customers.`,
+        });
+        setTemplateToDeactivate(null);
+      } catch {
+        // The thunk already surfaces the error toast.
+      } finally {
+        setTogglingId(null);
+      }
+    },
+    [storeCode, account, dispatch],
+  );
+
+  const handleToggleActive = useCallback(
+    (template: WhatsAppTemplate, isActive: boolean) => {
+      if (isActive) setTemplateActive(template, true);
+      else setTemplateToDeactivate(template);
+    },
+    [setTemplateActive],
+  );
+
   const columns = useMemo(
     () =>
       getWhatsAppTemplateColumns(
@@ -277,8 +318,16 @@ export default function WhatsAppTemplates() {
         (template) => setTemplateToDelete(template),
         handleResubmit,
         handleOpenResubmitAsNew,
+        handleToggleActive,
+        togglingId,
       ),
-    [router, handleResubmit, handleOpenResubmitAsNew],
+    [
+      router,
+      handleResubmit,
+      handleOpenResubmitAsNew,
+      handleToggleActive,
+      togglingId,
+    ],
   );
 
   const handleConfirmDelete = async () => {
@@ -442,6 +491,44 @@ export default function WhatsAppTemplates() {
       />
 
       <AlertDialog
+        open={!!templateToDeactivate}
+        onOpenChange={(open) => {
+          if (!open && togglingId === null) setTemplateToDeactivate(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Turn off this template?</AlertDialogTitle>
+            <AlertDialogDescription>
+              While{" "}
+              <span className="font-semibold text-foreground">
+                {templateToDeactivate?.display_name ||
+                  templateToDeactivate?.name}
+              </span>{" "}
+              is off, it won&apos;t be sent to customers. Any order or ticket
+              notification that uses it stops until you turn it back on.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={togglingId !== null}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault();
+                if (templateToDeactivate)
+                  setTemplateActive(templateToDeactivate, false);
+              }}
+              disabled={togglingId !== null}
+              className={buttonVariants({ variant: "destructive" })}
+            >
+              {togglingId !== null ? "Turning off…" : "Turn Off"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
         open={!!templateToDelete}
         onOpenChange={(open) => {
           if (!open) setTemplateToDelete(null);
@@ -457,7 +544,7 @@ export default function WhatsAppTemplates() {
             <AlertDialogDescription>
               This will permanently delete{" "}
               <span className="font-semibold text-foreground">
-                {templateToDelete?.name}
+                {templateToDelete?.display_name}
               </span>
               {templateToDelete?.status === "DRAFT" ? (
                 <>. This can&apos;t be undone.</>
