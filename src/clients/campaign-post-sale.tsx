@@ -23,6 +23,8 @@ import { DataTable } from "@/components/custom/data-table";
 import { getWhatsAppTemplateLibraryColumns } from "@/components/custom/social-ai/whatsapp-template-library-columns";
 import { WhatsAppTemplateLibraryPreviewDialog } from "@/components/custom/social-ai/whatsapp-template-library-preview-dialog";
 import { useWhatsAppAccount } from "@/components/custom/social-ai/use-whatsapp-account";
+import { ACTIVE_FILTER_STYLE } from "@/lib/config";
+import { cn } from "@/lib/utils";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
   fetchWhatsAppTemplateLibrary,
@@ -151,7 +153,13 @@ export default function CampaignPostSale() {
               resetToFirstPage();
             }}
           >
-            <SelectTrigger className="w-[160px]">
+            <SelectTrigger
+              className={cn(
+                "w-[160px]",
+                importFilter !== ALL && ACTIVE_FILTER_STYLE,
+              )}
+              aria-label="Filter by import status"
+            >
               <SelectValue />
             </SelectTrigger>
             {/* popper: the default "item-aligned" mode lays the selected
