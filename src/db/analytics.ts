@@ -1227,8 +1227,8 @@ export async function get_operational_efficiency(params: {
     }
 
     // period_threads: in-range threads with created_at in [periodStart, periodEnd)
-    // compared in current tz local time. Escalation and AI resolution both
-    // use closed chats only — same scopes as the headline.
+    // compared in current tz local time. Escalation counts every chat in the
+    // period; AI resolution only the closed ones — same scopes as the headline.
     const periodBounds = and(
       sql`(${chatThread.createdAt} AT TIME ZONE ${APP_TZ_SQL}) >= ${periodStartDate}::timestamp`,
       sql`(${chatThread.createdAt} AT TIME ZONE ${APP_TZ_SQL}) < ${periodEndDate}::timestamp`,
