@@ -50,7 +50,6 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Typography } from "@/components/ui/typography";
 import { InfoIcon } from "@/components/custom/info-icon";
-import { UnsavedChangesDialog } from "@/components/custom/unsaved-changes-dialog";
 import { useWhatsAppAccount } from "@/components/custom/social-ai/use-whatsapp-account";
 import { WhatsAppPhoneMockup } from "@/components/custom/social-ai/whatsapp-phone-mockup";
 import { WhatsAppVariablePicker } from "@/components/custom/social-ai/whatsapp-variable-picker";
@@ -466,19 +465,18 @@ export default function WhatsAppTemplateCreate({
     [name, category, language, templateParts],
   );
 
-  // The form as it started: empty on create, and on edit captured once the
-  // prefill lands. Leaving a form that differs from it asks first.
+  // Edit mode: the form as loaded, captured once the prefill lands. Save
+  // Changes stays off until the form differs from it, since an unchanged
+  // save would only put the template back in front of Meta's review.
   const formSnapshot = JSON.stringify(formPayload);
   const [loadedSnapshot, setLoadedSnapshot] = useState<string | null>(null);
-  if (!loadingTemplate && loadedSnapshot === null) {
+  if (isEditMode && !loadingTemplate && loadedSnapshot === null) {
     setLoadedSnapshot(formSnapshot);
   }
-  const isDirty =
+  const hasChanges =
+    !isEditMode ||
     headerMediaFile !== null ||
     (loadedSnapshot !== null && formSnapshot !== loadedSnapshot);
-  // Save Changes stays off on edit until something changed, since an
-  // unchanged save would only put the template back in front of Meta's review.
-  const hasChanges = !isEditMode || isDirty;
 
   // What the live preview shows — a local object URL stands in for the
   // media (the real handle isn't a renderable image), and named tokens are
@@ -558,11 +556,10 @@ export default function WhatsAppTemplateCreate({
     account,
   ]);
 
-  /** Sends the template to Meta; resolves true once it went through. */
-  const save = async () => {
+  const handleSubmit = async () => {
     if (!storeCode || !account || validationError) {
       if (validationError) toast.error(validationError);
-      return false;
+      return;
     }
     setSubmitting(true);
     try {
@@ -591,17 +588,12 @@ export default function WhatsAppTemplateCreate({
           description: `Meta status: ${result.status}. It'll show up in the templates list once reviewed.`,
         });
       }
-      return true;
+      router.push("/campaign/whatsapp-templates");
     } catch {
       // The thunk already surfaces the error toast.
-      return false;
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const handleSubmit = async () => {
-    if (await save()) router.push("/campaign/whatsapp-templates");
   };
 
   return (
@@ -1167,12 +1159,6 @@ export default function WhatsAppTemplateCreate({
           </div>
         </div>
       )}
-
-      <UnsavedChangesDialog
-        isDirty={isDirty}
-        isSaving={submitting}
-        onSave={save}
-      />
     </div>
   );
 }

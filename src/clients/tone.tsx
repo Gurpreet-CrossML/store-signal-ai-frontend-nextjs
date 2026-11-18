@@ -9,7 +9,6 @@ import BrandVoiceToneControls from "@/components/custom/brand-voice-tone-control
 import { IconDeviceFloppy } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
 import { LoadingState } from "@/components/custom/loading-state";
-import { UnsavedChangesDialog } from "@/components/custom/unsaved-changes-dialog";
 import { Spinner } from "@/components/ui/spinner";
 import {
   fetchTonePresets,
@@ -117,7 +116,6 @@ export default function BrandVoiceToneStyleEditor() {
       if (createToneStyle.rejected.match(result)) {
         applyServerFieldErrors(formik, result.payload);
       }
-      return createToneStyle.fulfilled.match(result);
     },
   });
 
@@ -209,12 +207,6 @@ export default function BrandVoiceToneStyleEditor() {
           </div>
         </form>
       )}
-
-      <UnsavedChangesDialog
-        isDirty={formik.dirty}
-        isSaving={CreateToneStyleIsLoading}
-        onSave={async () => (await formik.submitForm()) === true}
-      />
     </div>
   );
 }

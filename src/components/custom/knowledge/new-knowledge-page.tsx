@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   IconArrowLeft,
   IconArrowRight,
@@ -68,10 +68,6 @@ import {
 } from "@/components/custom/knowledge/knowledge-scope";
 import { FAQ_ANSWER_MAX_LENGTH } from "@/components/custom/knowledge/knowledge-meta";
 import { WebsiteUrlDiscovery } from "@/components/custom/knowledge/website-url-discovery";
-import {
-  UnsavedChangesDialog,
-  type UnsavedChangesDialogHandle,
-} from "@/components/custom/unsaved-changes-dialog";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
   CreateKnowledgeItemsBulk,
@@ -195,15 +191,12 @@ export function NewKnowledgePage() {
     if (storeCode) dispatch(FetchKnowledgeStats({ storeCode }));
   }, [dispatch, storeCode]);
 
-  const unsavedChanges = useRef<UnsavedChangesDialogHandle>(null);
-
-  const goToLibrary = () =>
-    unsavedChanges.current?.confirmLeave(() => {
-      // The library keeps its filters in its URL, so stepping back in
-      // history restores the same view; a direct visit has nothing behind it.
-      if (window.history.length > 1) router.back();
-      else router.push("/knowledge");
-    });
+  const goToLibrary = () => {
+    // The library keeps its filters in its URL, so stepping back in history
+    // restores the same view; a direct visit has nothing behind it.
+    if (window.history.length > 1) router.back();
+    else router.push("/knowledge");
+  };
 
   // --- What is ready to add -------------------------------------------------
   const filledFaqs = faqRows.filter(
@@ -218,11 +211,6 @@ export function NewKnowledgePage() {
       : source === "file"
         ? documents.length
         : completeFaqs.length;
-  // Anything picked or typed in that isn't added yet, half-filled
-  // questions included.
-  const isDirty =
-    step === "content" &&
-    (source === "faq" ? filledFaqs.length : readyCount) > 0;
   const alreadyAdded = discoveredPages.filter(
     (page) => page.alreadyAdded,
   ).length;
@@ -263,15 +251,14 @@ export function NewKnowledgePage() {
     setStep("content");
   };
 
-  /** Adds what is ready; resolves true once it was added. */
   const handleSubmit = async () => {
-    if (!storeCode || !source || source === "article") return false;
+    if (!storeCode || !source || source === "article") return;
 
     setShowErrors(true);
     setBanner(null);
     setBannerUrl(null);
     setServerErrors({});
-    if (readyCount === 0 || hasScopeError || hasIncompleteFaq) return false;
+    if (readyCount === 0 || hasScopeError || hasIncompleteFaq) return;
 
     // Which row of the form each submitted item came from, so a server error
     // for item N can be shown on the right row.
@@ -332,7 +319,7 @@ export function NewKnowledgePage() {
       });
       setStep("done");
       dispatch(FetchKnowledgeStats({ storeCode }));
-      return true;
+      return;
     }
 
     const payload = result.payload as
@@ -364,7 +351,6 @@ export function NewKnowledgePage() {
           "We couldn't save your knowledge. Please check your entries and try again.",
       );
     }
-    return false;
   };
 
   const startAgain = () => {
@@ -604,13 +590,6 @@ export function NewKnowledgePage() {
           </div>
         </div>
       )}
-
-      <UnsavedChangesDialog
-        ref={unsavedChanges}
-        isDirty={isDirty}
-        isSaving={isSubmitting}
-        onSave={handleSubmit}
-      />
     </div>
   );
 }

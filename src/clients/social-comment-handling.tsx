@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   IconAlertTriangle,
@@ -13,10 +13,6 @@ import { toast } from "sonner";
 
 import { InfoIcon } from "@/components/custom/info-icon";
 import { LoadingState } from "@/components/custom/loading-state";
-import {
-  UnsavedChangesDialog,
-  type UnsavedChangesDialogHandle,
-} from "@/components/custom/unsaved-changes-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -255,7 +251,6 @@ export default function SocialCommentHandling() {
   const [intents, setIntents] = useState<CommentIntentRule[]>([]);
   const [topicRules, setTopicRules] = useState<CommentTopicRule[]>([]);
   const [isSaving, setIsSaving] = useState(false);
-  const unsavedChanges = useRef<UnsavedChangesDialogHandle>(null);
 
   useEffect(() => {
     if (storeCode) dispatch(fetchSocialAccountsSubscriptions({ storeCode }));
@@ -308,16 +303,10 @@ export default function SocialCommentHandling() {
   const removedTopicRules = (config?.topic_rules ?? []).filter(
     (saved) => !topicRules.some((rule) => rule.topic === saved.topic),
   );
-  // No config while an account loads: every rule would compare as changed.
   const isDirty =
-    config !== null &&
-    (dirtyIntents.length > 0 ||
-      dirtyTopicRules.length > 0 ||
-      removedTopicRules.length > 0);
-
-  /** Switching account reloads the rules, so unsaved edits ask first. */
-  const pickAccount = (accountId: string) =>
-    unsavedChanges.current?.confirmLeave(() => setSelectedAccountId(accountId));
+    dirtyIntents.length > 0 ||
+    dirtyTopicRules.length > 0 ||
+    removedTopicRules.length > 0;
 
   const ruleableTopics = (config?.topics ?? []).filter(
     (topic) => topic.value !== UNRULEABLE_TOPIC,
@@ -334,10 +323,9 @@ export default function SocialCommentHandling() {
    * against the loaded config and issues only the calls that change
    * something. Fulfilled saves patch the redux config, which is what
    * clears the dirty state per rule — a partial failure stays dirty.
-   * Resolves true only when every change saved.
    */
   const handleSave = async () => {
-    if (!config) return false;
+    if (!config) return;
     setIsSaving(true);
     const accountId = selectedAccountId;
     const results = await Promise.allSettled([
@@ -370,13 +358,11 @@ export default function SocialCommentHandling() {
       ),
     ]);
     setIsSaving(false);
-    const saved = results.every((result) => result.status === "fulfilled");
-    if (saved) {
+    if (results.every((result) => result.status === "fulfilled")) {
       toast.success("Comment handling saved", {
         description: "The AI follows these rules on new comments from now on.",
       });
     }
-    return saved;
   };
 
   const patchIntent = (id: string, patch: Partial<CommentIntentRule>) =>
@@ -433,7 +419,7 @@ export default function SocialCommentHandling() {
         <Typography variant="caption" as="p">
           Every connected account has its own rules — pick the one to configure.
         </Typography>
-        <Select value={selectedAccountId} onValueChange={pickAccount}>
+        <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
           <SelectTrigger
             className={cn("w-64", ACTIVE_FILTER_STYLE)}
             aria-label="Connected account"
@@ -743,13 +729,6 @@ export default function SocialCommentHandling() {
           </div>
         </>
       )}
-
-      <UnsavedChangesDialog
-        ref={unsavedChanges}
-        isDirty={isDirty}
-        isSaving={isSaving}
-        onSave={handleSave}
-      />
     </div>
   );
 }

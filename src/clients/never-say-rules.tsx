@@ -29,7 +29,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { LoadingState } from "@/components/custom/loading-state";
-import { UnsavedChangesDialog } from "@/components/custom/unsaved-changes-dialog";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Typography } from "@/components/ui/typography";
@@ -193,7 +192,6 @@ export default function NeverSayRules() {
       if (createNeverSayRules.rejected.match(result)) {
         applyServerFieldErrors(formik, result.payload);
       }
-      return createNeverSayRules.fulfilled.match(result);
     },
   });
 
@@ -467,12 +465,6 @@ export default function NeverSayRules() {
           </div>
         </form>
       )}
-
-      <UnsavedChangesDialog
-        isDirty={formik.dirty}
-        isSaving={CreateNeverSayRulesIsLoading}
-        onSave={async () => (await formik.submitForm()) === true}
-      />
     </div>
   );
 }

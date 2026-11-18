@@ -9,7 +9,6 @@ import { IconDeviceFloppy } from "@tabler/icons-react";
 import BrandVoiceVocabularyChipLists from "@/components/custom/brand-voice-vocabulary-chip-lists";
 import { Button } from "@/components/ui/button";
 import { LoadingState } from "@/components/custom/loading-state";
-import { UnsavedChangesDialog } from "@/components/custom/unsaved-changes-dialog";
 import { Spinner } from "@/components/ui/spinner";
 import {
   fetchVocabulary,
@@ -172,7 +171,6 @@ export default function BrandVoiceVocabularyEditor() {
       if (createVocabulary.rejected.match(result)) {
         applyServerFieldErrors(formik, result.payload);
       }
-      return createVocabulary.fulfilled.match(result);
     },
   });
 
@@ -223,12 +221,6 @@ export default function BrandVoiceVocabularyEditor() {
           </div>
         </form>
       )}
-
-      <UnsavedChangesDialog
-        isDirty={formik.dirty}
-        isSaving={CreateVocabularyIsLoading}
-        onSave={async () => (await formik.submitForm()) === true}
-      />
     </div>
   );
 }
