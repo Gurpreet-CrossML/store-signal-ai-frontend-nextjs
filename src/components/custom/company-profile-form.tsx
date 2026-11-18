@@ -27,6 +27,7 @@ import { Typography } from "@/components/ui/typography";
 import { cn } from "@/lib/utils";
 import { LoadingState } from "@/components/custom/loading-state";
 import { LocationSelect } from "@/components/custom/location-select";
+import { UnsavedChangesDialog } from "@/components/custom/unsaved-changes-dialog";
 import { Spinner } from "@/components/ui/spinner";
 import {
   DropdownMenu,
@@ -153,6 +154,7 @@ export default function CompanyProfileForm({
       if (UpdateCompanyProfile.rejected.match(result)) {
         applyServerFieldErrors(formik, result.payload);
       }
+      return UpdateCompanyProfile.fulfilled.match(result);
     },
   });
 
@@ -427,6 +429,12 @@ export default function CompanyProfileForm({
           </Button>
         </div>
       </form>
+
+      <UnsavedChangesDialog
+        isDirty={formik.dirty || hasLogoChange}
+        isSaving={companySaving}
+        onSave={async () => (await formik.submitForm()) === true}
+      />
     </div>
   );
 }

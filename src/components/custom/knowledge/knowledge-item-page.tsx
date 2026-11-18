@@ -42,6 +42,7 @@ import {
   KnowledgeStatusBadge,
 } from "@/components/custom/knowledge/knowledge-badges";
 import { timeAgo } from "@/components/custom/knowledge/knowledge-list";
+import { UnsavedChangesDialog } from "@/components/custom/unsaved-changes-dialog";
 import {
   FAQ_ANSWER_MAX_LENGTH,
   isKnowledgeItemEditable,
@@ -228,8 +229,27 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
     setEditing(false);
   };
 
+  // Only what changed is sent. A changed website address is the one edit that
+  // sends the item through processing again; the question and answer are
+  // embedded again by the backend; everything else (categories, where it
+  // applies, which AI use it) updates the database and the stored vectors in
+  // place.
+  const scopeChanged =
+    item !== null &&
+    scope !== null &&
+    (!sameSet(scope.aiScope, item.aiScope) || appliesToChanged(scope, item));
+  const categoriesChanged =
+    item !== null && !sameSet(knowledgeCategories, categoryIdsOf(item));
+  const faqChanged =
+    item?.source === "faq" &&
+    (question.trim() !== item.question || answer.trim() !== item.answer);
+  const urlChanged = item?.source === "url" && normalizeUrl(url) !== item.url;
+  const isDirty =
+    editing && (scopeChanged || categoriesChanged || faqChanged || urlChanged);
+
+  /** Saves the edits; resolves true once they are saved. */
   const handleSave = async () => {
-    if (!item || !scope || !storeCode) return;
+    if (!item || !scope || !storeCode) return false;
 
     setShowErrors(true);
     const faqInvalid =
@@ -243,26 +263,11 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
       faqInvalid ||
       urlInvalid
     )
-      return;
+      return false;
 
-    // Only what changed is sent. A changed website address is the one edit that
-    // sends the item through processing again; the question and answer are
-    // embedded again by the backend; everything else (categories, where it
-    // applies, which AI use it) updates the database and the stored vectors in
-    // place.
-    const scopeChanged =
-      !sameSet(scope.aiScope, item.aiScope) || appliesToChanged(scope, item);
-    const categoriesChanged = !sameSet(
-      knowledgeCategories,
-      categoryIdsOf(item),
-    );
-    const faqChanged =
-      item.source === "faq" &&
-      (question.trim() !== item.question || answer.trim() !== item.answer);
-    const urlChanged = item.source === "url" && normalizeUrl(url) !== item.url;
     if (!scopeChanged && !categoriesChanged && !faqChanged && !urlChanged) {
       setEditing(false);
-      return;
+      return true;
     }
 
     setIsSaving(true);
@@ -284,12 +289,13 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
     setIsSaving(false);
     if (!UpdateKnowledgeItem.fulfilled.match(result)) {
       reload();
-      return;
+      return false;
     }
 
     setShowErrors(false);
     setEditing(false);
     reload();
+    return true;
   };
 
   const handlePublish = async () => {
@@ -680,6 +686,12 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <UnsavedChangesDialog
+        isDirty={isDirty}
+        isSaving={isSaving}
+        onSave={handleSave}
+      />
     </div>
   );
 }
