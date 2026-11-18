@@ -1020,6 +1020,12 @@ const ThreadSlice = createSlice({
       FetchAIInsightIsError: null as null | string | object | unknown,
       FetchAIInsightData: {} as AIInsightResponse,
     },
+    GenerateAIInsightState: {
+      GenerateAIInsightIsLoading: false,
+      GenerateAIInsightIsSuccess: false,
+      GenerateAIInsightIsError: null as null | string | object | unknown,
+      GenerateAIInsightData: {} as AIInsightResponse,
+    },
     FetchCartDataState: {
       FetchCartDataIsLoading: false,
       FetchCartDataIsSuccess: false,
@@ -1214,10 +1220,22 @@ const ThreadSlice = createSlice({
         state.FetchAIInsightState.FetchAIInsightIsError = action.payload;
         state.FetchAIInsightState.FetchAIInsightIsSuccess = false;
       })
-      // The generated insights are what the page shows, like a fetch.
+      .addCase(GenerateAIInsight.pending, (state) => {
+        state.GenerateAIInsightState.GenerateAIInsightIsLoading = true;
+        state.GenerateAIInsightState.GenerateAIInsightIsError = null;
+        state.GenerateAIInsightState.GenerateAIInsightIsSuccess = false;
+      })
       .addCase(GenerateAIInsight.fulfilled, (state, action) => {
+        state.GenerateAIInsightState.GenerateAIInsightIsLoading = false;
+        state.GenerateAIInsightState.GenerateAIInsightData = action.payload;
+        state.GenerateAIInsightState.GenerateAIInsightIsSuccess = true;
+        // The page shows the fetched insights, so the new ones go there too.
         state.FetchAIInsightState.FetchAIInsightData = action.payload;
-        state.FetchAIInsightState.FetchAIInsightIsSuccess = true;
+      })
+      .addCase(GenerateAIInsight.rejected, (state, action) => {
+        state.GenerateAIInsightState.GenerateAIInsightIsLoading = false;
+        state.GenerateAIInsightState.GenerateAIInsightIsError = action.payload;
+        state.GenerateAIInsightState.GenerateAIInsightIsSuccess = false;
       })
       .addCase(FetchCart.pending, (state) => {
         state.FetchCartDataState.FetchCartDataIsLoading = true;

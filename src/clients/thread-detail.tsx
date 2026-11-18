@@ -441,8 +441,11 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
   const { FetchConversationSummaryData } = useAppSelector(
     (state) => state.GetThreadReducer.FetchConversationSummaryState,
   );
-  const { FetchAIInsightData } = useAppSelector(
+  const { FetchAIInsightData, FetchAIInsightIsSuccess } = useAppSelector(
     (state) => state.GetThreadReducer.FetchAIInsightState,
+  );
+  const { GenerateAIInsightIsLoading } = useAppSelector(
+    (state) => state.GetThreadReducer.GenerateAIInsightState,
   );
   const { FetchCartData } = useAppSelector(
     (state) => state.GetThreadReducer.FetchCartDataState,
@@ -471,7 +474,6 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
   const [threadMessages, setThreadMessages] = useState<ThreadMessage[]>([]);
   const [isLinkCustomerOpen, setIsLinkCustomerOpen] = useState(false);
   const [isLinkingCustomer, setIsLinkingCustomer] = useState(false);
-  const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
   const [isCreateTicketOpen, setIsCreateTicketOpen] = useState(false);
   const canCreateTicket = useCan("conversations", { write: true });
 
@@ -503,16 +505,11 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
 
   const handleGenerateInsights = async () => {
     if (!threadId) return;
-    setIsGeneratingInsights(true);
-    try {
-      const result = await dispatch(GenerateAIInsight(threadId));
-      if (GenerateAIInsight.fulfilled.match(result)) {
-        // The summary and tags come from the same analysis.
-        dispatch(FetchConversationSummary(threadId));
-        dispatch(FetchTags(threadId));
-      }
-    } finally {
-      setIsGeneratingInsights(false);
+    const result = await dispatch(GenerateAIInsight(threadId));
+    if (GenerateAIInsight.fulfilled.match(result)) {
+      // The summary and tags come from the same analysis.
+      dispatch(FetchConversationSummary(threadId));
+      dispatch(FetchTags(threadId));
     }
   };
 
@@ -660,48 +657,47 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
     <div className="space-y-4">
       <ThreadCard>
         <div className="flex items-center gap-4 border-b px-5 py-5">
-          <ResolutionRing value={resolutionRate} />
+          {hasInsights && <ResolutionRing value={resolutionRate} />}
           <div>
             <h2 className="text-lg font-semibold">AI review</h2>
-            <p className="text-sm text-muted-foreground">
-              {FetchAIInsightData?.reason_for_score ||
-                "Conversation quality and resolution analysis."}
-            </p>
+            {hasInsights && (
+              <p className="text-sm text-muted-foreground">
+                {FetchAIInsightData?.reason_for_score ||
+                  "Conversation quality and resolution analysis."}
+              </p>
+            )}
           </div>
         </div>
         <div>
-          {/* Generated only when the merchant asks, once the chat has ended. */}
-          {details && !hasInsights ? (
-            <Empty className="p-8">
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <IconSparkles />
+          {/* Generated only when the merchant asks for it. */}
+          {FetchAIInsightIsSuccess && !hasInsights ? (
+            <Empty className="gap-3 p-5">
+              <EmptyHeader className="gap-1">
+                <EmptyMedia variant="icon" className="mb-1 size-8">
+                  <IconSparkles className="size-4" />
                 </EmptyMedia>
-                <EmptyTitle>No AI insights yet</EmptyTitle>
-                <EmptyDescription>
-                  {details.is_active
-                    ? "Insights can be generated once the conversation ends."
-                    : "Generate a summary, score and suggestions for this conversation."}
+                <EmptyTitle className="text-sm">No AI insights yet</EmptyTitle>
+                <EmptyDescription className="text-xs">
+                  Generate a summary, score and suggestions for this
+                  conversation.
                 </EmptyDescription>
               </EmptyHeader>
-              {!details.is_active && (
-                <EmptyContent>
-                  <Button
-                    size="sm"
-                    disabled={isGeneratingInsights}
-                    onClick={handleGenerateInsights}
-                  >
-                    {isGeneratingInsights ? (
-                      <IconLoader2 className="size-4 animate-spin" />
-                    ) : (
-                      <IconSparkles className="size-4" />
-                    )}
-                    {isGeneratingInsights
-                      ? "Generating insights…"
-                      : "Generate AI insights"}
-                  </Button>
-                </EmptyContent>
-              )}
+              <EmptyContent>
+                <Button
+                  size="sm"
+                  disabled={GenerateAIInsightIsLoading}
+                  onClick={handleGenerateInsights}
+                >
+                  {GenerateAIInsightIsLoading ? (
+                    <IconLoader2 className="size-4 animate-spin" />
+                  ) : (
+                    <IconSparkles className="size-4" />
+                  )}
+                  {GenerateAIInsightIsLoading
+                    ? "Generating insights…"
+                    : "Generate AI insights"}
+                </Button>
+              </EmptyContent>
             </Empty>
           ) : (
             <div className="border-b px-5 py-5">
