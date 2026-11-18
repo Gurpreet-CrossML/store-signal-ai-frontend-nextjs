@@ -226,6 +226,8 @@ export function KnowledgeList({
   onDelete,
   hasFilters,
   canEdit,
+  emptyDescription = "Add general info, product & category knowledge, FAQs, policies, documents, or offers so the AI can answer from it.",
+  showAddButton = true,
   selectedIds,
   onToggleItem,
   onToggleAll,
@@ -240,6 +242,10 @@ export function KnowledgeList({
   hasFilters: boolean;
   /** False for a read-only role: no add, edit, delete or select controls. */
   canEdit: boolean;
+  /** What an empty list says when no filter is applied. */
+  emptyDescription?: string;
+  /** Offer the "Add Knowledge" button in an empty list. */
+  showAddButton?: boolean;
   /** Ids of the rows ticked for a bulk action. */
   selectedIds: Set<string>;
   onToggleItem: (item: KnowledgeItem) => void;
@@ -265,10 +271,10 @@ export function KnowledgeList({
           <EmptyDescription>
             {hasFilters
               ? "Try clearing a filter or searching for something else."
-              : "Add general info, product & category knowledge, FAQs, policies, documents, or offers so the AI can answer from it."}
+              : emptyDescription}
           </EmptyDescription>
         </EmptyHeader>
-        {!hasFilters && canEdit && (
+        {!hasFilters && canEdit && showAddButton && (
           <EmptyContent>
             <Button size="sm" asChild>
               <Link href="/knowledge/new">

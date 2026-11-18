@@ -85,7 +85,9 @@ export type KnowledgeItem = {
 
   // General knowledge
   content?: string;
-  category?: string;
+  /** The knowledge categories (shipping, returns, ...) the item is filed
+   * under; empty when it has none. Not the product `categories` below. */
+  knowledgeCategories?: KnowledgeCategoryRef[];
 
   // Product/category/collection associations (many-to-many; an item can
   // hold any number of each, independent of the legacy `productId` shape
@@ -134,6 +136,36 @@ export type ProductOption = {
   name: string;
 };
 
+/** A knowledge category as shown on an item. */
+export type KnowledgeCategoryRef = {
+  id: number;
+  name: string;
+  slug: string;
+};
+
+/** A knowledge category with how many of the store's items are filed under it. */
+export type KnowledgeCategorySummary = KnowledgeCategoryRef & {
+  description: string;
+  /** Inactive categories can't be given to new knowledge; they are listed only
+   * while items are still filed under them. */
+  is_active: boolean;
+  count: number;
+  /** Of those, the drafts (not published yet). */
+  draft_count: number;
+  /** Of those, the ones that failed to process. */
+  failed_count: number;
+};
+
+export type KnowledgeCategories = {
+  categories: KnowledgeCategorySummary[];
+  /** Items filed under no category. */
+  uncategorized_count: number;
+  uncategorized_draft_count: number;
+  uncategorized_failed_count: number;
+  /** All of the store's knowledge items. */
+  total: number;
+};
+
 /** Vector storage in bytes: what a store uses in total, its plan's limit, and the split by kind. */
 export type KnowledgeVectorStorage = {
   total: number;
@@ -153,8 +185,6 @@ export type KnowledgeCounts = {
   urls: number;
   faqs: number;
   articles: number;
-  /** Items that failed to process and need attention. */
-  failed: number;
 };
 
 /** A user who has added knowledge, for the "Added by" filter. */
@@ -197,7 +227,7 @@ type ApiKnowledgeItem = {
   status: KnowledgeStatus;
   ai_scope: AIScope[];
   tags: string[];
-  category: string;
+  knowledge_categories?: KnowledgeCategoryRef[];
   content: string;
   question: string;
   answer: string;
@@ -232,7 +262,7 @@ function mapApiKnowledgeItem(api: ApiKnowledgeItem): KnowledgeItem {
     createdBy: api.created_by?.name || api.created_by?.username || undefined,
     hasUnpublishedChanges: api.has_unpublished_changes || undefined,
     content: api.content || undefined,
-    category: api.category || undefined,
+    knowledgeCategories: api.knowledge_categories ?? [],
     products: api.products ?? [],
     categories: api.categories ?? [],
     collections: api.collections ?? [],
@@ -262,17 +292,20 @@ type KnowledgeItemWritableInput = {
   productIds?: string[];
   categoryIds?: string[];
   collectionIds?: string[];
+  /** Ids of the knowledge categories (shipping, returns, …) the item is filed
+   * under. Left out when unset, so an edit that doesn't touch them keeps them. */
+  knowledgeCategoryIds?: number[];
 };
 
 /** Builds a multipart body when a file is attached, otherwise a plain JSON body.
  *
  * Only sends fields the backend's per-source serializers actually accept
- * (knowledge/serializers.py): type/source/title/ai_scope always, plus
- * url|file|content|question+answer depending on `source`. `tags` isn't
+ * (knowledge/serializers.py): type/source/title/ai_scope, the product/category/
+ * collection and knowledge-category ids, plus url|file|content|question+answer
+ * depending on `source`. `tags` isn't
  * writable on any of them, so it's never sent. Used only by
- * `UpdateKnowledgeItem` (the AI-scope/FAQ-only Edit flow) — product/
- * category/collection associations aren't editable there, so this never
- * needs to send them.
+ * `UpdateKnowledgeItem`. Fields left undefined are dropped from the JSON
+ * body, so an edit only changes what it sets.
  */
 function buildKnowledgeItemPayload(
   input: KnowledgeItemWritableInput,
@@ -283,6 +316,9 @@ function buildKnowledgeItemPayload(
     formData.append("source", input.source);
     if (input.title) formData.append("title", input.title);
     input.aiScope.forEach((scope) => formData.append("ai_scope", scope));
+    (input.knowledgeCategoryIds ?? []).forEach((id) =>
+      formData.append("knowledge_categories", String(id)),
+    );
     formData.append("file", input.file);
     return formData;
   }
@@ -299,6 +335,7 @@ function buildKnowledgeItemPayload(
     products: input.productIds,
     categories: input.categoryIds,
     collections: input.collectionIds,
+    knowledge_categories: input.knowledgeCategoryIds,
   };
 }
 
@@ -320,6 +357,7 @@ export const FetchKnowledgeItems = createAsyncThunk(
       status = [],
       aiScope = [],
       createdBy = [],
+      knowledgeCategory = [],
     }: {
       storeCode: string;
       page?: number;
@@ -332,6 +370,9 @@ export const FetchKnowledgeItems = createAsyncThunk(
       aiScope?: AIScope[];
       /** Ids of the users who added the items. */
       createdBy?: string[];
+      /** Slugs of the knowledge categories the items are filed under
+       * (`KNOWLEDGE_UNCATEGORIZED_FILTER` for items with none). */
+      knowledgeCategory?: string[];
     },
     thunkAPI,
   ) => {
@@ -348,6 +389,8 @@ export const FetchKnowledgeItems = createAsyncThunk(
       if (status.length) params.set("status", status.join(","));
       if (aiScope.length) params.set("ai_scope", aiScope.join(","));
       if (createdBy.length) params.set("created_by", createdBy.join(","));
+      if (knowledgeCategory.length)
+        params.set("knowledge_category", knowledgeCategory.join(","));
 
       const response = await axiosInstance.get(
         `${ENDPOINTS.fetchKnowledgeItems()}?${params.toString()}`,
@@ -371,9 +414,22 @@ export const FetchKnowledgeItems = createAsyncThunk(
 
 export const FetchKnowledgeStats = createAsyncThunk(
   "FetchKnowledgeStats",
-  async ({ storeCode }: { storeCode: string }, thunkAPI) => {
+  async (
+    {
+      storeCode,
+      knowledgeCategory = [],
+    }: {
+      storeCode: string;
+      /** Limits the item counts and creators to these knowledge categories;
+       * the storage figures always cover the whole store. */
+      knowledgeCategory?: string[];
+    },
+    thunkAPI,
+  ) => {
     try {
       const params = new URLSearchParams({ store_code: storeCode });
+      if (knowledgeCategory.length)
+        params.set("knowledge_category", knowledgeCategory.join(","));
       const response = await axiosInstance.get(
         `${ENDPOINTS.fetchKnowledgeStats()}?${params.toString()}`,
         { useBackend: true },
@@ -383,6 +439,25 @@ export const FetchKnowledgeStats = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       return thunkAPI.rejectWithValue(
         response?.data || "Couldn't load knowledge statistics.",
+      );
+    }
+  },
+);
+
+export const FetchKnowledgeCategories = createAsyncThunk(
+  "FetchKnowledgeCategories",
+  async ({ storeCode }: { storeCode: string }, thunkAPI) => {
+    try {
+      const params = new URLSearchParams({ store_code: storeCode });
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchKnowledgeCategories()}?${params.toString()}`,
+        { useBackend: true },
+      );
+      return response.data?.data as KnowledgeCategories;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      return thunkAPI.rejectWithValue(
+        response?.data || "Couldn't load knowledge categories.",
       );
     }
   },
@@ -399,6 +474,8 @@ export type BulkKnowledgeItemContent = {
   title?: string;
   /** An article's HTML body. */
   content?: string;
+  /** Knowledge categories for this item alone, instead of the request's. */
+  knowledge_categories?: number[];
 };
 
 /** How long the bulk create may take before the browser gives up. */
@@ -429,8 +506,13 @@ export const CreateKnowledgeItemsBulk = createAsyncThunk(
       productIds?: string[];
       categoryIds?: string[];
       collectionIds?: string[];
+      /** Knowledge categories every item of the request is filed under. */
+      knowledgeCategoryIds?: number[];
       items?: BulkKnowledgeItemContent[];
       files?: File[];
+      /** For `files`, each one's own knowledge categories, in the same order;
+       * an empty entry falls back to `knowledgeCategoryIds`. */
+      fileKnowledgeCategoryIds?: number[][];
       /** Send the batch for processing now instead of saving it as drafts. */
       publish?: boolean;
       /** Skip the success toast, for a save the user didn't ask for by name. */
@@ -447,6 +529,7 @@ export const CreateKnowledgeItemsBulk = createAsyncThunk(
         productIds,
         categoryIds,
         collectionIds,
+        knowledgeCategoryIds,
         publish = false,
       } = input;
 
@@ -471,7 +554,17 @@ export const CreateKnowledgeItemsBulk = createAsyncThunk(
         (collectionIds ?? []).forEach((id) =>
           formData.append("collections", id),
         );
+        (knowledgeCategoryIds ?? []).forEach((id) =>
+          formData.append("knowledge_categories", String(id)),
+        );
         (input.files ?? []).forEach((file) => formData.append("files", file));
+        // A document's own categories travel as `knowledge_categories_<n>`,
+        // n being its position among the `files`.
+        (input.fileKnowledgeCategoryIds ?? []).forEach((ids, index) =>
+          ids.forEach((id) =>
+            formData.append(`knowledge_categories_${index}`, String(id)),
+          ),
+        );
         payload = formData;
         requestConfig = {
           ...requestConfig,
@@ -485,6 +578,7 @@ export const CreateKnowledgeItemsBulk = createAsyncThunk(
           products: productIds ?? [],
           categories: categoryIds ?? [],
           collections: collectionIds ?? [],
+          knowledge_categories: knowledgeCategoryIds ?? [],
           publish,
           items: input.items ?? [],
         };
@@ -547,19 +641,32 @@ function discoveryErrorMessage(payload: unknown): string | undefined {
 
 /** Scans a website and lists the pages found on it, so the user can choose
  * which ones to index (`knowledge/views.py` `KnowledgeURLDiscoveryAPIView`).
+ * Or, given `pageUrls` instead of a site, checks those specific pages and
+ * lists the ones that can be read in the same shape (the ones that can't
+ * come back as `unreadable`).
  * Resolves `{ data: { pages: [{ url, title, word_count, already_added }],
  * truncated } }`; `truncated` means the site had more pages than the scan
  * limit. Validation failures come back as `{ data: { url: ["..."] } }`. */
 export const DiscoverWebsiteUrls = createAsyncThunk(
   "DiscoverWebsiteUrls",
   async (
-    { storeCode, websiteUrl }: { storeCode: string; websiteUrl: string },
+    {
+      storeCode,
+      websiteUrl,
+      pageUrls,
+    }: {
+      storeCode: string;
+      /** A website to scan… */
+      websiteUrl?: string;
+      /** …or specific pages to check instead. */
+      pageUrls?: string[];
+    },
     thunkAPI,
   ) => {
     try {
       const response = await axiosInstance.post(
         `${ENDPOINTS.discoverKnowledgeUrls()}?store_code=${storeCode}`,
-        { url: websiteUrl },
+        pageUrls ? { urls: pageUrls } : { url: websiteUrl },
         // Lets the caller cancel the scan (`promise.abort()`), e.g. when the
         // user leaves the scan view while it is still running.
         { signal: thunkAPI.signal },
@@ -577,7 +684,10 @@ export const DiscoverWebsiteUrls = createAsyncThunk(
         ),
         truncated: Boolean(response.data?.data?.truncated),
         throttled: Boolean(response.data?.data?.throttled),
-        websiteUrl: String(response.data?.data?.website_url ?? websiteUrl),
+        websiteUrl: String(
+          response.data?.data?.website_url ?? websiteUrl ?? "",
+        ),
+        unreadable: (response.data?.data?.unreadable ?? []) as string[],
         minWords: Number(response.data?.data?.min_words) || 0,
       };
     } catch (error) {
@@ -989,6 +1099,7 @@ const KnowledgeRagSlice = createSlice({
       DiscoverWebsiteUrlsMinWords: 0,
       /** The address that was scanned, as the backend saw it. */
       DiscoverWebsiteUrlsWebsiteUrl: "",
+      DiscoverWebsiteUrlsUnreadable: [] as string[],
       /** The scan was rate-limited, so some pages still lack details. */
       DiscoverWebsiteUrlsThrottled: false,
       DiscoverWebsiteUrlsDetailsIsLoading: false,
@@ -1008,6 +1119,12 @@ const KnowledgeRagSlice = createSlice({
       FetchKnowledgeStatsIsSuccess: false,
       FetchKnowledgeStatsIsError: null as null | string | object,
       FetchKnowledgeStatsData: null as KnowledgeStats | null,
+    },
+    FetchKnowledgeCategoriesState: {
+      FetchKnowledgeCategoriesIsLoading: false,
+      FetchKnowledgeCategoriesIsSuccess: false,
+      FetchKnowledgeCategoriesIsError: null as null | string | object,
+      FetchKnowledgeCategoriesData: null as KnowledgeCategories | null,
     },
     FetchProductOptionsState: {
       FetchProductOptionsIsLoading: false,
@@ -1039,6 +1156,7 @@ const KnowledgeRagSlice = createSlice({
         DiscoverWebsiteUrlsTruncated: false,
         DiscoverWebsiteUrlsMinWords: 0,
         DiscoverWebsiteUrlsWebsiteUrl: "",
+        DiscoverWebsiteUrlsUnreadable: [],
         DiscoverWebsiteUrlsThrottled: false,
         DiscoverWebsiteUrlsDetailsIsLoading: false,
       };
@@ -1143,6 +1261,7 @@ const KnowledgeRagSlice = createSlice({
         s.DiscoverWebsiteUrlsTruncated = false;
         s.DiscoverWebsiteUrlsMinWords = 0;
         s.DiscoverWebsiteUrlsWebsiteUrl = "";
+        s.DiscoverWebsiteUrlsUnreadable = [];
         s.DiscoverWebsiteUrlsThrottled = false;
         s.DiscoverWebsiteUrlsDetailsIsLoading = false;
       })
@@ -1154,13 +1273,15 @@ const KnowledgeRagSlice = createSlice({
         s.DiscoverWebsiteUrlsTruncated = action.payload.truncated;
         s.DiscoverWebsiteUrlsMinWords = action.payload.minWords;
         s.DiscoverWebsiteUrlsWebsiteUrl = action.payload.websiteUrl;
+        s.DiscoverWebsiteUrlsUnreadable = action.payload.unreadable;
         s.DiscoverWebsiteUrlsThrottled = action.payload.throttled;
       })
       .addCase(DiscoverWebsiteUrls.rejected, (state, action) => {
         const s = state.DiscoverWebsiteUrlsState;
-        s.DiscoverWebsiteUrlsIsLoading = false;
-        // Cancelled by the user: back to idle, no error to show.
+        // Cancelled (the view was left, and its state reset): no error to show,
+        // and a newer scan that has already started stays "loading".
         if (action.meta.aborted) return;
+        s.DiscoverWebsiteUrlsIsLoading = false;
         s.DiscoverWebsiteUrlsIsError =
           discoveryErrorMessage(action.payload) || "Couldn't scan the website.";
       })
@@ -1215,6 +1336,24 @@ const KnowledgeRagSlice = createSlice({
         state.FetchKnowledgeStatsState.FetchKnowledgeStatsIsSuccess = false;
         state.FetchKnowledgeStatsState.FetchKnowledgeStatsIsError =
           "Couldn't load knowledge statistics.";
+      })
+      // FetchKnowledgeCategories
+      .addCase(FetchKnowledgeCategories.pending, (state) => {
+        state.FetchKnowledgeCategoriesState.FetchKnowledgeCategoriesIsLoading = true;
+        state.FetchKnowledgeCategoriesState.FetchKnowledgeCategoriesIsError =
+          null;
+      })
+      .addCase(FetchKnowledgeCategories.fulfilled, (state, action) => {
+        state.FetchKnowledgeCategoriesState.FetchKnowledgeCategoriesIsLoading = false;
+        state.FetchKnowledgeCategoriesState.FetchKnowledgeCategoriesIsSuccess = true;
+        state.FetchKnowledgeCategoriesState.FetchKnowledgeCategoriesData =
+          action.payload;
+      })
+      .addCase(FetchKnowledgeCategories.rejected, (state) => {
+        state.FetchKnowledgeCategoriesState.FetchKnowledgeCategoriesIsLoading = false;
+        state.FetchKnowledgeCategoriesState.FetchKnowledgeCategoriesIsSuccess = false;
+        state.FetchKnowledgeCategoriesState.FetchKnowledgeCategoriesIsError =
+          "Couldn't load knowledge categories.";
       })
       // FetchProductOptions
       .addCase(FetchProductOptions.pending, (state) => {

@@ -233,17 +233,12 @@ export function ShopifySyncedNote() {
 /** What the store already has, with a link to the whole list. */
 export function ExistingKnowledge({ stats }: { stats: KnowledgeStats | null }) {
   const counts = stats?.counts;
-  const figures: {
-    label: string;
-    value: number | undefined;
-    alert?: boolean;
-  }[] = [
+  const figures: { label: string; value: number | undefined }[] = [
     { label: "Shopify products", value: counts?.products },
     { label: "Articles", value: counts?.articles },
     { label: "Documents", value: counts?.documents },
     { label: "Website pages", value: counts?.urls },
     { label: "Questions and answers", value: counts?.faqs },
-    { label: "Needs attention", value: counts?.failed, alert: true },
   ];
 
   return (
@@ -260,16 +255,11 @@ export function ExistingKnowledge({ stats }: { stats: KnowledgeStats | null }) {
           View all in Knowledge
         </Link>
       </div>
-      <dl className="grid grid-cols-2 divide-x divide-y rounded-xl border bg-card sm:grid-cols-3 lg:grid-cols-6 lg:divide-y-0">
-        {figures.map(({ label, value, alert }) => (
+      <dl className="grid grid-cols-2 divide-x divide-y rounded-xl border bg-card sm:grid-cols-3 lg:grid-cols-5 lg:divide-y-0">
+        {figures.map(({ label, value }) => (
           <div key={label} className="flex flex-col gap-1 p-3">
             <dt className="text-xs text-muted-foreground">{label}</dt>
-            <dd
-              className={cn(
-                "text-lg font-semibold tabular-nums",
-                alert && (value ?? 0) > 0 && "text-destructive",
-              )}
-            >
+            <dd className="text-lg font-semibold tabular-nums">
               {value === undefined ? "—" : value.toLocaleString()}
             </dd>
           </div>
@@ -288,6 +278,7 @@ export function ContentLayout({
   icon: Icon,
   tone,
   onChangeSource,
+  changeSourceDisabled = false,
   side,
   children,
 }: {
@@ -295,6 +286,8 @@ export function ContentLayout({
   icon: Icon;
   tone: string;
   onChangeSource: () => void;
+  /** Off while something is being saved. */
+  changeSourceDisabled?: boolean;
   side: React.ReactNode;
   children: React.ReactNode;
 }) {
@@ -318,6 +311,7 @@ export function ContentLayout({
             variant="link"
             size="sm"
             className="h-auto p-0"
+            disabled={changeSourceDisabled}
             onClick={onChangeSource}
           >
             Change source
