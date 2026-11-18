@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
@@ -29,6 +29,10 @@ import { FieldError } from "@/components/custom/field-error";
 import { LoadingState } from "@/components/custom/loading-state";
 import type { TextMark } from "@/components/custom/rich-text-area";
 import { useInfiniteScroll } from "@/components/custom/social-ai/use-infinite-scroll";
+import {
+  UnsavedChangesDialog,
+  type UnsavedChangesDialogHandle,
+} from "@/components/custom/unsaved-changes-dialog";
 import WorkflowPolicyFlow, {
   OUTCOMES,
 } from "@/components/custom/settings/workflows/workflow-policy-flow";
@@ -288,6 +292,7 @@ export default function WorkflowPolicy({ code }: { code: string }) {
   const [draft, setDraft] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [confirm, setConfirm] = useState<Confirm | null>(null);
+  const unsavedChanges = useRef<UnsavedChangesDialogHandle>(null);
   const [tab, setTab] = useState<Tab>("flow");
   const [change, setChange] = useState<SwitchChange | null>(null);
   // The suggestion last shown in the policy, and the fixes put into the draft.
@@ -360,14 +365,6 @@ export default function WorkflowPolicy({ code }: { code: string }) {
     draft !== null && draft !== withFixes(savedText, Object.values(added));
   const busy = saving || restoringVersion !== null || deletingVersion !== null;
 
-  // Closing the tab with unsaved edits asks the browser to confirm.
-  useEffect(() => {
-    if (!isDirty) return;
-    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [isDirty]);
-
   // Back to the saved text, with no fixes pending.
   const discard = () => {
     setDraft(null);
@@ -375,8 +372,9 @@ export default function WorkflowPolicy({ code }: { code: string }) {
     setAdded({});
   };
 
+  /** Resolves true once the policy is saved. */
   const save = async () => {
-    if (!storeCode) return;
+    if (!storeCode) return false;
     setErrors({});
     try {
       const saved = await dispatch(
@@ -392,9 +390,11 @@ export default function WorkflowPolicy({ code }: { code: string }) {
           ? `Policy saved as v${saved.policy_version}`
           : "Policy turned off",
       );
+      return true;
     } catch (rejected) {
       // Nothing was saved; say why under the box.
       setErrors(serverFieldErrors(rejected));
+      return false;
     }
   };
 
@@ -473,18 +473,8 @@ export default function WorkflowPolicy({ code }: { code: string }) {
     setAdded(next);
   };
 
-  const requestBack = () => {
-    if (!isDirty) {
-      router.push(BACK_HREF);
-      return;
-    }
-    setConfirm({
-      title: "Discard your changes?",
-      description: "Your edits to this policy haven't been saved.",
-      label: "Discard",
-      run: () => router.push(BACK_HREF),
-    });
-  };
+  const requestBack = () =>
+    unsavedChanges.current?.confirmLeave(() => router.push(BACK_HREF));
 
   const items = policy?.suggestions.items ?? [];
   const marks = Object.values(
@@ -817,6 +807,13 @@ export default function WorkflowPolicy({ code }: { code: string }) {
         saving={switching}
         onCancel={() => setChange(null)}
         onConfirm={toggle}
+      />
+
+      <UnsavedChangesDialog
+        ref={unsavedChanges}
+        isDirty={isDirty}
+        isSaving={saving}
+        onSave={save}
       />
     </div>
   );

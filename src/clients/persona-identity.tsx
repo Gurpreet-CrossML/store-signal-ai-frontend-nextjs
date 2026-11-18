@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { LoadingState } from "@/components/custom/loading-state";
+import { UnsavedChangesDialog } from "@/components/custom/unsaved-changes-dialog";
 import { Spinner } from "@/components/ui/spinner";
 
 import { PreviewModalButton } from "@/components/custom/preview-modal-button";
@@ -143,6 +144,7 @@ export default function PersonaIdentity() {
       if (createPersonaIdentity.rejected.match(result)) {
         applyServerFieldErrors(formik, result.payload);
       }
+      return createPersonaIdentity.fulfilled.match(result);
     },
   });
 
@@ -385,6 +387,12 @@ export default function PersonaIdentity() {
           </PreviewModalButton>
         </form>
       )}
+
+      <UnsavedChangesDialog
+        isDirty={formik.dirty}
+        isSaving={CreatePersonaIdentityIsLoading}
+        onSave={async () => (await formik.submitForm()) === true}
+      />
     </div>
   );
 }
