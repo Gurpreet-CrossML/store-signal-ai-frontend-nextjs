@@ -28,9 +28,8 @@ import type {
  */
 
 /**
- * The statuses the list's tabs show. The panel's counts cover only these, so
- * "All inboxes" and every other view count the tickets being worked on, not
- * the resolved and closed ones that only the filter can show.
+ * The statuses the list's tabs show. The panel's counts always cover these,
+ * plus any resolved or closed ones picked in the filter.
  */
 export const HELPDESK_ACTIVE_STATUSES: SupportTicketStatus[] = [
   "open",

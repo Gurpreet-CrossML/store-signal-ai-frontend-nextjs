@@ -423,8 +423,9 @@ const queues = [
   // { key: "snoozed", label: "Snoozed" },
 ] as const;
 
-// Not tabs: picked in the filter popover, where they replace the tab's status.
-// Any number of them, like the priorities.
+// Statuses that can be picked in the filter popover (one at a time). The
+// picked one gets its own tab next to Open and Reopen until the filter is
+// cleared.
 const statusFilterOptions = [
   { key: "resolved", label: "Resolved" },
   { key: "closed", label: "Closed" },
@@ -514,6 +515,7 @@ function TicketListPanel({
   rows,
   activeTicketId,
   listStatuses,
+  pickedStatuses,
   activeFilter,
   filterCounts,
   onQueueChange,
@@ -539,8 +541,10 @@ function TicketListPanel({
   className?: string;
   rows: SupportTicket[];
   activeTicketId: number | null;
-  /** The statuses the list shows: the tab's, or those picked in the filter. */
+  /** The status of the selected tab; the list shows only these tickets. */
   listStatuses: SupportTicketStatus[];
+  /** The status picked in the filter, if any; it gets its own tab. */
+  pickedStatuses: SupportTicketStatus[];
   /** The left panel's view (`?filter=`), which names the list. */
   activeFilter: string;
   filterCounts: SupportTicketFilterCounts | null;
@@ -567,8 +571,15 @@ function TicketListPanel({
   const isPhone = useIsMobile();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const title = helpdeskViewLabel(activeFilter, filterCounts);
+  // Open and Reopen always, plus a tab for the status picked in the filter.
+  const tabs = [
+    ...queues,
+    ...statusFilterOptions.filter((option) =>
+      pickedStatuses.includes(option.key),
+    ),
+  ];
   // What the list holds: its own counts, which follow the view, search and
-  // priority, summed over the statuses it shows (the tab, or the filter's).
+  // priority, for the status it shows.
   const count = listStatuses.reduce(
     (total, status) => total + (supportTicketStatusCount?.[status] ?? 0),
     0,
@@ -702,11 +713,8 @@ function TicketListPanel({
                   onClick={() =>
                     onFiltersChange({
                       ...filters,
-                      statuses: active
-                        ? filters.statuses.filter(
-                            (value) => value !== option.key,
-                          )
-                        : [...filters.statuses, option.key],
+                      // Only one status at a time, since each gets its own tab.
+                      statuses: active ? [] : [option.key],
                     })
                   }
                   className={cn(
@@ -840,7 +848,7 @@ function TicketListPanel({
           phone — never a visible scrollbar or clipped labels. */}
       <div className="shrink-0 px-4 pb-3">
         <div className="hidden gap-0.5 rounded-lg bg-muted p-1 md:flex">
-          {queues.map((queue) => {
+          {tabs.map((queue) => {
             const active = listStatuses.includes(queue.key);
             return (
               <button
@@ -865,7 +873,7 @@ function TicketListPanel({
           })}
         </div>
         <div className="flex gap-1.5 md:hidden">
-          {queues.map((queue) => {
+          {tabs.map((queue) => {
             const active = listStatuses.includes(queue.key);
             return (
               <button
@@ -2021,7 +2029,7 @@ export default function HelpDesk() {
     pickParam(
       searchParams?.get("status") ?? "",
       statusFilterOptions.map((option) => option.key),
-    ),
+    ).slice(0, 1),
   );
 
   const appliedFilters = useMemo<TicketFilterSelection>(
@@ -2034,12 +2042,22 @@ export default function HelpDesk() {
     }),
     [priorityParam, appliedStatuses],
   );
-  // Statuses picked in the popover replace the tab's.
+  // The status to fetch: the selected tab's. That tab can be Open, Reopen or
+  // the one added by the filter.
   const listStatuses = useMemo<SupportTicketStatus[]>(
     () =>
-      appliedFilters.statuses.length ? appliedFilters.statuses : [activeQueue],
+      appliedFilters.statuses.some((status) => status === activeQueue)
+        ? appliedFilters.statuses
+        : [activeQueue],
     [appliedFilters.statuses, activeQueue],
   );
+  // On a reload or shared link with `?status=`, open that status's tab.
+  useEffect(() => {
+    if (appliedStatuses.length) setActiveQueue(appliedStatuses[0]);
+    // First render only; after that, clicking a tab or applying the filter
+    // picks the tab.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const sortOrder: SupportTicketOrdering =
     SORT_OPTIONS.find((option) => option.key === sortParam)?.key ??
     DEFAULT_SORT_ORDER;
@@ -2822,9 +2840,8 @@ export default function HelpDesk() {
   };
 
   const handleQueueChange = (queue: SupportTicketStatus) => {
-    // A tab shows its own status, not the ones picked in the filter.
-    setAppliedStatuses([]);
-    updateQueryParams({ status: null });
+    // Switching tabs keeps the filter: its tab stays until the filter is
+    // cleared.
     setActiveQueue(queue);
     setPage(1);
     setActiveTicketId(null);
@@ -3440,8 +3457,8 @@ export default function HelpDesk() {
       ).unwrap();
 
       if (updatedStatus && listStatuses.includes(updatedStatus.status)) {
-        // Still a status the list shows (Resolved to Closed with both picked
-        // in the filter): the ticket stays, with its new status.
+        // The new status is the one this tab shows (e.g. a ticket opened from
+        // a link and moved to this tab's status), so keep it in the list.
         applyTicketRowUpdate(ticketId, { status: updatedStatus.status });
       } else if (updatedStatus) {
         setTicketRows((current) => {
@@ -3670,6 +3687,13 @@ export default function HelpDesk() {
       status: draftFilters.statuses.join(",") || null,
     });
     setAppliedStatuses(draftFilters.statuses);
+    // Switch to the status just picked. If it was cleared while its tab was
+    // open, go back to the Open tab, since that tab no longer exists.
+    if (draftFilters.statuses.length) {
+      setActiveQueue(draftFilters.statuses[0]);
+    } else if (appliedStatuses.some((status) => status === activeQueue)) {
+      setActiveQueue(DEFAULT_HELPDESK_QUEUE);
+    }
     setIsFilterOpen(false);
   };
 
@@ -3691,6 +3715,7 @@ export default function HelpDesk() {
           rows={ticketRows}
           activeTicketId={activeSupportTicket?.id ?? null}
           listStatuses={listStatuses}
+          pickedStatuses={appliedFilters.statuses}
           activeFilter={activeFilter}
           filterCounts={FetchSupportTicketFilterCountsData}
           onQueueChange={handleQueueChange}
