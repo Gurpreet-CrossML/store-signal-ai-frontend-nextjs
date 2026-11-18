@@ -179,6 +179,9 @@ export const ENDPOINTS = {
   fetchThreadTagOptions: () => "/analytics/threads/tags",
   fetchAIInsight: (threadId: string) =>
     `/analytics/threads/${threadId}/ai-insights`,
+  // POST — run the AI analysis for an ended thread, on the merchant's request.
+  generateAIInsight: (threadId: string) =>
+    createAPIUrl(`/analytics/threads/${threadId}/ai-insights/`, "django"),
   fetchCartData: (threadId: string) =>
     `/analytics/threads/${threadId}/cart-data`,
   // Support tickets (Django). Same payload from both, so the caller only

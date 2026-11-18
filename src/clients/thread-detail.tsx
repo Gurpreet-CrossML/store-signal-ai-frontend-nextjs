@@ -15,6 +15,7 @@ import {
   IconFlag,
   IconHash,
   IconListCheck,
+  IconLoader2,
   IconMessage2,
   IconMessages,
   IconSparkles,
@@ -48,6 +49,7 @@ import {
 import { LoadingState } from "@/components/custom/loading-state";
 import {
   Empty,
+  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
@@ -78,6 +80,7 @@ import {
   FetchTags,
   FetchThreadDetails,
   FetchUserMetadata,
+  GenerateAIInsight,
   ThreadCustomerLink,
   type ThreadMessage,
   type ThreadTagData,
@@ -438,8 +441,11 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
   const { FetchConversationSummaryData } = useAppSelector(
     (state) => state.GetThreadReducer.FetchConversationSummaryState,
   );
-  const { FetchAIInsightData } = useAppSelector(
+  const { FetchAIInsightData, FetchAIInsightIsSuccess } = useAppSelector(
     (state) => state.GetThreadReducer.FetchAIInsightState,
+  );
+  const { GenerateAIInsightIsLoading } = useAppSelector(
+    (state) => state.GetThreadReducer.GenerateAIInsightState,
   );
   const { FetchCartData } = useAppSelector(
     (state) => state.GetThreadReducer.FetchCartDataState,
@@ -496,6 +502,16 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
 
     loadData();
   }, [dispatch, storeCode, threadId]);
+
+  const handleGenerateInsights = async () => {
+    if (!threadId) return;
+    const result = await dispatch(GenerateAIInsight(threadId));
+    if (GenerateAIInsight.fulfilled.match(result)) {
+      // The summary and tags come from the same analysis.
+      dispatch(FetchConversationSummary(threadId));
+      dispatch(FetchTags(threadId));
+    }
+  };
 
   const handleLinkCustomer = async (customerId: string) => {
     if (!storeCode || !threadId) return;
@@ -586,6 +602,8 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
   const improvements = FetchAIInsightData?.underperforming_cases ?? [];
   const successes = FetchAIInsightData?.overperforming_cases ?? [];
   const actions = FetchAIInsightData?.next_actionable_items ?? [];
+  // The endpoint answers `{}` until the insights are generated.
+  const hasInsights = Object.keys(FetchAIInsightData ?? {}).length > 0;
   // The customer endpoint can include tickets from other conversations. Only
   // a ticket explicitly linked to this thread replaces its Create action.
   const existingThreadTicket = (FetchFreshdeskTicketIdData ?? []).find(
@@ -639,22 +657,56 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
     <div className="space-y-4">
       <ThreadCard>
         <div className="flex items-center gap-4 border-b px-5 py-5">
-          <ResolutionRing value={resolutionRate} />
+          {hasInsights && <ResolutionRing value={resolutionRate} />}
           <div>
             <h2 className="text-lg font-semibold">AI review</h2>
-            <p className="text-sm text-muted-foreground">
-              {FetchAIInsightData?.reason_for_score ||
-                "Conversation quality and resolution analysis."}
-            </p>
+            {hasInsights && (
+              <p className="text-sm text-muted-foreground">
+                {FetchAIInsightData?.reason_for_score ||
+                  "Conversation quality and resolution analysis."}
+              </p>
+            )}
           </div>
         </div>
         <div>
-          <div className="border-b px-5 py-5">
-            <p className="text-sm leading-6 text-muted-foreground">
-              {FetchConversationSummaryData?.conversation_summary ||
-                "No summary available for this conversation."}
-            </p>
-          </div>
+          {/* Generated only when the merchant asks for it. */}
+          {FetchAIInsightIsSuccess && !hasInsights ? (
+            <Empty className="gap-3 p-5">
+              <EmptyHeader className="gap-1">
+                <EmptyMedia variant="icon" className="mb-1 size-8">
+                  <IconSparkles className="size-4" />
+                </EmptyMedia>
+                <EmptyTitle className="text-sm">No AI insights yet</EmptyTitle>
+                <EmptyDescription className="text-xs">
+                  Generate a summary, score and suggestions for this
+                  conversation.
+                </EmptyDescription>
+              </EmptyHeader>
+              <EmptyContent>
+                <Button
+                  size="sm"
+                  disabled={GenerateAIInsightIsLoading}
+                  onClick={handleGenerateInsights}
+                >
+                  {GenerateAIInsightIsLoading ? (
+                    <IconLoader2 className="size-4 animate-spin" />
+                  ) : (
+                    <IconSparkles className="size-4" />
+                  )}
+                  {GenerateAIInsightIsLoading
+                    ? "Generating insights…"
+                    : "Generate AI insights"}
+                </Button>
+              </EmptyContent>
+            </Empty>
+          ) : (
+            <div className="border-b px-5 py-5">
+              <p className="text-sm leading-6 text-muted-foreground">
+                {FetchConversationSummaryData?.conversation_summary ||
+                  "No summary available for this conversation."}
+              </p>
+            </div>
+          )}
           {successes.length > 0 && (
             <div className="border-b px-5 py-5">
               <h3 className="mb-3 text-xs font-bold uppercase tracking-wide text-emerald-700">

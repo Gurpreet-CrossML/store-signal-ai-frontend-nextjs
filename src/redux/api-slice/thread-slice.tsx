@@ -747,6 +747,32 @@ export const FetchAIInsight = createAsyncThunk(
   },
 );
 
+export const GenerateAIInsight = createAsyncThunk(
+  "GenerateAIInsight",
+  async (threadId: string, thunkAPI) => {
+    try {
+      const response = await axiosInstance.post(
+        ENDPOINTS.generateAIInsight(threadId),
+        {},
+        // Several model calls in one request.
+        { timeout: 90_000 },
+      );
+      return response.data.data as AIInsightResponse;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Couldn't generate the AI insights.", {
+        description: data?.message || "Please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't generate the AI insights.",
+      );
+    }
+  },
+);
+
 export const FetchCart = createAsyncThunk(
   "CartData",
   async (threadId: string, thunkAPI) => {
@@ -994,6 +1020,12 @@ const ThreadSlice = createSlice({
       FetchAIInsightIsError: null as null | string | object | unknown,
       FetchAIInsightData: {} as AIInsightResponse,
     },
+    GenerateAIInsightState: {
+      GenerateAIInsightIsLoading: false,
+      GenerateAIInsightIsSuccess: false,
+      GenerateAIInsightIsError: null as null | string | object | unknown,
+      GenerateAIInsightData: {} as AIInsightResponse,
+    },
     FetchCartDataState: {
       FetchCartDataIsLoading: false,
       FetchCartDataIsSuccess: false,
@@ -1187,6 +1219,23 @@ const ThreadSlice = createSlice({
         state.FetchAIInsightState.FetchAIInsightIsLoading = false;
         state.FetchAIInsightState.FetchAIInsightIsError = action.payload;
         state.FetchAIInsightState.FetchAIInsightIsSuccess = false;
+      })
+      .addCase(GenerateAIInsight.pending, (state) => {
+        state.GenerateAIInsightState.GenerateAIInsightIsLoading = true;
+        state.GenerateAIInsightState.GenerateAIInsightIsError = null;
+        state.GenerateAIInsightState.GenerateAIInsightIsSuccess = false;
+      })
+      .addCase(GenerateAIInsight.fulfilled, (state, action) => {
+        state.GenerateAIInsightState.GenerateAIInsightIsLoading = false;
+        state.GenerateAIInsightState.GenerateAIInsightData = action.payload;
+        state.GenerateAIInsightState.GenerateAIInsightIsSuccess = true;
+        // The page shows the fetched insights, so the new ones go there too.
+        state.FetchAIInsightState.FetchAIInsightData = action.payload;
+      })
+      .addCase(GenerateAIInsight.rejected, (state, action) => {
+        state.GenerateAIInsightState.GenerateAIInsightIsLoading = false;
+        state.GenerateAIInsightState.GenerateAIInsightIsError = action.payload;
+        state.GenerateAIInsightState.GenerateAIInsightIsSuccess = false;
       })
       .addCase(FetchCart.pending, (state) => {
         state.FetchCartDataState.FetchCartDataIsLoading = true;
