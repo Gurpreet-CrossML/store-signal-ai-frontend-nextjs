@@ -117,6 +117,8 @@ export type SocialUser = {
   name: string;
   username: string;
   profile_picture_url: string;
+  /** The canonical store customer, once this platform identity is resolved. */
+  customer?: SocialLinkedCustomer | null;
 };
 
 export type SocialCommentAnalysis = {
