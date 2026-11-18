@@ -36,6 +36,7 @@ import { Typography } from "@/components/ui/typography";
 import { capitalizeText, formatDate } from "@/lib/helpers";
 import { isTicketChange, ticketChangeTitle } from "@/lib/ticket-options";
 import {
+  SUPPORT_TICKET_CHANGE_TYPES,
   SupportTicketActivityFetch,
   type SupportTicketActivityItem,
 } from "@/redux/api-slice/support-ticket-slice";
@@ -110,7 +111,8 @@ function present(item: SupportTicketActivityItem): {
   if (isTicketChange(item)) {
     return {
       icon:
-        item.type === "tag_added" || item.type === "tag_removed"
+        item.type === SUPPORT_TICKET_CHANGE_TYPES.TAG_ADDED ||
+        item.type === SUPPORT_TICKET_CHANGE_TYPES.TAG_REMOVED
           ? IconTag
           : IconPencil,
       title: ticketChangeTitle(item),

@@ -1120,12 +1120,16 @@ export const SupportTicketPriorityUpdate = createAsyncThunk(
 );
 
 /** A change to a ticket's priority, language, sentiment or tags. */
+export const SUPPORT_TICKET_CHANGE_TYPES = {
+  PRIORITY_CHANGED: "priority_changed",
+  LANGUAGE_CHANGED: "language_changed",
+  SENTIMENT_CHANGED: "sentiment_changed",
+  TAG_ADDED: "tag_added",
+  TAG_REMOVED: "tag_removed",
+} as const;
+
 export type SupportTicketChangeType =
-  | "priority_changed"
-  | "language_changed"
-  | "sentiment_changed"
-  | "tag_added"
-  | "tag_removed";
+  (typeof SUPPORT_TICKET_CHANGE_TYPES)[keyof typeof SUPPORT_TICKET_CHANGE_TYPES];
 
 /** One line of a ticket's history: its creation, a status change, an assignment or another change. */
 export type SupportTicketActivityItem = {
