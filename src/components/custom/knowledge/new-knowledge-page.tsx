@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   IconArrowLeft,
   IconArrowRight,
@@ -271,7 +271,7 @@ export function NewKnowledgePage() {
     setBanner(null);
     setBannerUrl(null);
     setServerErrors({});
-    if (readyCount === 0 || hasScopeError || hasIncompleteFaq) return;
+    if (readyCount === 0 || hasScopeError || hasIncompleteFaq) return false;
 
     // Which row of the form each submitted item came from, so a server error
     // for item N can be shown on the right row.
