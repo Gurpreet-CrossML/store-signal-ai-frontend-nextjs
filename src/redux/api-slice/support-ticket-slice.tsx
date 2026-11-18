@@ -387,11 +387,11 @@ export const FetchSupportTickets = createAsyncThunk<
 // the panel simply shows no numbers when it fails.
 export const FetchSupportTicketFilterCounts = createAsyncThunk<
   SupportTicketFilterCounts,
-  { storeCode: string; status?: SupportTicketStatus }
+  { storeCode: string; status?: SupportTicketStatus[] }
 >("FetchSupportTicketFilterCounts", async ({ storeCode, status }, thunkAPI) => {
   try {
     const params = new URLSearchParams({ store_code: storeCode });
-    if (status) params.set("status", status);
+    if (status?.length) params.set("status", status.join(","));
 
     const response = await axiosInstance.get(
       `${ENDPOINTS.fetchSupportTicketFilterCounts()}?${params.toString()}`,

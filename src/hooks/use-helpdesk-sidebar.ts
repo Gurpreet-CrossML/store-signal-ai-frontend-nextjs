@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo } from "react";
 
-import { withHelpdeskCounts } from "@/lib/helpdesk-filters";
+import {
+  HELPDESK_ACTIVE_STATUSES,
+  withHelpdeskCounts,
+} from "@/lib/helpdesk-filters";
 import { sidebarMenus, type SubSidebarMenuItem } from "@/lib/sidebar-navs";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { FetchSupportTicketFilterCounts } from "@/redux/api-slice/support-ticket-slice";
@@ -9,8 +12,9 @@ import { FetchSupportTicketFilterCounts } from "@/redux/api-slice/support-ticket
  * The sub-sidebar to show, with the help desk's views counted.
  *
  * Any other area's sub-sidebar comes back untouched and nothing is fetched.
- * The counts cover every status, not just the tab the list is on, and are
- * fetched again when the store or tab changes and whenever a ticket changes.
+ * The counts cover the open and reopened tickets the tabs show, not the
+ * resolved and closed ones, and are fetched again when the store changes and
+ * whenever a ticket changes.
  */
 export function useHelpdeskSidebar(
   sidebar: SubSidebarMenuItem | null,
@@ -21,9 +25,6 @@ export function useHelpdeskSidebar(
 
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
-  );
-  const queue = useAppSelector(
-    (state) => state.GetSupportTicketsReducer.HelpdeskQueue,
   );
   const refreshKey = useAppSelector(
     (state) => state.GetSupportTicketsReducer.FilterCountsRefreshKey,
@@ -36,7 +37,12 @@ export function useHelpdeskSidebar(
   const refreshCounts = useCallback(() => {
     if (!isHelpdesk || !storeCode) return;
 
-    void dispatch(FetchSupportTicketFilterCounts({ storeCode }));
+    void dispatch(
+      FetchSupportTicketFilterCounts({
+        storeCode,
+        status: HELPDESK_ACTIVE_STATUSES,
+      }),
+    );
   }, [dispatch, isHelpdesk, storeCode]);
 
   // `refreshKey` is not read: a change to it is the reason to fetch again.

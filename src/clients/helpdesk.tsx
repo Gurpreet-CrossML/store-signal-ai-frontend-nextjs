@@ -116,7 +116,6 @@ import {
 } from "@/lib/ticket-options";
 import {
   helpdeskFilterToQuery,
-  helpdeskViewCount,
   helpdeskViewLabel,
   ticketBelongsToHelpdeskFilter,
 } from "@/lib/helpdesk-filters";
@@ -507,28 +506,6 @@ const priorityOptions: { value: SupportTicketPriority; label: string }[] = [
   { value: "urgent", label: "Urgent" },
 ];
 
-/** The open view's ticket count, for the list's title. */
-function viewCount(
-  filter: string,
-  counts: SupportTicketFilterCounts | null,
-  fallback: number,
-) {
-  const fixed = helpdeskViewCount(filter, counts);
-  if (fixed !== undefined) return fixed;
-  const [param, ...rest] = filter.split(":");
-  const value = rest.join(":");
-  if (param === "tags") {
-    return counts?.tags.find((tag) => tag.name === value)?.count ?? fallback;
-  }
-  if (param === "channel") {
-    return (
-      counts?.channels.find((channel) => channel.value === value)?.count ??
-      fallback
-    );
-  }
-  return fallback;
-}
-
 function TicketListPanel({
   rows,
   activeTicketId,
@@ -586,13 +563,11 @@ function TicketListPanel({
   const isPhone = useIsMobile();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const title = helpdeskViewLabel(activeFilter, filterCounts);
-  const count = viewCount(
-    activeFilter,
-    filterCounts,
-    listStatuses.reduce(
-      (total, status) => total + (supportTicketStatusCount?.[status] ?? 0),
-      0,
-    ),
+  // What the list holds: its own counts, which follow the view, search and
+  // priority, summed over the statuses it shows (the tab, or the filter's).
+  const count = listStatuses.reduce(
+    (total, status) => total + (supportTicketStatusCount?.[status] ?? 0),
+    0,
   );
 
   const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
@@ -3402,7 +3377,11 @@ export default function HelpDesk() {
         }),
       ).unwrap();
 
-      if (updatedStatus) {
+      if (updatedStatus && listStatuses.includes(updatedStatus.status)) {
+        // Still a status the list shows (Resolved to Closed with both picked
+        // in the filter): the ticket stays, with its new status.
+        applyTicketRowUpdate(ticketId, { status: updatedStatus.status });
+      } else if (updatedStatus) {
         setTicketRows((current) => {
           const remainingRows = current.filter(
             (ticket) => ticket.id !== ticketId,
@@ -3437,7 +3416,9 @@ export default function HelpDesk() {
 
           return remainingRows;
         });
+      }
 
+      if (updatedStatus) {
         toast.success("Ticket status", {
           description: `Ticket status updated to ${updatedStatus.status}.`,
         });
