@@ -3750,8 +3750,10 @@ export default function HelpDesk() {
           sortOrder={sortOrder}
           onSortChange={handleSortChange}
           onSelectTicket={handleSelectTicket}
-          // Also while a search waits out its debounce: the rows on screen are
-          // for the old search until the new one comes back.
+          // Loading while the tickets are fetched, and also during the 800ms
+          // after typing or clearing the search, before that fetch starts.
+          // Without this, the old results would stay on screen with no
+          // spinner for that moment, as if the search did nothing.
           isLoading={
             FetchSupportTicketsLoading || searchValue.trim() !== debouncedSearch
           }

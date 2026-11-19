@@ -939,3 +939,8 @@ export const KNOWLEDGE_URL_INPUT_DELAY_MS = 500;
 export const KNOWLEDGE_UNCATEGORIZED_NAME = "No category";
 export const KNOWLEDGE_UNCATEGORIZED_DESCRIPTION =
   "Knowledge that isn't filed under any category yet";
+
+// The Help Desk ticket's language dropdown footer while no agent has changed
+// the language. Once one has, it says who changed it instead.
+export const LANGUAGE_DETECTED_NOTE =
+  "Detected by AI from the customer's messages. “Send in customer's language” uses this.";
