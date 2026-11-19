@@ -885,7 +885,9 @@ function AssigneePicker({
       compact
       // Value at the left, like the other fields; the chevron or lock (its
       // last icon) at the right. Same gap and chevron colour as the others.
-      triggerClassName="h-8 w-36 gap-1.5 rounded-md justify-start [&>svg:last-child]:ml-auto [&>svg:last-child]:text-muted-foreground"
+      // The name (the last span) may shrink here, so a long one truncates
+      // with "…" instead of pushing the chevron out of the box.
+      triggerClassName="h-8 w-36 gap-1.5 rounded-md justify-start [&>span:last-of-type]:flex-1 [&>svg:last-child]:ml-auto [&>svg:last-child]:text-muted-foreground"
       agents={staff.map((member) => ({
         email: member.email,
         name: `${member.first_name} ${member.last_name}`.trim() || member.email,
@@ -941,8 +943,12 @@ function LanguagePicker({
           className={phone ? phoneValueClass : ticketControlClass}
           disabled={disabled}
         >
+          {/* In a slot the size of the assignee's avatar (size-5), so the
+              two icons and the names after them line up. */}
           {!phone ? (
-            <IconWorld className="size-4 shrink-0 text-muted-foreground" />
+            <span className="flex size-5 shrink-0 items-center justify-center">
+              <IconWorld className="size-4 text-muted-foreground" />
+            </span>
           ) : null}
           {/* A long name truncates instead of pushing the chevron out. */}
           <span className="min-w-0 truncate">{name}</span>
