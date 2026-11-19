@@ -1,12 +1,16 @@
 import Link from "next/link";
 import {
   IconAlertTriangle,
+  IconArticle,
   IconBuildingStore,
   IconCreditCard,
+  IconFileText,
   IconFolder,
+  IconGlobe,
   IconHeadset,
   IconInbox,
   IconLock,
+  IconMessageQuestion,
   IconPencil,
   IconReceiptRefund,
   IconRulerMeasure,
@@ -21,12 +25,21 @@ import {
 
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  KNOWLEDGE_SOURCE_COUNT_LABELS,
   KNOWLEDGE_UNCATEGORIZED_DESCRIPTION,
   KNOWLEDGE_UNCATEGORIZED_NAME,
   KNOWLEDGE_UNCATEGORIZED_ROUTE,
 } from "@/lib/config";
 import { cn } from "@/lib/utils";
-import type { KnowledgeCategories } from "@/redux/api-slice/knowledge-rag-slice";
+import type {
+  KnowledgeCategories,
+  KnowledgeSourceCounts,
+} from "@/redux/api-slice/knowledge-rag-slice";
 
 /** "2 drafts", or "1 draft". */
 function draftCountLabel(count: number) {
@@ -36,6 +49,60 @@ function draftCountLabel(count: number) {
 /** "12 items", or "1 item". */
 export function itemCountLabel(count: number) {
   return `${count} ${count === 1 ? "item" : "items"}`;
+}
+
+// The icon and colour of each kind of knowledge in a card's breakdown, by the
+// keys of `KNOWLEDGE_SOURCE_COUNT_LABELS` (the same hues as the summary tiles).
+const SOURCE_ICONS: Record<keyof KnowledgeSourceCounts, CategoryIcon> = {
+  urls: { icon: IconGlobe, className: "text-blue-600 dark:text-blue-400" },
+  documents: {
+    icon: IconFileText,
+    className: "text-violet-600 dark:text-violet-400",
+  },
+  articles: {
+    icon: IconArticle,
+    className: "text-teal-600 dark:text-teal-400",
+  },
+  faqs: {
+    icon: IconMessageQuestion,
+    className: "text-orange-600 dark:text-orange-400",
+  },
+};
+
+/** One icon and count per kind of knowledge in the category, none for the kinds
+ * it has none of. The words ("3 website pages") are the tooltip and what a
+ * screen reader hears. */
+function SourceCounts({ counts }: { counts: KnowledgeSourceCounts }) {
+  const present = KNOWLEDGE_SOURCE_COUNT_LABELS.filter(
+    ({ key }) => counts[key] > 0,
+  );
+  if (present.length === 0) return null;
+
+  return (
+    <ul className="flex flex-wrap items-center gap-1.5">
+      {present.map(({ key, one, many }) => {
+        const { icon: KindIcon, className } = SOURCE_ICONS[key];
+        const label = `${counts[key]} ${counts[key] === 1 ? one : many}`;
+        return (
+          <Tooltip key={key}>
+            <TooltipTrigger asChild>
+              <li className="inline-flex items-center gap-1 rounded-md bg-muted/60 px-1.5 py-0.5 text-xs font-semibold tabular-nums">
+                <KindIcon
+                  aria-hidden="true"
+                  className={cn("size-3.5", className)}
+                />
+                {counts[key]}
+                <span className="sr-only">
+                  {counts[key] === 1 ? one : many}
+                </span>
+              </li>
+            </TooltipTrigger>
+            <TooltipContent>{label}</TooltipContent>
+          </Tooltip>
+        );
+      })}
+    </ul>
+  );
 }
 
 type CategoryIcon = { icon: Icon; className: string };
@@ -125,6 +192,7 @@ function CategoryCard({
   count,
   draftCount,
   failedCount,
+  sourceCounts,
   dashed = false,
 }: {
   href: string;
@@ -136,6 +204,8 @@ function CategoryCard({
   draftCount: number;
   /** Of `count`, the ones that failed to process. */
   failedCount: number;
+  /** Of `count`, how many of each kind. */
+  sourceCounts: KnowledgeSourceCounts;
   /** A dashed outline sets the card apart from the real categories. */
   dashed?: boolean;
 }) {
@@ -173,6 +243,8 @@ function CategoryCard({
             {description}
           </p>
         )}
+        {/* What kinds of knowledge are in it. */}
+        {count > 0 && <SourceCounts counts={sourceCounts} />}
         {/* What needs the user's attention, once there is something. */}
         {(failedCount > 0 || draftCount > 0) && (
           <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-medium">
@@ -241,6 +313,7 @@ export function KnowledgeCategoriesGrid({
           count={category.count}
           draftCount={category.draft_count}
           failedCount={category.failed_count}
+          sourceCounts={category.source_counts}
         />
       ))}
       {data.uncategorized_count > 0 && (
@@ -252,6 +325,7 @@ export function KnowledgeCategoriesGrid({
           count={data.uncategorized_count}
           draftCount={data.uncategorized_draft_count}
           failedCount={data.uncategorized_failed_count}
+          sourceCounts={data.uncategorized_source_counts}
           dashed
         />
       )}

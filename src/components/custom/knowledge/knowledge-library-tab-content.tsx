@@ -29,6 +29,12 @@ import { Spinner } from "@/components/ui/spinner";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { useCan } from "@/hooks/use-can";
 import {
+  KNOWLEDGE_ALL_DESCRIPTION,
+  KNOWLEDGE_ALL_NAME,
+  KNOWLEDGE_ALL_ROUTE,
+  KNOWLEDGE_APPROVAL_WAITING_DESCRIPTION,
+  KNOWLEDGE_APPROVAL_WAITING_NAME,
+  KNOWLEDGE_APPROVAL_WAITING_PARAM,
   KNOWLEDGE_UNCATEGORIZED_DESCRIPTION,
   KNOWLEDGE_UNCATEGORIZED_FILTER,
   KNOWLEDGE_UNCATEGORIZED_NAME,
@@ -130,24 +136,43 @@ export default function KnowledgeLibraryTabContent({
   // The category being shown: its heading comes from the categories list,
   // which is loaded here when the page is opened directly.
   const isUncategorized = categorySlug === KNOWLEDGE_UNCATEGORIZED_ROUTE;
+  // The "all knowledge" list is not one category: it has no category filter.
+  const isAll = categorySlug === KNOWLEDGE_ALL_ROUTE;
   const categoryFilter = isUncategorized
     ? KNOWLEDGE_UNCATEGORIZED_FILTER
     : categorySlug;
-  const category = isUncategorized
-    ? {
-        name: KNOWLEDGE_UNCATEGORIZED_NAME,
-        description: KNOWLEDGE_UNCATEGORIZED_DESCRIPTION,
-      }
-    : categoriesData?.categories.find((entry) => entry.slug === categorySlug);
-  // The categories have loaded and none has this slug (a mistyped or
-  // deactivated one).
-  const categoryNotFound =
-    !isUncategorized && categoriesData !== null && category === undefined;
+  const categoryFilters = isAll ? [] : [categoryFilter];
 
   // All list filters live in the URL (?q=&type=&source=&status=&page=&pageSize=)
   // so a reload, back/forward or a shared link restores the same view.
   const pathname = usePathname() ?? "/knowledge";
   const searchParams = useSearchParams();
+
+  // Only the imported pages that wait for the user's approval (from the
+  // checklist drawer); a list of everything has no such filter otherwise.
+  const approvalWaiting =
+    isAll && searchParams?.get(KNOWLEDGE_APPROVAL_WAITING_PARAM) === "true";
+
+  const category = isAll
+    ? approvalWaiting
+      ? {
+          name: KNOWLEDGE_APPROVAL_WAITING_NAME,
+          description: KNOWLEDGE_APPROVAL_WAITING_DESCRIPTION,
+        }
+      : { name: KNOWLEDGE_ALL_NAME, description: KNOWLEDGE_ALL_DESCRIPTION }
+    : isUncategorized
+      ? {
+          name: KNOWLEDGE_UNCATEGORIZED_NAME,
+          description: KNOWLEDGE_UNCATEGORIZED_DESCRIPTION,
+        }
+      : categoriesData?.categories.find((entry) => entry.slug === categorySlug);
+  // The categories have loaded and none has this slug (a mistyped or
+  // deactivated one).
+  const categoryNotFound =
+    !isUncategorized &&
+    !isAll &&
+    categoriesData !== null &&
+    category === undefined;
 
   const pageParam = Number(searchParams?.get("page"));
   const page = Number.isInteger(pageParam) && pageParam > 0 ? pageParam : 1;
@@ -256,7 +281,8 @@ export default function KnowledgeLibraryTabContent({
         aiScope: filters.aiScope,
         type: filters.type,
         createdBy: filters.createdBy,
-        knowledgeCategory: [categoryFilter],
+        knowledgeCategory: categoryFilters,
+        approvalWaiting,
       }),
     );
   };
@@ -275,24 +301,28 @@ export default function KnowledgeLibraryTabContent({
     aiScopeParam,
     createdByParam,
     categoryFilter,
+    approvalWaiting,
   ]);
 
   // The counts on the tabs and the "Added by" list cover only this category.
   const loadStats = useCallback(() => {
     if (storeCode)
       dispatch(
-        FetchKnowledgeStats({ storeCode, knowledgeCategory: [categoryFilter] }),
+        FetchKnowledgeStats({ storeCode, knowledgeCategory: categoryFilters }),
       );
-  }, [dispatch, storeCode, categoryFilter]);
+    // categoryFilters is rebuilt on every render; categoryFilter and isAll
+    // are what it depends on.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dispatch, storeCode, categoryFilter, isAll]);
 
   useEffect(() => {
     loadStats();
   }, [loadStats]);
 
   useEffect(() => {
-    if (storeCode && !isUncategorized && categoriesData === null)
+    if (storeCode && !isUncategorized && !isAll && categoriesData === null)
       dispatch(FetchKnowledgeCategories({ storeCode }));
-  }, [dispatch, storeCode, isUncategorized, categoriesData]);
+  }, [dispatch, storeCode, isUncategorized, isAll, categoriesData]);
 
   // Each item opens on its own page; an article opens in its editor.
   const handleOpenItem = (item: KnowledgeItem) => {
