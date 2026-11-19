@@ -134,7 +134,7 @@ export const NAV_AREAS = {
       },
       {
         href: "/helpdesk?filter=assigned_to_me",
-        title: "Assigned to me",
+        title: "Assigned To Me",
         description: "Tickets you are working on.",
         icon: IconUserCheck,
       },
@@ -287,7 +287,7 @@ export const NAV_AREAS = {
       },
       {
         href: "/settings/workflows",
-        title: "AI workflows",
+        title: "AI Workflows",
         description: "Turn the AI's workflows on or off for this store.",
         pageDescription:
           "Everything your Sales AI and Support AI can do for your customers. Turn one off and the AI stops answering those questions for this store only; workflows that depend on it turn off with it.",

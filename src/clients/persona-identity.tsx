@@ -278,7 +278,7 @@ export default function PersonaIdentity() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <IconSparkles className="size-4" />
-                  Voice &amp; Sign-off
+                  Voice &amp; Sign-Off
                   <InfoIcon text="Optional touches that shape how the assistant sounds and how its email replies end." />
                 </CardTitle>
                 <CardDescription>

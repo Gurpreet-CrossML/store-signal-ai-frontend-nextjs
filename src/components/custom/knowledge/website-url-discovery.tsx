@@ -338,10 +338,10 @@ export function WebsiteUrlDiscovery({
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <p className="text-sm font-semibold">
           {checkingPages
-            ? "Your pages"
+            ? "Your Pages"
             : scannedHost
               ? `Found on ${scannedHost}`
-              : "Scan a website"}
+              : "Scan A Website"}
         </p>
         {/* Not offered while a scan or check is still running. */}
         {!checkingPages && (scannedUrl || scanError) && !busy && (
@@ -353,7 +353,7 @@ export function WebsiteUrlDiscovery({
             onClick={() => void scan(scannedUrl || websiteUrl)}
           >
             <IconRefresh className="size-4" />
-            {scanError ? "Try again" : "Scan again"}
+            {scanError ? "Try Again" : "Scan Again"}
           </Button>
         )}
       </div>
@@ -430,7 +430,7 @@ export function WebsiteUrlDiscovery({
                 disabled={newPages === 0}
                 onCheckedChange={(checked) => toggleAll(checked === true)}
               />
-              Select all new pages
+              Select All New Pages
             </label>
             <span className="text-xs text-muted-foreground">
               {selectedUrls.length} of {newPages} selected
@@ -496,7 +496,7 @@ export function WebsiteUrlDiscovery({
                       </a>
                       {page.alreadyAdded ? (
                         <Badge variant="secondary" className="font-normal">
-                          Already added
+                          Already Added
                         </Badge>
                       ) : (
                         !page.hasEnoughContent && (
@@ -505,7 +505,7 @@ export function WebsiteUrlDiscovery({
                             className="font-normal"
                             title={`Fewer than ${minWords} words — not enough content to index`}
                           >
-                            Not enough content
+                            Not Enough Content
                           </Badge>
                         )
                       )}

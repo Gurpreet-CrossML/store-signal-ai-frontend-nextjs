@@ -228,13 +228,13 @@ export function ticketBelongsToHelpdeskFilter(
  * menu list them, each with the colour of its dot.
  */
 export const HELPDESK_VIEWS = [
-  { filter: "", label: "All inboxes", dot: "bg-primary" },
-  { filter: "assigned_to_me", label: "Assigned to me", dot: "bg-blue-500" },
+  { filter: "", label: "All Inboxes", dot: "bg-primary" },
+  { filter: "assigned_to_me", label: "Assigned To Me", dot: "bg-blue-500" },
   { filter: "unassigned", label: "Unassigned", dot: "bg-zinc-400" },
   { filter: "unread", label: "Unread", dot: "bg-violet-600" },
   {
     filter: "negative_sentiment",
-    label: "Negative sentiment",
+    label: "Negative Sentiment",
     dot: "bg-orange-500",
   },
 ] as const;
@@ -242,7 +242,7 @@ export const HELPDESK_VIEWS = [
 /** How the left panel names a channel: the web widget is a live chat. */
 export const HELPDESK_CHANNEL_LABELS: Partial<
   Record<SupportTicketChannel, string>
-> = { web: "Web chat" };
+> = { web: "Web Chat" };
 
 /** The ring colour of a channel's mark in the left panel. */
 export const HELPDESK_CHANNEL_RINGS: Partial<
@@ -318,7 +318,7 @@ export function helpdeskViewLabel(
       value
     );
   }
-  return "All inboxes";
+  return "All Inboxes";
 }
 
 /** The ticket count of the fixed view a sidebar url points at, if it is one. */

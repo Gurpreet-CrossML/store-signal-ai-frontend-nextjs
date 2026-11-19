@@ -36,7 +36,7 @@ export const FEATURE_GROUPS: {
         description: "Translates the customer's messages for your agent",
       },
       ticket_auto_translate: {
-        name: "Reply in Customer's Language",
+        name: "Reply In Customer's Language",
         description: "Sends your agent's reply in the customer's language",
       },
     },
@@ -53,7 +53,7 @@ export const FEATURE_GROUPS: {
         description: "Replies to Instagram and Facebook DMs",
       },
       comment_tagging: {
-        name: "Comment Classification and Tagging",
+        name: "Comment Classification And Tagging",
         description: "Sorts comments by type and tags",
       },
     },

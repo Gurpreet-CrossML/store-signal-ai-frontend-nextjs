@@ -284,7 +284,7 @@ export function WhatsAppVariablePicker({
       >
         {/* Header: what this is, and how to drive it from the keyboard. */}
         <div className="border-b bg-muted/40 px-3 py-2">
-          <p className="text-xs font-semibold">Insert a variable</p>
+          <p className="text-xs font-semibold">Insert A Variable</p>
           <p className="mt-0.5 text-[10px] leading-tight text-muted-foreground">
             ↑↓ navigate · → open group · ← back · Tab to insert · Esc to close
           </p>

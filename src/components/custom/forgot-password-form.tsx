@@ -55,22 +55,21 @@ export function ForgotPasswordForm() {
         </div>
         <div className="flex flex-col gap-2">
           <Typography variant="h1" className="text-2xl font-bold sm:text-3xl">
-            Check your email
+            Check Your Email
           </Typography>
           <Typography variant="p" className="text-muted-foreground">
-            Hi ! <strong>{sentTo}</strong>. Password reset link sent
-            successfully. Please check your email for instructions to reset your
-            password.
+            We sent a password reset link to <strong>{sentTo}</strong>. Please
+            check your email for instructions to reset your password.
           </Typography>
           <Typography variant="p" className="text-muted-foreground">
-            The link will expires in sometimes. If that happens, come back here
+            The link expires after a short time. If that happens, come back here
             and request a new one.
           </Typography>
         </div>
         <Button variant="outline" size="lg" asChild>
           <Link href="/login">
             <IconArrowLeft />
-            Back to log in
+            Back To Log In
           </Link>
         </Button>
       </div>
@@ -82,7 +81,7 @@ export function ForgotPasswordForm() {
       <FieldGroup className="gap-5">
         <div className="flex flex-col gap-2">
           <Typography variant="h1" className="text-2xl font-bold sm:text-3xl">
-            Forgot your password?
+            Forgot Your Password?
           </Typography>
           <Typography variant="p" className="text-muted-foreground">
             Enter the email you log in with and we&apos;ll send you a link to
@@ -125,7 +124,7 @@ export function ForgotPasswordForm() {
         <Field>
           <Button type="submit" size="lg" disabled={formik.isSubmitting}>
             {formik.isSubmitting && <Spinner data-icon="inline-start" />}
-            {formik.isSubmitting ? "Sending..." : "Send reset link"}
+            {formik.isSubmitting ? "Sending..." : "Send Reset Link"}
           </Button>
         </Field>
         <Typography variant="muted" className="text-center text-sm">
@@ -134,7 +133,7 @@ export function ForgotPasswordForm() {
             href="/login"
             className="font-medium text-primary hover:underline"
           >
-            Back to log in
+            Back To Log In
           </Link>
         </Typography>
       </FieldGroup>

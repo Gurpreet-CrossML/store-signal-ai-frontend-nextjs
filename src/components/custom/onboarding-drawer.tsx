@@ -96,7 +96,7 @@ export function OnboardingDrawer() {
             <DrawerHeader className="p-0">
               <DrawerTitle>
                 <Typography variant="h1" as="span">
-                  Set up your workspace
+                  Set Up Your Workspace
                 </Typography>
               </DrawerTitle>
               <DrawerDescription>
@@ -139,7 +139,7 @@ export function OnboardingDrawer() {
                   <EmptyMedia>
                     <Spinner />
                   </EmptyMedia>
-                  <EmptyTitle>Finishing your Shopify connection</EmptyTitle>
+                  <EmptyTitle>Finishing Your Shopify Connection</EmptyTitle>
                   <EmptyDescription>
                     Exchanging the authorization with Shopify and subscribing to
                     store updates. This takes a few seconds.
@@ -149,7 +149,7 @@ export function OnboardingDrawer() {
             ) : current === "store_setup" ? (
               <Card>
                 <CardHeader>
-                  <CardTitle>Connect the store</CardTitle>
+                  <CardTitle>Connect The Store</CardTitle>
                   <CardDescription>
                     Choose your platform and point us at your store. You&apos;ll
                     be sent to it to authorize access.

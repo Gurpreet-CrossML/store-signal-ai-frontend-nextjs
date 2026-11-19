@@ -43,7 +43,7 @@ export function CrmLinkButton({
             </Link>
           </Button>
         </TooltipTrigger>
-        <TooltipContent>View in Catalog</TooltipContent>
+        <TooltipContent>View In Catalog</TooltipContent>
       </Tooltip>
     );
   }
@@ -62,7 +62,7 @@ export function CrmLinkButton({
           <IconUserPlus className="size-4" />
         </Button>
       </TooltipTrigger>
-      <TooltipContent>Link a Customer</TooltipContent>
+      <TooltipContent>Link A Customer</TooltipContent>
     </Tooltip>
   );
 }

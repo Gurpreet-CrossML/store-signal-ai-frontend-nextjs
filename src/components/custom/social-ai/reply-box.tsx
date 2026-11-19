@@ -139,7 +139,7 @@ export function ReplyBox({
               : "text-muted-foreground hover:text-foreground"
           }`}
           onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-          title="Add emoji"
+          title="Add Emoji"
         >
           <IconMoodSmile className="size-4" />
         </button>
@@ -175,7 +175,7 @@ export function ReplyBox({
         <div className="ml-auto flex shrink-0 items-center gap-2">
           {attachments.length > 0 && (
             <Typography variant="muted" as="span">
-              {attachments.length} attached
+              {attachments.length} Attached
             </Typography>
           )}
           <Button type="button" size="sm" onClick={submit} disabled={!canSend}>

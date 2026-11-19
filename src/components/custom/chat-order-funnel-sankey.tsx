@@ -23,13 +23,13 @@ import type { ChatOrderFunnelResponse } from "@/redux/api-slice/dashboard-slice"
 // One hue for the flow that moves forward; neutral gray for what drops off,
 // so the eye follows the chats that turn into orders.
 const chartConfig = {
-  step: { label: "Funnel step", color: "var(--chart-1)" },
-  cart: { label: "Added to cart", color: "hsl(45, 93%, 47%)" },
-  checkout: { label: "Checkout link", color: "hsl(217, 91%, 60%)" },
-  order: { label: "Order placed", color: "hsl(142, 71%, 45%)" },
+  step: { label: "Funnel Step", color: "var(--chart-1)" },
+  cart: { label: "Added To Cart", color: "hsl(45, 93%, 47%)" },
+  checkout: { label: "Checkout Link", color: "hsl(217, 91%, 60%)" },
+  order: { label: "Order Placed", color: "hsl(142, 71%, 45%)" },
   dropped: { label: "Dropped", color: "var(--muted-foreground)" },
   // Chats that reached checkout but placed no order.
-  leftAtCheckout: { label: "Left at checkout", color: "hsl(0, 84%, 60%)" },
+  leftAtCheckout: { label: "Left At Checkout", color: "hsl(0, 84%, 60%)" },
 } satisfies ChartConfig;
 
 const FUNNEL_STEP_KEYS = [
@@ -218,7 +218,7 @@ export function ChatOrderFunnelSankey({
     <Card className="mb-6">
       <CardHeader>
         <CardTitle className="flex items-center gap-1.5">
-          Chat to Order Funnel
+          Chat To Order Funnel
           <InfoIcon
             text={`How chats turn into orders. Each step counts chats that reached it or any later step, as a share of chats started. An order counts when it contains a product the chatbot added to the same customer's cart within the ${data?.attribution_window_hours ?? 24} hours before it was placed.`}
           />

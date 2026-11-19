@@ -213,7 +213,7 @@ export function MultiFileUploadDropzone({
       {files.length > 0 && (
         <div className="mt-2 flex flex-col gap-2">
           <p className="text-xs font-medium text-muted-foreground">
-            {files.length} {files.length === 1 ? "file" : "files"}
+            {files.length} {files.length === 1 ? "File" : "Files"}
           </p>
           {files.map((file, index) => (
             <div

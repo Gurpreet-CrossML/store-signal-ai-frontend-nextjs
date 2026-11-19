@@ -85,7 +85,7 @@ export default function KnowledgeOverview() {
             <KnowledgeSummary counts={stats?.counts ?? null} />
             <div className="flex flex-col gap-3">
               <div className="flex flex-col gap-0.5">
-                <h3 className="text-sm font-semibold">Knowledge by category</h3>
+                <h3 className="text-sm font-semibold">Knowledge By Category</h3>
                 <p className="text-xs text-muted-foreground">
                   Pick a category to see and manage its knowledge.
                 </p>

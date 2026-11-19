@@ -72,8 +72,8 @@ const ONBOARDING_STEP_KEY: Record<
 };
 
 const CHECKLIST_ONLY_TITLE: Record<"knowledge" | "social", string> = {
-  knowledge: "Add knowledge",
-  social: "Connect social accounts",
+  knowledge: "Add Knowledge",
+  social: "Connect Social Accounts",
 };
 
 const stepTitle = (key: ChecklistStepKey) =>
@@ -122,7 +122,7 @@ function KnowledgeImportNote({
 }) {
   const published = step.auto_published ?? 0;
   const waiting = step.approval_waiting ?? 0;
-  const pages = (count: number) => `${count} ${count === 1 ? "page" : "pages"}`;
+  const pages = (count: number) => `${count} ${count === 1 ? "Page" : "Pages"}`;
 
   if (step.scan && KNOWLEDGE_SCAN_ACTIVE_STATUSES.includes(step.scan)) {
     return (
@@ -139,7 +139,7 @@ function KnowledgeImportNote({
         {published > 0 && (
           <span className="flex items-center gap-2 font-bold text-primary">
             <IconFileText className="size-4" />
-            {pages(published)} added
+            {pages(published)} Added
           </span>
         )}
         {published > 0 && waiting > 0 && (
@@ -148,14 +148,14 @@ function KnowledgeImportNote({
         {waiting > 0 && (
           <span className="flex items-center gap-2 font-medium">
             <IconClock className="size-4 text-primary" />
-            {pages(waiting)} waiting for approval
+            {pages(waiting)} Waiting For Approval
           </span>
         )}
       </div>
       {waiting > 0 && (
         <Button type="button" size="sm" className="mt-3" asChild>
           <Link href={KNOWLEDGE_APPROVAL_WAITING_HREF} onClick={onNavigate}>
-            Review {pages(waiting)} for approval
+            Review {pages(waiting)} For Approval
             <IconArrowRight />
           </Link>
         </Button>
@@ -206,7 +206,7 @@ function ConnectSocialActions({
           disabled={isStarting}
           onClick={() => void startMetaOAuth()}
         >
-          Connect with Meta
+          Connect With Meta
         </Button>
         <Button
           type="button"
@@ -215,7 +215,7 @@ function ConnectSocialActions({
           className="border-primary text-primary hover:bg-primary/5 hover:text-primary"
           onClick={onSkip}
         >
-          Skip for now
+          Skip For Now
         </Button>
       </div>
     </div>
@@ -392,7 +392,7 @@ export function DashboardSetupChecklist() {
   return (
     <>
       <SidebarMenuButton
-        tooltip="Finish setting up StoreSignal"
+        tooltip="Finish Setting Up StoreSignal"
         className="relative justify-center overflow-visible"
         aria-label={`Setup ${checklist.completed} of ${checklist.total} complete`}
         onClick={() => setOpen(true)}
@@ -413,7 +413,7 @@ export function DashboardSetupChecklist() {
               checklist.pending[0] === "social" ? (
                 <div>
                   <DrawerTitle className="text-xl font-semibold">
-                    Almost done
+                    Almost Done
                   </DrawerTitle>
                   <DrawerDescription>
                     Your assistant is live on your store. Connect your social
@@ -423,7 +423,7 @@ export function DashboardSetupChecklist() {
               ) : (
                 <div>
                   <DrawerTitle className="text-xl font-semibold">
-                    Finish setting up StoreSignal
+                    Finish Setting Up StoreSignal
                   </DrawerTitle>
                   <DrawerDescription>
                     Your assistant won&apos;t reach shoppers until these steps
@@ -443,7 +443,7 @@ export function DashboardSetupChecklist() {
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">
-                {checklist.completed} of {checklist.total} complete
+                {checklist.completed} Of {checklist.total} Complete
               </span>
               <span className="text-sm font-semibold text-primary tabular-nums">
                 {percent}%
@@ -493,7 +493,7 @@ export function DashboardSetupChecklist() {
                         )}
                         {!step.done && key === "widget_live" && (
                           <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-bold text-destructive">
-                            Widget not detected
+                            Widget Not Detected
                           </span>
                         )}
                         {!step.done && step.skipped && (
@@ -536,7 +536,7 @@ export function DashboardSetupChecklist() {
                         className={doneActionClass}
                         onClick={() => setScriptOpen(true)}
                       >
-                        View script
+                        View Script
                       </button>
                     )}
                     {step.done && key === "brand_voice" && (
@@ -581,7 +581,7 @@ export function DashboardSetupChecklist() {
                           size="sm"
                           onClick={() => setScriptOpen(true)}
                         >
-                          Get widget script
+                          Get Widget Script
                         </Button>
                       )}
                       {key === "knowledge" && (
@@ -590,7 +590,7 @@ export function DashboardSetupChecklist() {
                             href="/knowledge/new"
                             onClick={() => setOpen(false)}
                           >
-                            Add knowledge
+                            Add Knowledge
                           </Link>
                         </Button>
                       )}
@@ -613,8 +613,8 @@ export function DashboardSetupChecklist() {
                             onClick={() => setOpen(false)}
                           >
                             {step.persona_done
-                              ? "Pick a tone preset"
-                              : "Set up brand voice"}
+                              ? "Pick A Tone Preset"
+                              : "Set Up Brand Voice"}
                           </Link>
                         </Button>
                       )}

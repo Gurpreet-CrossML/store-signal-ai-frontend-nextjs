@@ -63,7 +63,7 @@ export type DmAutomationSettings = {
 
 export const OUTBOUND_COMPLIANCE_NOTE = {
   tone: "warning" as const,
-  title: "Meta compliance",
+  title: "Meta Compliance",
   body: "An outbound DM can only follow a user-initiated action — a comment or a keyword — and must land inside Meta's messaging window. The platform enforces this on every send; cold DMs cannot be configured.",
 };
 
@@ -78,14 +78,14 @@ let settings: DmAutomationSettings = {
   inboundGates: [
     {
       id: "pull-context",
-      title: "Pull Order & Customer Context into DMs",
+      title: "Pull Order & Customer Context Into DMs",
       description:
         "Recognise the customer, fetch their order, and answer specifically instead of generically.",
       enabled: true,
     },
     {
       id: "human-handoff",
-      title: "Hand Off to a Human on Request",
+      title: "Hand Off To A Human On Request",
       description:
         "When the customer asks for a person or sounds frustrated, the AI stops and leaves the thread to your team.",
       enabled: true,
@@ -103,7 +103,7 @@ let settings: DmAutomationSettings = {
     },
     {
       id: "opt-in-step",
-      title: "Require an Explicit Opt-In Step",
+      title: "Require An Explicit Opt-In Step",
       description:
         "The public reply invites them to DM; the AI only continues once they message first.",
       enabled: true,

@@ -74,6 +74,10 @@ export type SupportTicketFilters = {
   assigned_to_me?: boolean;
   is_assigned?: boolean;
   is_snoozed?: boolean;
+  /** Created on or after this ISO instant. */
+  created_from?: string;
+  /** Created on or before this ISO instant. */
+  created_to?: string;
 };
 
 type GetSupportTicketsArgs = {

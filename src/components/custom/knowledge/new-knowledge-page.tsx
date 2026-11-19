@@ -97,15 +97,15 @@ const emptyFaqRow = (): FaqRow => ({
 
 const TIPS: Record<ContentSource, { title: string; body: string }> = {
   url: {
-    title: "Pick pages that answer questions",
+    title: "Pick Pages That Answer Questions",
     body: "Policies, FAQs, size guides and contact pages work best. Blog posts and job pages rarely help shoppers.",
   },
   file: {
-    title: "Scope it tightly",
+    title: "Scope It Tightly",
     body: "A size guide set to Apparel is only used when shoppers ask about apparel. Store-wide documents are checked for every question.",
   },
   faq: {
-    title: "Write it like a reply",
+    title: "Write It Like A Reply",
     body: "Your assistant uses your answer as written, so keep the tone you use with customers.",
   },
 };
@@ -325,10 +325,10 @@ export function NewKnowledgePage() {
         sent: readyCount,
         label:
           source === "url"
-            ? plural(result.payload.length, "website page")
+            ? plural(result.payload.length, "Website Page")
             : source === "file"
-              ? plural(result.payload.length, "document")
-              : plural(result.payload.length, "question"),
+              ? plural(result.payload.length, "Document")
+              : plural(result.payload.length, "Question"),
       });
       setStep("done");
       dispatch(FetchKnowledgeStats({ storeCode }));
@@ -384,10 +384,10 @@ export function NewKnowledgePage() {
   const isStorageFull = storage ? storage.total >= storage.limit : false;
   const primaryLabel =
     source === "url"
-      ? `Add ${plural(readyCount, "page")}`
+      ? `Add ${plural(readyCount, "Page")}`
       : source === "file"
-        ? `Add ${plural(readyCount, "document")}`
-        : `Add ${plural(readyCount, "question")}`;
+        ? `Add ${plural(readyCount, "Document")}`
+        : `Add ${plural(readyCount, "Question")}`;
   const footerMessage = isStorageFull
     ? "Your storage is full. Free up space or upgrade your plan to add more."
     : source === "url"
@@ -416,7 +416,7 @@ export function NewKnowledgePage() {
           Knowledge
         </Button>
         <Typography variant="h4" as="h1">
-          Add knowledge
+          Add Knowledge
         </Typography>
         <Typography variant="muted" className="max-w-2xl">
           Choose what to add. Your assistant answers shoppers from your
@@ -576,7 +576,7 @@ export function NewKnowledgePage() {
         <div className="mx-auto flex max-w-lg flex-1 flex-col items-center justify-center gap-3 py-10 text-center">
           <IconCircleCheck className="size-12 text-emerald-500" />
           <Typography variant="h4" as="h2">
-            {added.label} added
+            {added.label} Added
           </Typography>
           {added.sent > added.count && (
             <p
@@ -595,10 +595,10 @@ export function NewKnowledgePage() {
           </Typography>
           <div className="mt-2 flex flex-wrap justify-center gap-2">
             <Button asChild>
-              <Link href="/knowledge">View in Knowledge</Link>
+              <Link href="/knowledge">View In Knowledge</Link>
             </Button>
             <Button type="button" variant="outline" onClick={startAgain}>
-              Add more
+              Add More
             </Button>
           </div>
         </div>
@@ -739,7 +739,7 @@ function WebsiteContent({
     <div className="flex flex-col gap-5">
       <section className="flex flex-col gap-2">
         <label htmlFor="website-address" className="text-sm font-semibold">
-          Website or page links
+          Website Or Page Links
         </label>
         <Textarea
           id="website-address"
@@ -791,7 +791,7 @@ function WebsiteContent({
                 className="text-primary"
                 onClick={() => setText(storeUrl)}
               >
-                Use my store
+                Use My Store
               </Button>
             )}
             {locked && scanned && !scanning && (
@@ -811,7 +811,7 @@ function WebsiteContent({
                 {kind === "site" ? (
                   <>
                     <IconWorldSearch className="size-4" />
-                    Find pages
+                    Find Pages
                   </>
                 ) : (
                   <>
@@ -1008,7 +1008,7 @@ function FaqContent({
                 htmlFor={`faq-question-${row.localId}`}
                 className="text-xs font-medium"
               >
-                Customer asks
+                Customer Asks
               </label>
               <Input
                 id={`faq-question-${row.localId}`}
@@ -1029,7 +1029,7 @@ function FaqContent({
                 htmlFor={`faq-answer-${row.localId}`}
                 className="text-xs font-medium"
               >
-                Your answer
+                Your Answer
               </label>
               <Textarea
                 id={`faq-answer-${row.localId}`}
@@ -1067,7 +1067,7 @@ function FaqContent({
         onClick={() => onRowsChange([...rows, emptyFaqRow()])}
       >
         <IconPlus className="size-4" />
-        Add another question
+        Add Another Question
       </Button>
       {error && <p className="text-xs text-destructive">{error}</p>}
     </div>

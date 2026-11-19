@@ -15,7 +15,7 @@ export const THREAD_CLOSE_REASONS = [
   {
     value: "no_reply",
     tone: "warning",
-    label: "No reply",
+    label: "No Reply",
     description: "The customer stopped responding.",
   },
   {
@@ -27,7 +27,7 @@ export const THREAD_CLOSE_REASONS = [
   {
     value: "ticket_created",
     tone: "info",
-    label: "Ticket created",
+    label: "Ticket Created",
     description: "Continuing in a support ticket.",
   },
 ] as const satisfies readonly {

@@ -48,7 +48,7 @@ function draftCountLabel(count: number) {
 
 /** "12 items", or "1 item". */
 export function itemCountLabel(count: number) {
-  return `${count} ${count === 1 ? "item" : "items"}`;
+  return `${count} ${count === 1 ? "Item" : "Items"}`;
 }
 
 // The icon and colour of each kind of knowledge in a card's breakdown, by the
@@ -251,7 +251,7 @@ function CategoryCard({
             {failedCount > 0 && (
               <span className="inline-flex items-center gap-1 text-destructive">
                 <IconAlertTriangle className="size-3.5" />
-                {failedCount} failed
+                {failedCount} Failed
               </span>
             )}
             {draftCount > 0 && (

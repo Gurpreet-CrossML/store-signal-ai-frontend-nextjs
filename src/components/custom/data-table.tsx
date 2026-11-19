@@ -22,6 +22,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Typography } from "@/components/ui/typography";
+import { capitalizeText } from "@/lib/helpers";
 import { cn } from "@/lib/utils";
 
 declare module "@tanstack/react-table" {
@@ -153,7 +154,7 @@ export function DataTable<TData, TValue>({
                   className="h-24 text-center"
                 >
                   <Typography variant="small" as="p">
-                    {emptyTitle ?? `No ${nounPlural} found`}
+                    {emptyTitle ?? `No ${capitalizeText(nounPlural)} Found`}
                   </Typography>
                   {emptyDescription && (
                     <Typography variant="muted" className="mt-1">
@@ -167,7 +168,12 @@ export function DataTable<TData, TValue>({
         </Table>
       </div>
 
-      <DataTablePagination table={table} totalCount={totalCount} noun={noun} />
+      <DataTablePagination
+        table={table}
+        totalCount={totalCount}
+        noun={noun}
+        nounPlural={nounPlural}
+      />
     </div>
   );
 }

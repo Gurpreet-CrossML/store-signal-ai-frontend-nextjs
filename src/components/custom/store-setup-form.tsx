@@ -226,7 +226,7 @@ export function StoreSetupForm({
               ],
               [
                 "client_secret",
-                "Client secret",
+                "Client Secret",
                 IconLock,
                 "password",
                 "e.g. shpss_xxxxxxxxxxxxxxxx",

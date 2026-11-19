@@ -38,7 +38,7 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
         gates: [
           {
             id: "oc-status-pre-dispatch",
-            title: "Order is placed but not yet dispatched",
+            title: "Order Is Placed But Not Yet Dispatched",
             description:
               "The clean case — cancel instantly with a full reversal, no cost and no friction.",
             enabled: true,
@@ -46,7 +46,7 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
           },
           {
             id: "oc-status-packing",
-            title: "Order is being packed",
+            title: "Order Is Being Packed",
             description:
               "Still cancellable if it can be pulled from the pick queue before it ships.",
             enabled: true,
@@ -54,25 +54,25 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
           },
           {
             id: "oc-status-dispatched",
-            title: "Order has been dispatched",
+            title: "Order Has Been Dispatched",
             description:
               "Can't simply cancel — attempt a courier intercept (RTO) or convert to a return after delivery.",
             enabled: true,
             control: {
               kind: "select",
-              label: "If dispatched",
-              value: "Request RTO, refund on confirmation",
+              label: "If Dispatched",
+              value: "Request RTO, Refund On Confirmation",
               options: [
-                "Request RTO, refund on confirmation",
-                "Offer refuse-on-delivery + auto-refund",
-                "Convert to post-delivery return",
-                "Escalate to a teammate",
+                "Request RTO, Refund On Confirmation",
+                "Offer Refuse-On-Delivery + Auto-Refund",
+                "Convert To Post-Delivery Return",
+                "Escalate To A Teammate",
               ],
             },
           },
           {
             id: "oc-status-delivered",
-            title: "Order has been delivered",
+            title: "Order Has Been Delivered",
             description:
               "Not a cancellation anymore — redirect the customer into the Return & Refund workflow automatically.",
             enabled: true,
@@ -92,7 +92,7 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
         gates: [
           {
             id: "oc-window",
-            title: "Within the cancellation window",
+            title: "Within The Cancellation Window",
             description: "Time-boxed from when the order was placed.",
             enabled: true,
             control: {
@@ -104,7 +104,7 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
           },
           {
             id: "oc-payment-type",
-            title: "Payment type is eligible",
+            title: "Payment Type Is Eligible",
             description:
               "Prepaid reverses to the original source; COD simply voids — both handled automatically.",
             enabled: true,
@@ -119,7 +119,7 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
           },
           {
             id: "oc-restricted-type",
-            title: "Not a restricted product type",
+            title: "Not A Restricted Product Type",
             description:
               "Made-to-order, customised, and final-sale items may be non-cancellable once production starts.",
             enabled: true,
@@ -135,7 +135,7 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
           },
           {
             id: "oc-fraud-check",
-            title: "Fraud / abuse check",
+            title: "Fraud / Abuse Check",
             description:
               "Blocks a cancellation if this customer has an abnormal cancellation rate or matches a risk signal.",
             enabled: true,
@@ -157,7 +157,7 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
         gates: [
           {
             id: "oc-partial-allow",
-            title: "Allow cancelling individual items",
+            title: "Allow Cancelling Individual Items",
             description:
               "Recomputes the order total and refunds only the cancelled lines.",
             enabled: true,
@@ -165,18 +165,18 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
           },
           {
             id: "oc-partial-discount",
-            title: "Re-evaluate discounts after a partial cancel",
+            title: "Re-Evaluate Discounts After A Partial Cancel",
             description:
               "If removing an item drops the order below a spend threshold, decide how to handle the promo.",
             enabled: true,
             control: {
               kind: "select",
-              label: "If order falls below offer threshold",
-              value: "Keep discount (goodwill)",
+              label: "If Order Falls Below Offer Threshold",
+              value: "Keep Discount (Goodwill)",
               options: [
-                "Keep discount (goodwill)",
-                "Recalculate & adjust refund",
-                "Escalate to a teammate",
+                "Keep Discount (Goodwill)",
+                "Recalculate & Adjust Refund",
+                "Escalate To A Teammate",
               ],
             },
           },
@@ -190,24 +190,24 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
         gates: [
           {
             id: "oc-refund-method",
-            title: "Refund method",
+            title: "Refund Method",
             description: "Where the refund lands by default.",
             enabled: true,
             locked: true,
             control: {
               kind: "select",
               label: "Default",
-              value: "Original payment method",
+              value: "Original Payment Method",
               options: [
-                "Original payment method",
-                "Store credit (faster, retains revenue)",
-                "Let the customer choose",
+                "Original Payment Method",
+                "Store Credit (Faster, Retains Revenue)",
+                "Let The Customer Choose",
               ],
             },
           },
           {
             id: "oc-restocking-fee",
-            title: "Deduct a cancellation / restocking fee",
+            title: "Deduct A Cancellation / Restocking Fee",
             description:
               "Typically nil before dispatch; may apply once an order has been picked, packed, or dispatched.",
             enabled: false,
@@ -220,7 +220,7 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
           },
           {
             id: "oc-refund-messaging",
-            title: "Refund timeline messaging",
+            title: "Refund Timeline Messaging",
             description:
               "Always tells the customer exactly when to expect the money — the #1 driver of “where's my refund” follow-ups.",
             enabled: true,
@@ -263,7 +263,7 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
         gates: [
           {
             id: "om-status-pre-dispatch",
-            title: "Order not yet dispatched",
+            title: "Order Not Yet Dispatched",
             description:
               "The only state where the contents of a shipment can still change.",
             enabled: true,
@@ -271,18 +271,18 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
           },
           {
             id: "om-status-dispatched",
-            title: "If already dispatched",
+            title: "If Already Dispatched",
             description:
               "The shipment is already on its way, so its contents can no longer change.",
             enabled: true,
             control: {
               kind: "select",
               label: "Action",
-              value: "Explain it's shipped, offer a return and reorder",
+              value: "Explain It's Shipped, Offer A Return And Reorder",
               options: [
-                "Explain it's shipped, offer a return and reorder",
-                "Offer a post-delivery exchange",
-                "Escalate to a teammate",
+                "Explain It's Shipped, Offer A Return And Reorder",
+                "Offer A Post-Delivery Exchange",
+                "Escalate To A Teammate",
               ],
             },
           },
@@ -297,7 +297,7 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
         gates: [
           {
             id: "om-change-variant",
-            title: "Change size / variant",
+            title: "Change Size / Variant",
             description:
               "The most common, lowest-risk change — swap the variant if it's in stock, keep the price.",
             enabled: true,
@@ -305,7 +305,7 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
           },
           {
             id: "om-change-quantity",
-            title: "Change quantity",
+            title: "Change Quantity",
             description:
               "Re-checks stock for an increase, re-prices, and re-evaluates any quantity-break discount.",
             enabled: true,
@@ -318,14 +318,14 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
           },
           {
             id: "om-swap-product",
-            title: "Swap to a different product",
+            title: "Swap To A Different Product",
             description:
               "Higher complexity — treated as a remove + add, re-priced, with the difference settled.",
             enabled: false,
           },
           {
             id: "om-addon",
-            title: "Add / remove an add-on or gift wrap",
+            title: "Add / Remove An Add-On Or Gift Wrap",
             description: "Low risk — adjusts the order total accordingly.",
             enabled: true,
           },
@@ -333,14 +333,14 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
       },
       {
         id: "stock-recheck",
-        title: "Stock & Availability Re-check",
+        title: "Stock & Availability Re-Check",
         subtitle:
           "The check a cancellation never needs, since modification always re-validates inventory",
         enabled: true,
         gates: [
           {
             id: "om-in-stock",
-            title: "New item must be in stock",
+            title: "New Item Must Be In Stock",
             description:
               "Blocks the change if the requested variant is unavailable; offers a back-in-stock alert or the nearest alternative.",
             enabled: true,
@@ -348,7 +348,7 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
           },
           {
             id: "om-stock-hold",
-            title: "Honour a reserved-stock hold",
+            title: "Honour A Reserved-Stock Hold",
             description:
               "Briefly reserves the new variant while the change confirms, so it isn't sold from under the customer.",
             enabled: true,
@@ -364,36 +364,36 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
         gates: [
           {
             id: "om-price-higher",
-            title: "New total is higher",
+            title: "New Total Is Higher",
             description:
               "Collects the difference before confirming the change.",
             enabled: true,
             control: {
               kind: "select",
               label: "Action",
-              value: "Send a secure payment link for the difference",
+              value: "Send A Secure Payment Link For The Difference",
               options: [
-                "Send a secure payment link for the difference",
-                "Add to the COD amount",
-                "Escalate to a teammate",
+                "Send A Secure Payment Link For The Difference",
+                "Add To The COD Amount",
+                "Escalate To A Teammate",
               ],
             },
           },
           {
             id: "om-price-lower",
-            title: "New total is lower",
+            title: "New Total Is Lower",
             description: "Refunds the difference back.",
             enabled: true,
             control: {
               kind: "select",
-              label: "Refund difference as",
-              value: "Store credit (instant)",
-              options: ["Store credit (instant)", "Original payment method"],
+              label: "Refund Difference As",
+              value: "Store Credit (Instant)",
+              options: ["Store Credit (Instant)", "Original Payment Method"],
             },
           },
           {
             id: "om-price-neutral",
-            title: "Price-neutral change",
+            title: "Price-Neutral Change",
             description:
               "A same-price swap — no money moves, safe to auto-approve.",
             enabled: true,
@@ -401,7 +401,7 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
           },
           {
             id: "om-price-ceiling",
-            title: "Value-change ceiling for auto-approval",
+            title: "Value-Change Ceiling For Auto-Approval",
             description:
               "Above this difference, a teammate always confirms, even pre-dispatch.",
             enabled: true,
@@ -443,7 +443,7 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
         gates: [
           {
             id: "rr-window",
-            title: "Within the return window",
+            title: "Within The Return Window",
             description: "Time-boxed from the delivery date.",
             enabled: true,
             control: {
@@ -455,7 +455,7 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
           },
           {
             id: "rr-delivered",
-            title: "Order is actually delivered",
+            title: "Order Is Actually Delivered",
             description:
               "Only delivered orders can be returned — an undelivered one routes to cancellation or tracking instead.",
             enabled: true,
@@ -463,7 +463,7 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
           },
           {
             id: "rr-returnable-category",
-            title: "Item is in a returnable category",
+            title: "Item Is In A Returnable Category",
             description: "Some categories can never be returned once received.",
             enabled: true,
             locked: true,
@@ -481,7 +481,7 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
           },
           {
             id: "rr-not-repeat",
-            title: "Not previously returned or exchanged",
+            title: "Not Previously Returned Or Exchanged",
             description:
               "Blocks a repeat return of the same item; watches for serial returners.",
             enabled: true,
@@ -489,7 +489,7 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
           },
           {
             id: "rr-abuse-score",
-            title: "Return-abuse score is acceptable",
+            title: "Return-Abuse Score Is Acceptable",
             description:
               "Checks the customer's lifetime return rate and risk signals before auto-approving.",
             enabled: true,
@@ -511,24 +511,24 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
         gates: [
           {
             id: "rr-refund-basis",
-            title: "Refund amount basis",
+            title: "Refund Amount Basis",
             description: "",
             enabled: true,
             locked: true,
             control: {
               kind: "select",
               label: "Refund",
-              value: "Item price minus any restocking fee",
+              value: "Item Price Minus Any Restocking Fee",
               options: [
-                "Item price minus any restocking fee",
-                "Full item price",
-                "Item price + original shipping (store fault)",
+                "Item Price Minus Any Restocking Fee",
+                "Full Item Price",
+                "Item Price + Original Shipping (Store Fault)",
               ],
             },
           },
           {
             id: "rr-refund-method",
-            title: "Refund method",
+            title: "Refund Method",
             description: "",
             enabled: true,
             control: {
@@ -543,7 +543,7 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
           },
           {
             id: "rr-auto-ceiling",
-            title: "Auto-approve value ceiling",
+            title: "Auto-Approve Value Ceiling",
             description:
               "Below this, a trusted customer gets an instant approval; above it, a teammate reviews.",
             enabled: true,
@@ -556,17 +556,17 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
           },
           {
             id: "rr-refund-timing",
-            title: "Refund timing",
+            title: "Refund Timing",
             description: "",
             enabled: true,
             control: {
               kind: "select",
-              label: "Release refund",
-              value: "On warehouse QC receipt (safer)",
+              label: "Release Refund",
+              value: "On Warehouse QC Receipt (Safer)",
               options: [
-                "On pickup scan (faster, some risk)",
-                "On warehouse QC receipt (safer)",
-                "Instant for damage or wrong-item",
+                "On Pickup Scan (Faster, Some Risk)",
+                "On Warehouse QC Receipt (Safer)",
+                "Instant For Damage Or Wrong-Item",
               ],
             },
           },
@@ -580,7 +580,7 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
         gates: [
           {
             id: "rr-auto-pickup",
-            title: "Auto-schedule a return pickup",
+            title: "Auto-Schedule A Return Pickup",
             description:
               "Books the reverse-logistics pickup and sends the customer the label or QR code automatically.",
             enabled: true,
@@ -588,7 +588,7 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
           },
           {
             id: "rr-skip-low-value",
-            title: "Skip the return for low-value items",
+            title: "Skip The Return For Low-Value Items",
             description:
               "Below a threshold, it's cheaper to refund and let the customer keep the item than to pay for reverse shipping.",
             enabled: true,
@@ -605,12 +605,12 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
     branches: [
       {
         id: "damaged",
-        reason: "Damaged / defective on arrival",
+        reason: "Damaged / Defective On Arrival",
         note: "Photo evidence required",
         gates: [
           {
             id: "rr-damage-evidence",
-            title: "Require photo evidence of the damage",
+            title: "Require Photo Evidence Of The Damage",
             description: "",
             enabled: true,
             locked: true,
@@ -622,7 +622,7 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
           },
           {
             id: "rr-damage-vision",
-            title: "AI vision check on the uploaded photo",
+            title: "AI Vision Check On The Uploaded Photo",
             description:
               "Confirms the photo shows the ordered item and visible damage, and flags mismatches or reused images.",
             enabled: true,
@@ -630,23 +630,23 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
           },
           {
             id: "rr-damage-resolution",
-            title: "Resolution for genuine damage",
+            title: "Resolution For Genuine Damage",
             description: "",
             enabled: true,
             control: {
               kind: "select",
               label: "Then",
-              value: "Offer a replacement first, refund if unavailable",
+              value: "Offer A Replacement First, Refund If Unavailable",
               options: [
-                "Offer a replacement first, refund if unavailable",
-                "Instant refund, no return pickup needed",
-                "Refund with no return needed (low value)",
+                "Offer A Replacement First, Refund If Unavailable",
+                "Instant Refund, No Return Pickup Needed",
+                "Refund With No Return Needed (Low Value)",
               ],
             },
           },
           {
             id: "rr-damage-window-waiver",
-            title: "Waive the return window for damage",
+            title: "Waive The Return Window For Damage",
             description:
               "Damaged-on-arrival is honoured even outside the normal window.",
             enabled: true,
@@ -656,12 +656,12 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
       },
       {
         id: "wrong-item",
-        reason: "Wrong item received",
+        reason: "Wrong Item Received",
         note: "Verified against the order",
         gates: [
           {
             id: "rr-wrong-photo",
-            title: "Photo of the item received",
+            title: "Photo Of The Item Received",
             description:
               "Asks for a photo of what actually arrived, including the label or SKU, so the AI can compare it to the order.",
             enabled: true,
@@ -669,7 +669,7 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
           },
           {
             id: "rr-wrong-validate",
-            title: "Validate the mismatch against the order",
+            title: "Validate The Mismatch Against The Order",
             description:
               "Compares the received SKU to the ordered SKU to confirm a genuine mis-pick, not buyer confusion.",
             enabled: true,
@@ -683,17 +683,17 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
             control: {
               kind: "select",
               label: "Then",
-              value: "Ship the correct item + free return of the wrong one",
+              value: "Ship The Correct Item + Free Return Of The Wrong One",
               options: [
-                "Ship the correct item + free return of the wrong one",
-                "Refund in full + arrange pickup",
-                "Escalate to fulfilment",
+                "Ship The Correct Item + Free Return Of The Wrong One",
+                "Refund In Full + Arrange Pickup",
+                "Escalate To Fulfilment",
               ],
             },
           },
           {
             id: "rr-wrong-free",
-            title: "Always free of cost to the customer",
+            title: "Always Free Of Cost To The Customer",
             description:
               "A wrong item is the store's error — never charge return shipping or a restocking fee.",
             enabled: true,
@@ -703,18 +703,18 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
       },
       {
         id: "changed-mind",
-        reason: "Size, fit, or changed mind",
+        reason: "Size, Fit, Or Changed Mind",
         gates: [
           {
             id: "rr-cm-condition",
-            title: "Item must be unused, tags intact, original packaging",
+            title: "Item Must Be Unused, Tags Intact, Original Packaging",
             description: "The condition standard for a resaleable return.",
             enabled: true,
             locked: true,
           },
           {
             id: "rr-cm-exchange-first",
-            title: "Offer an exchange before a refund",
+            title: "Offer An Exchange Before A Refund",
             description:
               "A size or variant swap solves the problem and retains the sale.",
             enabled: true,
@@ -722,7 +722,7 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
           },
           {
             id: "rr-cm-restocking-fee",
-            title: "Restocking fee for a change of mind",
+            title: "Restocking Fee For A Change Of Mind",
             description:
               "Optional deduction for a non-fault return, to cover reverse logistics.",
             enabled: false,
@@ -739,7 +739,7 @@ const WORKFLOWS: Record<WorkflowId, Workflow> = {
     callouts: [
       {
         tone: "danger",
-        title: "Why This Is the Hardest Workflow",
+        title: "Why This Is The Hardest Workflow",
         body: "It branches on reason, gates on category, moves money out, and carries the largest fraud surface. Autonomy is earned narrowly — low-value, trusted-customer, clear-cut cases resolve automatically; everything else gets verification or a human.",
       },
     ],

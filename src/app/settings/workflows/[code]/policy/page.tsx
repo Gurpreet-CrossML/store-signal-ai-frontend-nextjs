@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import WorkflowPolicy from "@/clients/workflow-policy";
 
 export const metadata = {
-  title: "Workflow policy",
+  title: "Workflow Policy",
 };
 
 // Workflow codes are lower-case words joined by underscores.

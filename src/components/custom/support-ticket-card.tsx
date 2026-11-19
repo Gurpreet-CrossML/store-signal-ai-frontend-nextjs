@@ -110,7 +110,7 @@ export function SupportTicketCard({
               as="p"
               className="truncate text-base font-semibold"
             >
-              {ticket.subject || "Untitled ticket"}
+              {ticket.subject || "Untitled Ticket"}
             </Typography>
             <StatusBadge status={ticket.status} />
           </div>
@@ -159,7 +159,7 @@ export function SupportTicketCard({
                     <IconInfoCircle className="size-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Ticket details</TooltipContent>
+                <TooltipContent>Ticket Details</TooltipContent>
               </Tooltip>
 
               <Tooltip>
@@ -177,7 +177,7 @@ export function SupportTicketCard({
                     </a>
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Open in Help Desk</TooltipContent>
+                <TooltipContent>Open In Help Desk</TooltipContent>
               </Tooltip>
             </div>
           </div>
@@ -189,7 +189,7 @@ export function SupportTicketCard({
           <DialogHeader>
             <div className="flex items-start justify-between gap-3 pr-6">
               <DialogTitle className="text-left">
-                {ticket.subject || "Untitled ticket"}
+                {ticket.subject || "Untitled Ticket"}
               </DialogTitle>
               <StatusBadge status={ticket.status} />
             </div>
@@ -237,7 +237,7 @@ export function SupportTicketCard({
                 rel="noopener noreferrer"
               >
                 <IconExternalLink className="size-4" />
-                Open in Help Desk
+                Open In Help Desk
               </a>
             </Button>
           </DialogFooter>

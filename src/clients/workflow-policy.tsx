@@ -125,13 +125,13 @@ const SUGGESTION_KINDS: Record<
     icon: IconAlertTriangle,
   },
   never_applies: {
-    label: "Never applies",
+    label: "Never Applies",
     tone: "danger",
     icon: IconAlertTriangle,
   },
   unclear: { label: "Unclear", tone: "warning", icon: IconAlertCircle },
   missing: {
-    label: "Missing coverage",
+    label: "Missing Coverage",
     tone: "warning",
     icon: IconAlertCircle,
   },
@@ -149,32 +149,32 @@ const ACTIVITY: Record<
   { label: string; icon: Icon; color: string }
 > = {
   status_changed: {
-    label: "Status changed",
+    label: "Status Changed",
     icon: IconCircleCheck,
     color: "text-emerald-600 dark:text-emerald-400",
   },
   policy_added: {
-    label: "Custom policy added",
+    label: "Custom Policy Added",
     icon: IconFileText,
     color: "text-sky-600 dark:text-sky-400",
   },
   policy_updated: {
-    label: "Policy updated",
+    label: "Policy Updated",
     icon: IconFileText,
     color: "text-sky-600 dark:text-sky-400",
   },
   policy_removed: {
-    label: "Custom policy removed",
+    label: "Custom Policy Removed",
     icon: IconFileText,
     color: "text-sky-600 dark:text-sky-400",
   },
   policy_restored: {
-    label: "Policy restored",
+    label: "Policy Restored",
     icon: IconRestore,
     color: "text-sky-600 dark:text-sky-400",
   },
   version_deleted: {
-    label: "Version deleted",
+    label: "Version Deleted",
     icon: IconTrash,
     color: "text-muted-foreground",
   },
@@ -404,10 +404,10 @@ export default function WorkflowPolicy({ code }: { code: string }) {
       return;
     }
     setConfirm({
-      title: "Turn off your policy?",
+      title: "Turn Off Your Policy?",
       description:
         "With no policy, the AI sends these requests to your team. You can bring this version back later from the history.",
-      label: "Turn off",
+      label: "Turn Off",
       run: save,
     });
   };
@@ -500,20 +500,20 @@ export default function WorkflowPolicy({ code }: { code: string }) {
           className="flex w-fit items-center gap-1.5 text-[13px] text-muted-foreground transition-colors hover:text-foreground"
         >
           <IconArrowLeft className="size-4" />
-          AI workflows
+          AI Workflows
         </button>
         <div className="flex items-start justify-between gap-4">
           <div className="flex min-w-0 flex-col gap-1">
             <div className="flex flex-wrap items-center gap-2.5">
               <Typography variant="h4" as="h2">
-                {policy?.name ?? workflow?.name ?? "Workflow policy"}
+                {policy?.name ?? workflow?.name ?? "Workflow Policy"}
               </Typography>
               {workflow && (
                 <Badge variant="secondary">{workflow.agent_label}</Badge>
               )}
               {policy && policy.policy_version > 0 && (
                 <Badge variant="outline" className={BADGE_TONE_STYLES.accent}>
-                  Custom policy
+                  Custom Policy
                 </Badge>
               )}
             </div>
@@ -542,14 +542,14 @@ export default function WorkflowPolicy({ code }: { code: string }) {
             <EmptyMedia>
               <IconFileText />
             </EmptyMedia>
-            <EmptyTitle>Couldn&apos;t load this policy</EmptyTitle>
+            <EmptyTitle>Couldn&apos;t Load This Policy</EmptyTitle>
             <EmptyDescription>
               Check your connection and try again.
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
             <Button variant="outline" size="sm" onClick={load}>
-              Try again
+              Try Again
             </Button>
           </EmptyContent>
         </Empty>
@@ -564,11 +564,11 @@ export default function WorkflowPolicy({ code }: { code: string }) {
             >
               <div className="flex items-center justify-between gap-2 px-4 py-3">
                 <Label htmlFor="workflow-policy-text" className="font-semibold">
-                  Your policy
+                  Your Policy
                 </Label>
                 {policy.policy_version > 0 && (
                   <Badge variant="secondary">
-                    Version {policy.policy_version} · current
+                    Version {policy.policy_version} · Current
                   </Badge>
                 )}
               </div>
@@ -632,13 +632,13 @@ export default function WorkflowPolicy({ code }: { code: string }) {
                   {saving && <Spinner data-icon="inline-start" />}
                   {saving
                     ? "Converting and checking your policy…"
-                    : `Save as version ${policy.next_version}`}
+                    : `Save As Version ${policy.next_version}`}
                 </Button>
               </div>
             </div>
 
             <div className="flex flex-col gap-2 rounded-xl border bg-card p-4">
-              <h3 className="text-sm font-semibold">Writing tips</h3>
+              <h3 className="text-sm font-semibold">Writing Tips</h3>
               <ul className="flex flex-col gap-2">
                 {WRITING_TIPS.map((tip) => (
                   <li
@@ -663,7 +663,7 @@ export default function WorkflowPolicy({ code }: { code: string }) {
               className="w-full justify-start overflow-x-auto overflow-y-hidden border-b px-4"
             >
               <TabsTrigger value="flow" className={TAB_CLASS}>
-                What the AI will do
+                What The AI Will Do
               </TabsTrigger>
               <TabsTrigger value="suggestions" className={TAB_CLASS}>
                 Suggestions
@@ -831,10 +831,10 @@ function WorkflowSwitch({
 }) {
   const on = workflow.is_enabled;
   const [title, detail] = !workflow.can_disable
-    ? ["Always on", "Core to Store Signal, so it can't be turned off"]
+    ? ["Always On", "Core to Store Signal, so it can't be turned off"]
     : on
-      ? ["Workflow on", "The AI handles these requests"]
-      : ["Workflow off", "The AI offers a support ticket instead"];
+      ? ["Workflow On", "The AI handles these requests"]
+      : ["Workflow Off", "The AI offers a support ticket instead"];
 
   return (
     // On a phone only the switch shows, beside the title.
@@ -970,7 +970,7 @@ function Suggestions({
         </Typography>
         <Button variant="outline" size="sm" onClick={onCheck}>
           <IconRefresh data-icon="inline-start" />
-          Check now
+          Check Now
         </Button>
       </div>
     );
@@ -997,8 +997,8 @@ function Suggestions({
         <div className="flex min-w-0 flex-col">
           <h3 className="text-sm font-semibold">
             {items.length
-              ? `${items.length} thing${items.length > 1 ? "s" : ""} to check in your policy`
-              : "Nothing to check"}
+              ? `${items.length} Thing${items.length > 1 ? "s" : ""} To Check In Your Policy`
+              : "Nothing To Check"}
           </h3>
           <p className="text-xs text-muted-foreground">
             {checking
@@ -1030,7 +1030,7 @@ function Suggestions({
             ) : (
               <IconRefresh data-icon="inline-start" />
             )}
-            Check again
+            Check Again
           </Button>
         </div>
       </div>
@@ -1177,7 +1177,7 @@ function SuggestionCard({
         {suggestion.lines.length > 0 && (
           <Button variant="outline" size="sm" onClick={onShow}>
             <IconEye data-icon="inline-start" />
-            Show in policy
+            Show In Policy
           </Button>
         )}
         {added ? (
@@ -1200,7 +1200,7 @@ function SuggestionCard({
           fix && (
             <Button size="sm" onClick={onAdd} disabled={disabled}>
               <IconWand data-icon="inline-start" />
-              Add suggested fix
+              Add Suggested Fix
             </Button>
           )
         )}
@@ -1243,7 +1243,7 @@ function ActivityValue({ value }: { value: string }) {
       : value === "off"
         ? ["Off", "neutral"]
         : value === "default"
-          ? ["Default rules", "neutral"]
+          ? ["Default Rules", "neutral"]
           : [value, "accent"];
   return (
     <Badge variant="outline" className={BADGE_TONE_STYLES[tone]}>
@@ -1340,7 +1340,7 @@ function PolicyText({ text }: { text: string }) {
           className="h-auto p-0 text-xs"
           onClick={() => setOpen((value) => !value)}
         >
-          {open ? "Show less" : "Show more"}
+          {open ? "Show Less" : "Show More"}
         </Button>
       )}
     </div>

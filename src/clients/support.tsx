@@ -472,7 +472,7 @@ function ThreadChatControls({
                       }
                     >
                       <IconHeadset className="hidden h-4 w-4 sm:block" />
-                      <span className="sm:hidden">Take over</span>
+                      <span className="sm:hidden">Take Over</span>
                       <span className="hidden sm:inline">Take Over</span>
                     </Button>
                   </motion.div>
@@ -529,7 +529,7 @@ function ThreadChatControls({
                       isSavingInternalNote ||
                       transitionState !== "idle"
                     }
-                    title="Save internal note"
+                    title="Save Internal Note"
                     className="h-8 bg-amber-700 px-3 text-xs text-white hover:bg-amber-800 sm:text-sm dark:bg-amber-600 dark:hover:bg-amber-500"
                   >
                     {isSavingInternalNote ? (
@@ -537,7 +537,7 @@ function ThreadChatControls({
                     ) : (
                       <IconNote className="size-3.5 sm:size-4" />
                     )}
-                    Add note
+                    Add Note
                   </Button>
                 </div>
               </div>
@@ -605,7 +605,7 @@ function ThreadChatControls({
                   }
                 >
                   <IconHeadset className="h-4 w-4" />
-                  Take over
+                  Take Over
                 </Button>
               )}
             </div>
@@ -666,7 +666,7 @@ function ThreadChatControls({
                   disabled={transitionState !== "idle" || !chatSocketReady}
                 >
                   <IconArrowBackUp className="size-3.5 sm:size-4" />
-                  Hand back to AI
+                  Hand Back To AI
                 </Button>
               </motion.div>
             </div>
@@ -801,7 +801,7 @@ function ThreadChatControls({
                         disabled={isUploading}
                         className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-background/80 text-muted-foreground opacity-0 shadow-sm transition-opacity group-hover:opacity-100 hover:bg-background hover:text-foreground disabled:cursor-not-allowed disabled:opacity-0"
                         onClick={() => onRemoveAttachment(attachment.id)}
-                        title={isUploading ? "Uploading…" : "Remove attachment"}
+                        title={isUploading ? "Uploading…" : "Remove Attachment"}
                       >
                         <IconX className="h-3 w-3" />
                       </button>
@@ -847,7 +847,7 @@ function ThreadChatControls({
                   isEmojiPickerOpen && "ring-2 ring-ring/40",
                 )}
                 onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
-                title="Add emoji"
+                title="Add Emoji"
               >
                 <IconMoodSmile className="size-4" />
               </Button>
@@ -857,7 +857,7 @@ function ThreadChatControls({
                 size="icon-sm"
                 disabled={inputsDisabled}
                 onClick={() => fileInputRef.current?.click()}
-                title="Attach image or file"
+                title="Attach Image Or File"
                 className="size-7 sm:size-8"
               >
                 <IconPaperclip className="size-4" />
@@ -868,7 +868,7 @@ function ThreadChatControls({
                 size="icon-sm"
                 disabled={inputsDisabled}
                 onClick={() => setIsProductPickerOpen(true)}
-                title="Attach products (max 10)"
+                title="Attach Products (Max 10)"
                 className={cn(
                   "size-7 sm:size-8",
                   attachedProducts.length > 0 &&
@@ -912,7 +912,7 @@ function ThreadChatControls({
                     as="span"
                     className="hidden 2xl:inline"
                   >
-                    {attachedProducts.length} product
+                    {attachedProducts.length} Product
                     {attachedProducts.length > 1 ? "s" : ""}
                   </Typography>
                 )}
@@ -922,7 +922,7 @@ function ThreadChatControls({
                     as="span"
                     className="hidden 2xl:inline"
                   >
-                    {attachments.length} attached
+                    {attachments.length} Attached
                   </Typography>
                 )}
                 <Button
@@ -936,7 +936,7 @@ function ThreadChatControls({
                 >
                   <IconNote className="size-3.5 sm:size-4" />
                   <span className="hidden xl:inline">
-                    Send as Internal Note
+                    Send As Internal Note
                   </span>
                   <span className="xl:hidden">Note</span>
                 </Button>
@@ -2585,7 +2585,7 @@ export default function Support() {
         <SidebarHeader className="gap-0 p-0">
           <div className="flex h-16 shrink-0 items-center justify-between gap-2 border-b px-4">
             <CardTitle className="flex items-center gap-2">
-              Live chats
+              Live Chats
             </CardTitle>
           </div>
 
@@ -2884,12 +2884,12 @@ export default function Support() {
                 <div className="flex flex-col items-center justify-center gap-1 p-6 text-center">
                   <Typography variant="small" as="p">
                     {activeReadFilter === "needs_human"
-                      ? "No chats need human help"
+                      ? "No Chats Need Human Help"
                       : activeReadFilter === "ai"
-                        ? "No AI-handled chats"
+                        ? "No AI-Handled Chats"
                         : activeReadFilter === "with_agent"
-                          ? "No chats with agents"
-                          : "No matches"}
+                          ? "No Chats With Agents"
+                          : "No Matches"}
                   </Typography>
                   <Typography variant="muted">
                     {threadSearch
@@ -3003,14 +3003,14 @@ export default function Support() {
                           onSelect={() => setIsDetailsOpen(true)}
                         >
                           <IconId className="size-4" />
-                          Customer details
+                          Customer Details
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           disabled={!canCreateTicket}
                           onSelect={() => setIsCreateTicketOpen(true)}
                         >
                           <IconTicket className="size-4" />
-                          Create ticket
+                          Create Ticket
                         </DropdownMenuItem>
                         {selectedThread?.is_active && canHandleChats ? (
                           <DropdownMenuItem
@@ -3022,7 +3022,7 @@ export default function Support() {
                             onSelect={() => setIsCloseChatOpen(true)}
                           >
                             <IconMessageOff className="size-4" />
-                            Close chat
+                            Close Chat
                           </DropdownMenuItem>
                         ) : null}
                       </DropdownMenuContent>
@@ -3095,7 +3095,7 @@ export default function Support() {
                             as="p"
                             className="text-lg font-semibold"
                           >
-                            No messages yet
+                            No Messages Yet
                           </Typography>
                           <Typography
                             variant="muted"
@@ -3215,7 +3215,7 @@ export default function Support() {
               as="p"
               className="text-lg font-semibold"
             >
-              No active chats
+              No Active Chats
             </Typography>
             <Typography
               variant="muted"

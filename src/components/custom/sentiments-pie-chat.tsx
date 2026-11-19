@@ -92,7 +92,7 @@ export function SentimentsPieChart({
                         dy="22"
                         className="fill-muted-foreground text-xs"
                       >
-                        positive
+                        Positive
                       </tspan>
                     </text>
                   );

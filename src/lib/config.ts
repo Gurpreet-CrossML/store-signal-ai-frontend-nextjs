@@ -758,9 +758,9 @@ export const REGIONAL_SPELLING_CHOICES: readonly DescribedOption[] = [
 // Mirrors `onboarding_step` on the session user (Django user_context), in
 // the order the user walks through them.
 export const ONBOARDING_STEPS = [
-  { value: "store_setup", label: "Connect the store" },
-  { value: "go_live", label: "Go live on store" },
-  { value: "brand_voice", label: "Set up brand voice" },
+  { value: "store_setup", label: "Connect The Store" },
+  { value: "go_live", label: "Go Live On Store" },
+  { value: "brand_voice", label: "Set Up Brand Voice" },
 ] as const;
 
 export type OnboardingStep = (typeof ONBOARDING_STEPS)[number]["value"];
@@ -784,10 +784,10 @@ export const WIDGET_INSTALL_STEPS = {
 } as const;
 
 export const SHOPIFY_CONNECT_STEPS = [
-  "Checking permissions",
-  "Fetching connected store details",
-  "Subscribing to store updates",
-  "Setting things up",
+  "Checking Permissions",
+  "Fetching Connected Store Details",
+  "Subscribing To Store Updates",
+  "Setting Things Up",
   "Done",
 ] as const;
 
@@ -936,10 +936,10 @@ export const KNOWLEDGE_SOURCE_COUNT_LABELS = [
   { key: "articles", one: "article", many: "articles" },
   { key: "faqs", one: "FAQ", many: "FAQs" },
 ] as const;
-export const KNOWLEDGE_ALL_NAME = "All knowledge";
+export const KNOWLEDGE_ALL_NAME = "All Knowledge";
 export const KNOWLEDGE_ALL_DESCRIPTION =
   "Everything your assistant knows, across every category";
-export const KNOWLEDGE_APPROVAL_WAITING_NAME = "Waiting for your approval";
+export const KNOWLEDGE_APPROVAL_WAITING_NAME = "Waiting For Your Approval";
 export const KNOWLEDGE_APPROVAL_WAITING_DESCRIPTION =
   "Pages found on your website that are saved as drafts. Check them and publish the ones your assistant should use.";
 
@@ -959,7 +959,7 @@ export const KNOWLEDGE_URL_INPUT_DELAY_MS = 500;
 
 // What knowledge filed under no knowledge category is called, and what its card
 // says about it.
-export const KNOWLEDGE_UNCATEGORIZED_NAME = "No category";
+export const KNOWLEDGE_UNCATEGORIZED_NAME = "No Category";
 export const KNOWLEDGE_UNCATEGORIZED_DESCRIPTION =
   "Knowledge that isn't filed under any category yet";
 

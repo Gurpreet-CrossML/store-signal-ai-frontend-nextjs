@@ -46,7 +46,7 @@ export function ProductStrip({
           <span className="truncate">
             AI sent{" "}
             <span className="font-semibold text-foreground">
-              {products.length} {products.length === 1 ? "product" : "products"}
+              {products.length} {products.length === 1 ? "Product" : "Products"}
             </span>{" "}
             as a carousel · from {sourceLabel}
           </span>
@@ -58,7 +58,7 @@ export function ProductStrip({
             aria-expanded={expanded}
             className="inline-flex shrink-0 items-center gap-1 rounded-md border px-3 py-1.5 text-sm font-medium text-primary hover:bg-primary/5"
           >
-            {expanded ? "Show less" : `View all ${products.length}`}
+            {expanded ? "Show Less" : `View All ${products.length}`}
             {expanded ? (
               <IconChevronUp className="size-4" />
             ) : (

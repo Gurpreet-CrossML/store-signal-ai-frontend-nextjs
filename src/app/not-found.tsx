@@ -13,7 +13,7 @@ export default function NotFound() {
           Sorry, we couldn&apos;t find this page.
         </p>
         <Button asChild className="mt-8 h-12 max-w-sm text-base font-semibold">
-          <Link href="/">Back to home</Link>
+          <Link href="/">Back To Home</Link>
         </Button>
       </div>
     </main>

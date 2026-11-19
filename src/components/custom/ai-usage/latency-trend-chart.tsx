@@ -21,7 +21,7 @@ import {
 import type { AIUsageResponse } from "@/redux/api-slice/ai-usage-slice";
 
 const chartConfig = {
-  latency: { label: "Average latency (ms)", color: "var(--chart-3)" },
+  latency: { label: "Average Latency (ms)", color: "var(--chart-3)" },
 } satisfies ChartConfig;
 
 const compact = new Intl.NumberFormat("en-US", {

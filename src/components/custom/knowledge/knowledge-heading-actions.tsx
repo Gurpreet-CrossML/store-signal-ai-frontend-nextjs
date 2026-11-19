@@ -19,7 +19,7 @@ export function KnowledgeHeadingActions({
         <Button type="button" variant="outline" size="sm">
           <IconMessage2 className="size-4" />
           <span className="sm:hidden">Test</span>
-          <span className="max-sm:hidden">Test your AI</span>
+          <span className="max-sm:hidden">Test Your AI</span>
         </Button>
       )}
       {canEdit && (
@@ -27,7 +27,7 @@ export function KnowledgeHeadingActions({
           <Link href="/knowledge/new">
             <IconPlus className="size-4" />
             <span className="sm:hidden">Add</span>
-            <span className="max-sm:hidden">Add knowledge</span>
+            <span className="max-sm:hidden">Add Knowledge</span>
           </Link>
         </Button>
       )}

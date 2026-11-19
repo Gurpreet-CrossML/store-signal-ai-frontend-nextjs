@@ -377,7 +377,7 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
           It may have been deleted, or it belongs to another store.
         </p>
         <Button asChild variant="outline">
-          <Link href="/knowledge">Back to Knowledge</Link>
+          <Link href="/knowledge">Back To Knowledge</Link>
         </Button>
       </div>
     );
@@ -452,7 +452,7 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
                 {formatDate(meta.createdAt)}
                 {meta.createdBy ? ` by ${meta.createdBy}` : ""}
               </dd>
-              <dt className="text-muted-foreground">Last edited</dt>
+              <dt className="text-muted-foreground">Last Edited</dt>
               <dd>
                 {formatDate(meta.updatedAt)}
                 {meta.updatedBy ? ` by ${meta.updatedBy}` : ""}
@@ -477,7 +477,7 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
 
         <div className="flex min-w-0 flex-1 basis-40 items-center gap-2 text-sm">
           <span className="truncate font-medium">
-            {title.trim() || "Untitled article"}
+            {title.trim() || "Untitled Article"}
           </span>
           <KnowledgeStatusBadge status={status} />
           <span
@@ -515,7 +515,7 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
             onClick={requestPublish}
           >
             <IconWorld className="size-4" />
-            {isLive ? "Publish changes" : "Publish"}
+            {isLive ? "Publish Changes" : "Publish"}
           </Button>
         </div>
       </header>
@@ -624,14 +624,14 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {isLive ? "Publish your changes?" : "Publish this article?"}
+              {isLive ? "Publish Your Changes?" : "Publish This Article?"}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {isLive ? (
                 <>
                   Your assistant switches to this version of{" "}
                   <strong className="font-semibold break-words text-foreground">
-                    {title.trim() || "Untitled article"}
+                    {title.trim() || "Untitled Article"}
                   </strong>{" "}
                   as soon as it&apos;s published. Until then it keeps using the
                   version that&apos;s live now.
@@ -640,7 +640,7 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
                 <>
                   Your assistant starts answering from{" "}
                   <strong className="font-semibold break-words text-foreground">
-                    {title.trim() || "Untitled article"}
+                    {title.trim() || "Untitled Article"}
                   </strong>{" "}
                   as soon as it&apos;s published.
                 </>
@@ -648,14 +648,14 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 border-y py-3 text-sm">
-            <dt className="text-muted-foreground">Used by</dt>
+            <dt className="text-muted-foreground">Used By</dt>
             <dd>{aiLabels || "—"}</dd>
-            <dt className="text-muted-foreground">Applies to</dt>
+            <dt className="text-muted-foreground">Applies To</dt>
             <dd>{describeScope(scope)}</dd>
             <dt className="text-muted-foreground">Categories</dt>
             <dd>{categoryNames || "None"}</dd>
             <dt className="text-muted-foreground">Length</dt>
-            <dd>{words.toLocaleString()} words</dd>
+            <dd>{words.toLocaleString()} Words</dd>
           </dl>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isPublishing}>
