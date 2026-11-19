@@ -23,6 +23,9 @@ declare module "next-auth" {
     is_staff?: boolean;
     role?: StaffRole | null;
     permissions?: PermissionMap;
+    user_id?: number | null;
+    managed_roles?: StaffRole[];
+    queue_only?: boolean;
     accessible_stores?: AccessibleStore[];
     // Onboarding flow: if the user has not yet completed the initial setup, we
     // redirect them to the onboarding flow instead of the dashboard.
@@ -40,6 +43,9 @@ declare module "next-auth" {
       is_staff?: boolean;
       role?: StaffRole | null;
       permissions?: PermissionMap;
+      user_id?: number | null;
+      managed_roles?: StaffRole[];
+      queue_only?: boolean;
       accessible_stores?: AccessibleStore[];
       // Onboarding flow: if the user has not yet completed the initial setup, we
       // redirect them to the onboarding flow instead of the dashboard.
@@ -64,6 +70,9 @@ declare module "next-auth/jwt" {
     is_staff?: boolean;
     role?: StaffRole | null;
     permissions?: PermissionMap;
+    user_id?: number | null;
+    managed_roles?: StaffRole[];
+    queue_only?: boolean;
     accessible_stores?: AccessibleStore[];
     onboarding_pending?: boolean;
     onboarding_step?: string | null;
@@ -136,6 +145,9 @@ export const authOptions: AuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
   pages: {
     signIn: "/login",
+    // The app signs out with signOut() from the user menu, so next-auth's
+    // own "Are you sure?" page at /api/auth/signout is never shown.
+    signOut: "/login",
     // error: "/error",
   },
   session: {
@@ -218,6 +230,9 @@ export const authOptions: AuthOptions = {
           is_staff: token.is_staff,
           role: token.role,
           permissions: token.permissions,
+          user_id: token.user_id,
+          managed_roles: token.managed_roles,
+          queue_only: token.queue_only,
           accessible_stores: token.accessible_stores,
           onboarding_pending: token.onboarding_pending,
           onboarding_step: token.onboarding_step,
@@ -244,6 +259,9 @@ export const authOptions: AuthOptions = {
         token.is_staff = user.is_staff ?? false;
         token.role = user.role ?? null;
         token.permissions = user.permissions ?? {};
+        token.user_id = user.user_id ?? null;
+        token.managed_roles = user.managed_roles ?? [];
+        token.queue_only = user.queue_only ?? false;
         token.accessible_stores = user.accessible_stores ?? [];
 
         token.onboarding_pending = user.onboarding_pending ?? false;
@@ -275,6 +293,9 @@ export const authOptions: AuthOptions = {
         token.is_staff = identity.is_staff;
         token.role = identity.role;
         token.permissions = identity.permissions;
+        token.user_id = identity.user_id;
+        token.managed_roles = identity.managed_roles;
+        token.queue_only = identity.queue_only;
         token.accessible_stores = identity.accessible_stores;
         if (identity.onboarding_pending !== undefined) {
           token.onboarding_pending = identity.onboarding_pending;

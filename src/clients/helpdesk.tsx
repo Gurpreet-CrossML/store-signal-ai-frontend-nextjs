@@ -2517,9 +2517,12 @@ export default function HelpDesk() {
     upsertSocketTicket,
   ]);
 
-  // Only admins and supervisors assign tickets, and only they may read the
+  // Only owners and managers assign tickets to others, and only they may read the
   // staff list; fetching it as anyone else would only fail with an error toast.
   const canAssign = can(session?.user, "reassignment", { write: true });
+  // Everyone else who works tickets may take an unassigned one for themselves.
+  const canTakeTicket =
+    !canAssign && can(session?.user, "conversations", { write: true });
   useEffect(() => {
     if (!storeCode || !canAssign) return;
 
@@ -3147,6 +3150,9 @@ export default function HelpDesk() {
       ).unwrap();
 
       const assignedStaff = staff.find((member) => member.id === staffId);
+      // An agent taking a ticket has no staff list; they are the assignee.
+      const me = session?.user;
+      const tookIt = staffId !== null && staffId === me?.user_id;
 
       applyTicketRowUpdate(ticketId, {
         internal_assignee: assignedStaff
@@ -3155,7 +3161,13 @@ export default function HelpDesk() {
               name: `${assignedStaff.first_name} ${assignedStaff.last_name}`,
               email: assignedStaff.email,
             }
-          : null,
+          : tookIt
+            ? {
+                id: staffId,
+                name: me?.name ?? me?.email ?? "",
+                email: me?.email ?? "",
+              }
+            : null,
       });
       // The assignment is now part of the ticket's history.
       if (currentActiveSupportTicketIdRef.current === ticketId) {
@@ -3884,6 +3896,11 @@ export default function HelpDesk() {
             staff={staff}
             canAssign={canAssign}
             onAssign={handleStaffAssign}
+            onTake={
+              canTakeTicket && session?.user?.user_id
+                ? () => handleStaffAssign(session.user.user_id ?? null)
+                : undefined
+            }
             onLanguageSentimentChange={
               handleSupportTicketLanguageSentimentUpdate
             }

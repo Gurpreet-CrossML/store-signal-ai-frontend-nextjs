@@ -6,11 +6,13 @@ import { OnboardingDrawer } from "@/components/custom/onboarding-drawer";
 import { ShopifyOauthReturn } from "@/components/custom/shopify-oauth-return";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import {
+  isAreaVisible,
   resolveSubSidebarKey,
   sidebarMenus,
   SubSidebarMenuItem,
 } from "@/lib/sidebar-navs";
-import { Suspense, useState } from "react";
+import { Suspense, useState, useSyncExternalStore } from "react";
+import { useSession } from "next-auth/react";
 import { useIsBelowLg, useIsBelowXl } from "@/hooks/use-narrow-viewport";
 import { SubSidebarContext } from "@/hooks/use-sub-sidebar";
 import {
@@ -25,6 +27,8 @@ import { isAuthPage } from "@/lib/auth-routes";
 import { cn } from "@/lib/utils";
 import { useAppSelector } from "@/redux/hooks";
 import { usePathname } from "next/navigation";
+
+const noopSubscribe = () => () => {};
 
 function StoreLoading() {
   return (
@@ -67,7 +71,22 @@ export default function MainLayout({
   // link. Computed here rather than in AppSidebar because the sidebar's
   // width is a provider-level CSS variable that both the layout gap and the
   // fixed container read.
-  const subSidebarKey = resolveSubSidebarKey(pathname);
+  const routeSubSidebarKey = resolveSubSidebarKey(pathname);
+  // A role that cannot open the area gets no area menu beside its lock
+  // screen. Checked only after hydration: the server renders without a
+  // session, so hiding it there would flash for everyone who may open it.
+  const { data: session } = useSession();
+  const hydrated = useSyncExternalStore(
+    noopSubscribe,
+    () => true,
+    () => false,
+  );
+  const subSidebarKey =
+    routeSubSidebarKey &&
+    hydrated &&
+    !isAreaVisible(routeSubSidebarKey, session?.user)
+      ? null
+      : routeSubSidebarKey;
 
   // The help desk needs an iPad's whole width for its list and
   // conversation, so its panel also starts collapsed below 1280px.
