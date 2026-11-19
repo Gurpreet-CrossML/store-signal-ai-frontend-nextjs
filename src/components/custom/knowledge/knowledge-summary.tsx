@@ -31,7 +31,7 @@ type Tile = {
 const TILES: Tile[] = [
   {
     key: "urls",
-    label: "Website pages",
+    label: "Website Pages",
     icon: IconGlobe,
     tone: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300",
     source: "url",
@@ -45,7 +45,7 @@ const TILES: Tile[] = [
   },
   {
     key: "faqs",
-    label: "Questions and answers",
+    label: "Questions And Answers",
     icon: IconMessageQuestion,
     tone: "bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300",
     source: "faq",
@@ -59,7 +59,7 @@ const TILES: Tile[] = [
   },
   {
     key: "products",
-    label: "Shopify products",
+    label: "Shopify Products",
     icon: IconShoppingBag,
     tone: "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-300",
     hint: "Synced from Shopify",
@@ -86,7 +86,7 @@ export function KnowledgeSummary({
     >
       <div className="flex items-center justify-between gap-3">
         <div className="flex flex-col gap-0.5">
-          <h3 className="text-sm font-semibold">Already in your knowledge</h3>
+          <h3 className="text-sm font-semibold">Already In Your Knowledge</h3>
           <p className="text-xs text-muted-foreground">
             Everything your assistant can use today, by kind.
           </p>
@@ -95,7 +95,7 @@ export function KnowledgeSummary({
           href={`/knowledge/categories/${KNOWLEDGE_ALL_ROUTE}`}
           className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-primary hover:underline"
         >
-          View all
+          View All
           <IconArrowRight className="size-3.5" />
         </Link>
       </div>

@@ -264,11 +264,11 @@ export default function CompanyProfileForm({
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onSelect={onRemoveLogo}>
                           <IconTrash />
-                          Remove logo
+                          Remove Logo
                         </DropdownMenuItem>
                         <DropdownMenuItem onSelect={openFilePicker}>
                           <IconPhoto />
-                          Upload image
+                          Upload Image
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>

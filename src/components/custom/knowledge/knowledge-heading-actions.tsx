@@ -28,7 +28,7 @@ export function KnowledgeHeadingActions({
           <Link href="/knowledge/new">
             <IconPlus className="size-4" />
             <span className="sm:hidden">Add</span>
-            <span className="max-sm:hidden">Add knowledge</span>
+            <span className="max-sm:hidden">Add Knowledge</span>
           </Link>
         </Button>
       )}

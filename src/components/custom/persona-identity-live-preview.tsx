@@ -39,20 +39,20 @@ export default function PersonaIdentityLivePreview({
   const pronoun = selfReference === "we" ? "We" : "I";
 
   const facts = [
-    { label: "Introduces itself as", value: displayName },
-    { label: "Refers to itself as", value: `“${pronoun}”` },
-    { label: "Describes its role as", value: role },
+    { label: "Introduces Itself As", value: displayName },
+    { label: "Refers To Itself As", value: `“${pronoun}”` },
+    { label: "Describes Its Role As", value: role },
   ];
 
   return (
     <Card className="desktop:sticky desktop:top-4">
       <CardHeader className="flex-row items-center justify-between">
         <CardTitle className="flex items-center gap-2">
-          Persona summary
+          Persona Summary
           <InfoIcon text="How your settings resolve for the assistant. Updates as you type — nothing is saved until you hit Save Changes." />
         </CardTitle>
         <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-          Updates as you type
+          Updates As You Type
         </span>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">

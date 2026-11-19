@@ -119,7 +119,7 @@ export function NavUser() {
       <AlertDialog open={showLogoutAlert} onOpenChange={setShowLogoutAlert}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogTitle>Are You Absolutely Sure?</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to sign out? You will need to log in again
               to access the dashboard.

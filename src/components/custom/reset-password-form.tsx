@@ -106,7 +106,7 @@ function PasswordInput({
               </InputGroupButton>
             </TooltipTrigger>
             <TooltipContent>
-              {visible ? "Hide password" : "Show password"}
+              {visible ? "Hide Password" : "Show Password"}
             </TooltipContent>
           </Tooltip>
         </InputGroupAddon>
@@ -210,7 +210,7 @@ export function ResetPasswordForm({
           </Typography>
         </div>
         <Button size="lg" asChild>
-          <Link href="/forgot-password">Request a new link</Link>
+          <Link href="/forgot-password">Request A New Link</Link>
         </Button>
       </div>
     );
@@ -224,7 +224,7 @@ export function ResetPasswordForm({
         </div>
         <div className="flex flex-col gap-2">
           <Typography variant="h1" className="text-2xl font-bold sm:text-3xl">
-            Password changed
+            Password Changed
           </Typography>
           <Typography variant="p" className="text-muted-foreground">
             You have been signed out on every device. Log in with your new
@@ -233,7 +233,7 @@ export function ResetPasswordForm({
         </div>
         <Button size="lg" asChild>
           <Link href="/login">
-            Log in
+            Log In
             <IconArrowRight />
           </Link>
         </Button>
@@ -246,7 +246,7 @@ export function ResetPasswordForm({
       <FieldGroup className="gap-5">
         <div className="flex flex-col gap-2">
           <Typography variant="h1" className="text-2xl font-bold sm:text-3xl">
-            Set a new password
+            Set A New Password
           </Typography>
           <Typography variant="p" className="text-muted-foreground">
             After changing password you&apos;ll be signed out everywhere.
@@ -269,7 +269,7 @@ export function ResetPasswordForm({
         <Field>
           <Button type="submit" size="lg" disabled={formik.isSubmitting}>
             {formik.isSubmitting && <Spinner data-icon="inline-start" />}
-            {formik.isSubmitting ? "Saving..." : "Reset password"}
+            {formik.isSubmitting ? "Saving..." : "Reset Password"}
           </Button>
         </Field>
       </FieldGroup>

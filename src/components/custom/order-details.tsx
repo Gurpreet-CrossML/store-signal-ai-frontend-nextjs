@@ -314,7 +314,7 @@ export function OrderDetails({
           <Button variant="outline" size="sm" className="w-full" asChild>
             <a href={order.admin_url} target="_blank" rel="noopener noreferrer">
               <IconExternalLink className="size-4" />
-              Open in store admin
+              Open In Store Admin
             </a>
           </Button>
         </div>

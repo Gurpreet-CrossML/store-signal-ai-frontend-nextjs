@@ -159,8 +159,8 @@ export function SignupForm({
           <EmptyDescription>
             {registered.credentials_emailed ? (
               <>
-                Check your registered email for your login credentials to and
-                log in to complete your workspace setup.
+                Check your registered email for your login credentials, then log
+                in to complete your workspace setup.
               </>
             ) : (
               <>
@@ -180,7 +180,7 @@ export function SignupForm({
         <EmptyContent className="items-start">
           <Button size="lg" asChild>
             <Link href="/login">
-              Go to login
+              Go To Login
               <IconArrowRight />
             </Link>
           </Button>
@@ -207,7 +207,7 @@ export function SignupForm({
       <FieldGroup className="gap-5">
         <div className="flex flex-col gap-2">
           <Typography variant="h1" className="text-2xl font-bold sm:text-3xl">
-            Create an account
+            Create An Account
           </Typography>
           <Typography variant="p" className="text-muted-foreground">
             Set up your StoreSignal workspace. We&apos;ll email you a password
@@ -338,7 +338,7 @@ export function SignupForm({
             className="relative"
           >
             {isLoading && <Spinner data-icon="inline-start" />}
-            {isLoading ? "Creating account..." : "Create account"}
+            {isLoading ? "Creating Account..." : "Create Account"}
             {!isLoading && <IconArrowRight className="absolute right-4" />}
           </Button>
         </Field>
@@ -348,7 +348,7 @@ export function SignupForm({
             href="/login"
             className="font-medium text-primary hover:underline"
           >
-            Log in
+            Log In
           </Link>
         </Typography>
       </FieldGroup>

@@ -75,7 +75,7 @@ export function SocialPostDetail({ post }: { post: SocialPost }) {
           >
             <a href={post.permalink} target="_blank" rel="noopener noreferrer">
               <IconExternalLink className="size-4" />
-              View on {channel.label}
+              View On {channel.label}
             </a>
           </Button>
         )}
@@ -144,7 +144,7 @@ export function SocialPostDetail({ post }: { post: SocialPost }) {
             <IconMessageCircle className="size-4" />
             <Typography variant="small" as="span" className="font-normal">
               {formatCount(post.comments_count)}{" "}
-              {post.comments_count === 1 ? "comment" : "comments"}
+              {post.comments_count === 1 ? "Comment" : "Comments"}
             </Typography>
           </span>
         </div>

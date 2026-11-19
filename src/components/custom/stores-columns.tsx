@@ -101,7 +101,7 @@ export function getStoreColumns({
     },
     {
       accessorKey: "is_follow_ups_allowed",
-      header: "Follow-ups",
+      header: "Follow-Ups",
       cell: ({ row }) => {
         const allowed = row.original.is_follow_ups_allowed;
         return (
@@ -125,7 +125,7 @@ export function getStoreColumns({
             className={cn(BADGE_TONE_STYLES[count > 0 ? "warning" : "success"])}
           >
             {count > 0
-              ? `Restricted to ${count} ${count === 1 ? "IP" : "IPs"}`
+              ? `Restricted To ${count} ${count === 1 ? "IP" : "IPs"}`
               : "Public"}
           </Badge>
         );
@@ -176,18 +176,18 @@ export function getStoreColumns({
               <DropdownMenuContent align="end" className="min-w-48">
                 <DropdownMenuItem onSelect={() => onEditAllowedIps(store)}>
                   <IconShieldLock />
-                  Edit allowed IPs
+                  Edit Allowed IPs
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => onGetWidgetScript(store)}>
                   <IconCode />
-                  Get widget script
+                  Get Widget Script
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   disabled={isSelected}
                   onSelect={() => onSelect(store)}
                 >
                   <IconBuildingStore />
-                  {isSelected ? "Currently selected" : "Work on this store"}
+                  {isSelected ? "Currently Selected" : "Work On This Store"}
                 </DropdownMenuItem>
                 {/*
                 Store deactivation is hidden until the product allows users to deactivate stores.

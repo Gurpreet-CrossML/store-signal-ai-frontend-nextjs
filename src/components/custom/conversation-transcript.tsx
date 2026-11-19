@@ -30,7 +30,7 @@ export function ConversationTranscript({
         <div className="flex items-center justify-between gap-3">
           <span>Conversation</span>
           <span className="text-sm font-normal text-muted-foreground">
-            {totalMessages ?? messages.length} messages · full transcript
+            {totalMessages ?? messages.length} Messages · Full Transcript
           </span>
         </div>
       }

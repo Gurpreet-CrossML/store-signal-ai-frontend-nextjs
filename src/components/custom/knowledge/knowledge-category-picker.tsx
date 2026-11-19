@@ -139,7 +139,7 @@ export function KnowledgeCategoryPicker({
           <span className="text-muted-foreground">
             {selected.length === 0
               ? "None chosen"
-              : `${selected.length} chosen`}
+              : `${selected.length} Chosen`}
           </span>
           <button
             type="button"
