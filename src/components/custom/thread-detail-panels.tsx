@@ -312,8 +312,10 @@ export function CartDetailsCard({
           as="span"
           className="font-semibold text-emerald-700"
         >
-          {formatCartPrice(cart?.total) ?? "-"} · {items.length}{" "}
-          {items.length === 1 ? "item" : "items"}
+          {items.length > 0 && formatCartPrice(cart?.total)
+            ? `${formatCartPrice(cart?.total)} · `
+            : ""}
+          {items.length} {items.length === 1 ? "item" : "items"}
         </Typography>
       </div>
       {loading ? (
