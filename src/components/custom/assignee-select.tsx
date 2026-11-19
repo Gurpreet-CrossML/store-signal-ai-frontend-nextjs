@@ -6,6 +6,7 @@ import {
   IconChevronUp,
   IconLock,
   IconShieldCheck,
+  IconUser,
   IconX,
 } from "@tabler/icons-react";
 import { Badge } from "@/components/ui/badge";
@@ -123,10 +124,12 @@ export function AssigneeSelect({
       ) : (
         <span
           className={cn(
-            "shrink-0 rounded-full border-2 border-dashed border-muted-foreground/40",
+            "flex shrink-0 items-center justify-center rounded-full bg-muted-foreground/50 text-foreground",
             compact ? "size-5" : "size-5 sm:size-6",
           )}
-        />
+        >
+          <IconUser className="size-3.5" />
+        </span>
       )}
       <span className="min-w-0 flex-1 truncate text-left sm:max-w-45 sm:flex-none">
         {currentAgentDisplayName}
@@ -153,9 +156,11 @@ export function AssigneeSelect({
           forceMount
           value="Unassigned"
           onSelect={() => selectAgent("")}
-          className="items-start gap-3 py-2"
+          className="items-center gap-3 py-2"
         >
-          <span className="size-8 shrink-0 rounded-full border-2 border-dashed border-muted-foreground/40" />
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted-foreground/50 text-background">
+            <IconUser className="size-4" />
+          </span>
           <span className="flex-1">Unassigned</span>
           {!currentAgent && <span className="text-primary">✓</span>}
         </CommandItem>
