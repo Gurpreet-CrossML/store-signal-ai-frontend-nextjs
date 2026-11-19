@@ -102,12 +102,20 @@ export default function Threads() {
   const handleSelectThread = useCallback(
     (threadId: string, isActive: boolean) => {
       if (isActive) {
-        router.push(`/support/?chat=${threadId}`);
+        const params = new URLSearchParams();
+        const currentParams = new URLSearchParams(queryString);
+        ["from", "to", "channel"].forEach((key) => {
+          const value = currentParams.get(key);
+          if (value) params.set(key, value);
+        });
+        params.set("filter", "all");
+        params.set("chat", threadId);
+        router.push(`/support/?${params.toString()}`);
       } else {
         router.push(`/threads/${threadId}`);
       }
     },
-    [router],
+    [queryString, router],
   );
 
   // Debounce the free-text search so we don't refetch on every keystroke.

@@ -1962,11 +1962,13 @@ export default function Support() {
       setPortraitView("conversation");
       setAttachments([]);
       setAppliedChatParam(threadId);
-      router.replace(`${pathname}?chat=${encodeURIComponent(threadId)}`, {
+      const params = new URLSearchParams(searchParams?.toString() ?? "");
+      params.set("chat", threadId);
+      router.replace(`${pathname}?${params.toString()}`, {
         scroll: false,
       });
     },
-    [router, pathname],
+    [router, pathname, searchParams],
   );
 
   // Closing is the customer's call: this only asks their widget for feedback.
