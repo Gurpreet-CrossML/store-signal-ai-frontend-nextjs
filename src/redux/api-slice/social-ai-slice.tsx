@@ -1977,6 +1977,11 @@ const SocialAISlice = createSlice({
       FetchWhatsAppTemplatesIsError: null as null | string | object,
       FetchWhatsAppTemplatesData: [] as WhatsAppTemplatesResponse,
     },
+    UpdateWhatsAppTemplateActiveState: {
+      isLoading: false,
+      isSuccess: false,
+      isError: null as null | string | object,
+    },
     FetchWhatsAppTemplateLibraryState: {
       FetchWhatsAppTemplateLibraryIsLoading: false,
       FetchWhatsAppTemplateLibraryIsSuccess: false,
@@ -2237,11 +2242,25 @@ const SocialAISlice = createSlice({
         state.FetchWhatsAppTemplatesState.FetchWhatsAppTemplatesIsError =
           action.payload as string | object;
       })
+      .addCase(updateWhatsAppTemplateActive.pending, (state) => {
+        state.UpdateWhatsAppTemplateActiveState.isLoading = true;
+        state.UpdateWhatsAppTemplateActiveState.isSuccess = false;
+        state.UpdateWhatsAppTemplateActiveState.isError = null;
+      })
       .addCase(updateWhatsAppTemplateActive.fulfilled, (state, action) => {
+        state.UpdateWhatsAppTemplateActiveState.isLoading = false;
+        state.UpdateWhatsAppTemplateActiveState.isSuccess = true;
         const rows =
           state.FetchWhatsAppTemplatesState.FetchWhatsAppTemplatesData;
         const index = rows.findIndex((row) => row.id === action.payload.id);
         if (index !== -1) rows[index] = action.payload;
+      })
+      .addCase(updateWhatsAppTemplateActive.rejected, (state, action) => {
+        state.UpdateWhatsAppTemplateActiveState.isLoading = false;
+        state.UpdateWhatsAppTemplateActiveState.isSuccess = false;
+        state.UpdateWhatsAppTemplateActiveState.isError = action.payload as
+          | string
+          | object;
       })
       .addCase(fetchWhatsAppTemplateLibrary.pending, (state) => {
         state.FetchWhatsAppTemplateLibraryState.FetchWhatsAppTemplateLibraryIsLoading = true;
