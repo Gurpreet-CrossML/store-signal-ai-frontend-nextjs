@@ -361,17 +361,11 @@ function ThreadChatControls({
   const inputsDisabled = transitionState !== "idle" || isUploadingAttachments;
 
   // The same limit as the customer's widget: typing stops at it, the box
-  // turns red and sending is off, with a note why.
+  // turns red, sending is off, and the reason shows under the box like a
+  // form field's error (no toast).
   const tooLong = composerMessage.length >= MAX_MESSAGE_LENGTH;
-  const changeComposerMessage = (value: string) => {
-    if (
-      value.length >= MAX_MESSAGE_LENGTH &&
-      composerMessage.length < MAX_MESSAGE_LENGTH
-    ) {
-      toast.error(MESSAGE_TOO_LONG_TEXT, { id: "message-too-long" });
-    }
+  const changeComposerMessage = (value: string) =>
     setComposerMessage(value.slice(0, MAX_MESSAGE_LENGTH));
-  };
 
   const canSend =
     !tooLong &&
@@ -568,6 +562,11 @@ function ThreadChatControls({
                   </Button>
                 </div>
               </div>
+              {tooLong && (
+                <p className="px-3 pb-2 text-xs text-destructive">
+                  {MESSAGE_TOO_LONG_TEXT}
+                </p>
+              )}
             </div>
           </motion.div>
         )}
@@ -987,6 +986,11 @@ function ThreadChatControls({
                 </Button>
               </div>
             </div>
+            {tooLong && (
+              <p className="px-3 pb-2 text-xs text-destructive">
+                {MESSAGE_TOO_LONG_TEXT}
+              </p>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
