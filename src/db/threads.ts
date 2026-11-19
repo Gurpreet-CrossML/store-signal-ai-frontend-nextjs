@@ -535,6 +535,13 @@ function buildThreadConditions(
           AND (o.order_number ILIKE ${`%${search}%`} OR o.order_id ILIKE ${`%${search}%`})
       )`,
     ];
+    // Phones are stored as digits only ("919876543210"), so "+91 98765
+    // 43210" or a bare "9876543210" is reduced the same way first. A term
+    // with no digits (a name) skips this, or it would match every phone.
+    const phoneDigits = search.replace(/\D/g, "").replace(/^00/, "");
+    if (phoneDigits) {
+      searchConditions.push(ilike(chatCustomer.phone, `%${phoneDigits}%`));
+    }
     if (isValidUuid(search)) {
       searchConditions.push(eq(chatThread.id, search));
     }

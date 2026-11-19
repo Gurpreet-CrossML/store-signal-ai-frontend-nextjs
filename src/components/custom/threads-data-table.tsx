@@ -164,7 +164,7 @@ export function ThreadsDataTable<TData, TValue>({
                   colSpan={columns.length}
                   className="h-24 text-center text-muted-foreground"
                 >
-                  No threads found.
+                  No Threads Found
                 </TableCell>
               </TableRow>
             )}
