@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-// import { AreaLanding } from "@/components/custom/area-landing";
+// import { AreaRedirect } from "@/components/custom/area-redirect";
 // import { NAV_AREAS } from "@/lib/nav-areas";
 
 // export const metadata = {
@@ -8,5 +8,5 @@ import { notFound } from "next/navigation";
 
 export default function Page() {
   notFound();
-  // return <AreaLanding area="socialAI" />;
+  // return <AreaRedirect area="socialAI" />;
 }

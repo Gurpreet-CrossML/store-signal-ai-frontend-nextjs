@@ -1,7 +1,7 @@
 import { getDb } from "@/lib/tenant-context";
-import { scopedThreadFilter } from "@/db/access";
+import { queueScope, scopedThreadFilter } from "@/db/access";
 import { supportTicket } from "@/lib/drizzle/schema";
-import { desc } from "drizzle-orm";
+import { and, desc } from "drizzle-orm";
 
 /**
  * Port of Django `ThreadSupportTicketsAPIView.get_queryset`:
@@ -25,7 +25,13 @@ export async function list_thread_tickets(thread_id: string) {
       updated_at: supportTicket.updatedAt,
     })
     .from(supportTicket)
-    .where(scopedThreadFilter(supportTicket.threadId, thread_id))
+    .where(
+      and(
+        scopedThreadFilter(supportTicket.threadId, thread_id),
+        // An agent sees only tickets assigned to them or to nobody.
+        queueScope(supportTicket.internalAssigneeId) ?? undefined,
+      ),
+    )
     .orderBy(desc(supportTicket.createdAt));
 
   return tickets;

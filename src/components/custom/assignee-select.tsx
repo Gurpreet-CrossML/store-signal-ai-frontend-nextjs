@@ -43,7 +43,7 @@ export type AgentOption = {
   name: string;
   /** Company admin — shown with an "Admin" label. */
   isAdmin?: boolean;
-  /** Can't be picked by this user (a supervisor can't assign to an admin). */
+  /** Can't be picked by this user (a manager can't assign to the owner). */
   disabled?: boolean;
 };
 

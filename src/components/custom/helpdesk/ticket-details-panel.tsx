@@ -850,6 +850,8 @@ export type TicketDetailsProps = TagProps & {
   staff: StaffMember[];
   canAssign: boolean;
   onAssign: (staffId: number | null) => void;
+  /** Set for a support agent: takes an unassigned ticket for themselves. */
+  onTake?: () => void;
   onLanguageSentimentChange: (payload: {
     language?: TicketLanguage;
     sentiment?: TicketSentiment;
@@ -874,11 +876,20 @@ function AssigneePicker({
   canAssign,
   isClosed,
   onAssign,
+  onTake,
 }: Pick<
   TicketDetailsProps,
-  "ticket" | "staff" | "canAssign" | "isClosed" | "onAssign"
+  "ticket" | "staff" | "canAssign" | "isClosed" | "onAssign" | "onTake"
 >) {
   const assignee = ticket.internal_assignee;
+  // A support agent may only take an unassigned ticket, for themselves.
+  if (!canAssign && onTake && !assignee && !isClosed) {
+    return (
+      <Button size="sm" variant="outline" className="h-8" onClick={onTake}>
+        Take ticket
+      </Button>
+    );
+  }
   return (
     <AssigneeSelect
       noun="ticket"

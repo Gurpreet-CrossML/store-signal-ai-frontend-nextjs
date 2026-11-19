@@ -7,13 +7,11 @@
 /** A store in the user's company. A role applies to every store. */
 export type AccessibleStore = { code: string };
 
-/** Staff roles (Django `CompanyMembership.Role`); a company admin is `admin`. */
-export type StaffRole =
-  | "admin"
-  | "supervisor"
-  | "agent"
-  | "content_manager"
-  | "viewer";
+/**
+ * Staff roles (Django `CompanyMembership.Role`); the store owner is `admin`,
+ * `manager` is the store manager.
+ */
+export type StaffRole = "admin" | "manager" | "agent" | "content_manager";
 
 /** Permission keys (Django `tenancy.roles.ROLE_PERMISSIONS`). */
 export type Permission =
@@ -23,6 +21,8 @@ export type Permission =
   | "team_metrics"
   | "ticket_tags"
   | "reassignment"
+  | "setup"
+  | "marketing"
   | "open";
 
 /**
@@ -41,6 +41,12 @@ export type Identity = {
   role: StaffRole | null;
   /** What the role allows (see `can` in access-rules). */
   permissions: PermissionMap;
+  /** The user's id; an agent sends it to take a ticket for themselves. */
+  user_id: number | null;
+  /** Staff roles this user may give on the team page (empty: none). */
+  managed_roles: StaffRole[];
+  /** Support agent: sees only their own chats and tickets plus the queue. */
+  queue_only: boolean;
   /** Every store in the company. */
   accessible_stores: AccessibleStore[];
   /** Present when the profile endpoint reports onboarding (login always does). */

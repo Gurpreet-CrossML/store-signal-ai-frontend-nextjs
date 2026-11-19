@@ -1,6 +1,15 @@
-import { and, eq, inArray, sql, type SQL, type Column } from "drizzle-orm";
+import {
+  and,
+  eq,
+  inArray,
+  isNull,
+  or,
+  sql,
+  type SQL,
+  type Column,
+} from "drizzle-orm";
 
-import { getDb, resolveStoreScope } from "@/lib/tenant-context";
+import { currentAccess, getDb, resolveStoreScope } from "@/lib/tenant-context";
 import { store, chatThread } from "@/lib/drizzle/schema";
 
 /**
@@ -64,16 +73,47 @@ export function storeCodeScope(storeCodeColumn: Column): SQL | null {
 }
 
 /**
+ * Mirrors Django `tenancy.roles.queue_scope`: a support agent only gets rows
+ * assigned to them or to nobody. `assigneeColumn` is the assignee user id,
+ * e.g. `chat_thread.chat_handler_user_id` or
+ * `support_ticket.internal_assignee_id`. `null` for every other role.
+ */
+export function queueScope(assigneeColumn: Column): SQL | null {
+  const { queueUserId } = currentAccess();
+  if (queueUserId === null) return null;
+  return or(isNull(assigneeColumn), eq(assigneeColumn, queueUserId))!;
+}
+
+/**
  * `<column> = <threadId>` for a thread-keyed lookup, additionally restricted to
- * threads whose store the caller may access. For an unrestricted caller this is
- * just the plain equality, so admins/superuser are unaffected. Pass either a
- * `thread_id` column or chat_thread's own `id` column.
+ * threads whose store the caller may access, and for a support agent to chats
+ * they hold or nobody holds. For an unrestricted caller this is just the plain
+ * equality, so admins/superuser are unaffected. Pass either a `thread_id`
+ * column or chat_thread's own `id` column.
  */
 export function scopedThreadFilter(
   threadColumn: Column,
   threadId: string,
 ): SQL {
-  const base = eq(threadColumn, threadId);
+  const conditions = [eq(threadColumn, threadId)];
   const scope = threadIdScope(threadColumn);
-  return scope ? and(base, scope)! : base;
+  if (scope) conditions.push(scope);
+  const queue = threadQueueScope(threadColumn);
+  if (queue) conditions.push(queue);
+  return and(...conditions)!;
+}
+
+/**
+ * For a support agent, restrict a thread column (chat_thread's own `id` or a
+ * `thread_id` column) to chats they hold or nobody holds. `null` for every
+ * other role.
+ */
+export function threadQueueScope(threadColumn: Column): SQL | null {
+  const queue = queueScope(chatThread.chatHandlerUserId);
+  if (!queue) return null;
+  if (threadColumn === chatThread.id) return queue;
+  return inArray(
+    threadColumn,
+    getDb().select({ id: chatThread.id }).from(chatThread).where(queue),
+  );
 }

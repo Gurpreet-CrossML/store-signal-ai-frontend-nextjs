@@ -129,6 +129,9 @@ async function fetchIdentity(accessToken: string): Promise<Identity | null> {
       role: d.role ?? null,
       permissions:
         d.permissions && typeof d.permissions === "object" ? d.permissions : {},
+      user_id: typeof d.user_id === "number" ? d.user_id : null,
+      managed_roles: Array.isArray(d.managed_roles) ? d.managed_roles : [],
+      queue_only: Boolean(d.queue_only),
       accessible_stores: Array.isArray(d.accessible_stores)
         ? d.accessible_stores
         : [],
