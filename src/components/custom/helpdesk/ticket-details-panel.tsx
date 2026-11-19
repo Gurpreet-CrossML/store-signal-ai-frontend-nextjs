@@ -70,6 +70,7 @@ import {
   type TicketSentiment,
 } from "@/lib/ticket-options";
 import { cn } from "@/lib/utils";
+import { LANGUAGE_DETECTED_NOTE } from "@/lib/config";
 import type {
   SlaTarget,
   SupportTicket,
@@ -901,10 +902,6 @@ function AssigneePicker({
     />
   );
 }
-
-/** The language dropdown's footer while no agent has changed the language. */
-const LANGUAGE_DETECTED_NOTE =
-  "Detected by AI from the customer's messages. “Send in customer's language” uses this.";
 
 function LanguagePicker({
   language,
