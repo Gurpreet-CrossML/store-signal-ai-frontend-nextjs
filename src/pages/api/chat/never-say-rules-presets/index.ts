@@ -13,7 +13,8 @@ import { withTenantRoute } from "@/lib/with-tenant-route";
  * are handled by the Django backend.
  */
 
-export default withTenantRoute(handler);
+// Store setup: owner and manager (Django tags these views roles.SETUP).
+export default withTenantRoute(handler, "setup");
 
 async function handler(req: NextApiRequest, res: NextApiResponse<APIResponse>) {
   if (req.method !== "GET") {

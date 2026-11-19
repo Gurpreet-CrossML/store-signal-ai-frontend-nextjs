@@ -21,6 +21,7 @@ import {
 } from "@/redux/api-slice/tenancy-slice";
 import StaffForm from "@/components/custom/staff-form";
 import { ASSIGNABLE_ROLES, ROLE_LABELS } from "@/lib/staff-roles";
+import { useManagedRoles } from "@/hooks/use-managed-roles";
 import type { StaffRole } from "@/lib/tenant-types";
 import { StaffDataTable } from "@/components/custom/staff-data-table";
 import { getStaffColumns } from "@/components/custom/staff-columns";
@@ -92,9 +93,12 @@ export default function StaffManagement({
     dispatch(FetchStaff());
   }, [dispatch]);
 
+  // A manager may change only agents and content managers (Django decides).
+  const managedRoles = useManagedRoles();
   const columns = useMemo(
     () =>
       getStaffColumns({
+        canManage: (member) => managedRoles.includes(member.role),
         onChangeRole: (member) => {
           setRoleTarget(member);
           setRoleDraft(member.role);
@@ -102,7 +106,7 @@ export default function StaffManagement({
         onResetPassword: setResetTarget,
         onToggleActive: setToggleTarget,
       }),
-    [],
+    [managedRoles],
   );
 
   if (staffLoading && !staff) {
@@ -215,7 +219,9 @@ export default function StaffManagement({
                 <SelectValue placeholder="Choose a role" />
               </SelectTrigger>
               <SelectContent>
-                {ASSIGNABLE_ROLES.map((role) => (
+                {ASSIGNABLE_ROLES.filter((role) =>
+                  managedRoles.includes(role.value),
+                ).map((role) => (
                   <SelectItem key={role.value} value={role.value}>
                     {ROLE_LABELS[role.value]}
                   </SelectItem>

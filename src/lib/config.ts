@@ -981,3 +981,8 @@ export const KNOWLEDGE_SCAN_ACTIVE_STATUSES: readonly KnowledgeScanStatus[] = [
 ];
 // How often the checklist is re-read while the import is not complete.
 export const KNOWLEDGE_SCAN_POLL_MS = 5000;
+
+// The Help Desk ticket's language dropdown footer while no agent has changed
+// the language. Once one has, it says who changed it instead.
+export const LANGUAGE_DETECTED_NOTE =
+  "Detected by AI from the customer's messages. “Send in customer's language” uses this.";

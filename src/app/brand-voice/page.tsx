@@ -1,4 +1,4 @@
-import { AreaLanding } from "@/components/custom/area-landing";
+import { AreaRedirect } from "@/components/custom/area-redirect";
 import { NAV_AREAS } from "@/lib/nav-areas";
 
 export const metadata = {
@@ -6,5 +6,6 @@ export const metadata = {
 };
 
 export default function Page() {
-  return <AreaLanding area="brandVoice" />;
+  // No menu page: the sidebar already lists the screens.
+  return <AreaRedirect area="brandVoice" />;
 }

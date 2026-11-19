@@ -12,7 +12,8 @@ import { withTenantRoute } from "@/lib/with-tenant-route";
  * The catalog is global config (not store-scoped) and read-only here; wiring a
  * store to an integration is a write and stays on the Django backend.
  */
-export default withTenantRoute(handler);
+// Store setup: owner and manager (Django tags these views roles.SETUP).
+export default withTenantRoute(handler, "setup");
 
 async function handler(req: NextApiRequest, res: NextApiResponse<APIResponse>) {
   if (req.method !== "GET") {

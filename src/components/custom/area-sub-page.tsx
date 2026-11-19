@@ -22,7 +22,7 @@ export function AreaSubPage({
     // registration, and the build still prerenders these pages.
     if (isDisabledRoute(href)) notFound();
     throw new Error(
-      `No NAV_AREAS section registered for "${href}" — add it there so the page, its menu card and the sub-sidebar stay in step.`,
+      `No NAV_AREAS section registered for "${href}" — add it there so the page and the sub-sidebar stay in step.`,
     );
   }
 

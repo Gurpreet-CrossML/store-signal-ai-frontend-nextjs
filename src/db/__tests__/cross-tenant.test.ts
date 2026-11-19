@@ -22,6 +22,7 @@ const TENANT_B = TENANT_A === "myntra" ? "crossml" : "myntra";
 const UNRESTRICTED: RequestAccess = {
   isStaff: true,
   storeCodes: null,
+  queueUserId: null,
 };
 
 describe.skipIf(!HAS_DB)("cross-tenant isolation (live DB)", () => {
@@ -77,6 +78,7 @@ describe.skipIf(!HAS_DB)("cross-tenant isolation (live DB)", () => {
     const staffAccess: RequestAccess = {
       isStaff: false,
       storeCodes: [granted],
+      queueUserId: null,
     };
     const visible = await tc.runWithTenant(TENANT_A, staffAccess, () =>
       storeDb.list_stores(),

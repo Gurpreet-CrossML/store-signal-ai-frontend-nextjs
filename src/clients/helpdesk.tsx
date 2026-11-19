@@ -863,8 +863,8 @@ function TicketListPanel({
           onChange={onSearchChange}
           placeholder={
             isPhone
-              ? "Search name, ticket or order #"
-              : "Search name, email, ticket or order #"
+              ? "Search name, ticket or order ID"
+              : "Search name, email, ticket or order ID"
           }
           label="Search tickets"
         />
@@ -925,7 +925,9 @@ function TicketListPanel({
         className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto border-t"
         onScroll={handleScroll}
       >
-        {isLoading && rows?.length === 0 ? (
+        {/* A fresh list (a search typed or cleared, another view) replaces the
+            old rows, so they give way to the loader; loading more keeps them. */}
+        {isLoading && (rows?.length === 0 || !isLoadingMore) ? (
           <LoadingState label="Loading tickets…" className="py-10" />
         ) : !rows || rows?.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-1 px-6 py-12 text-center">
@@ -2517,9 +2519,12 @@ export default function HelpDesk() {
     upsertSocketTicket,
   ]);
 
-  // Only admins and supervisors assign tickets, and only they may read the
+  // Only owners and managers assign tickets to others, and only they may read the
   // staff list; fetching it as anyone else would only fail with an error toast.
   const canAssign = can(session?.user, "reassignment", { write: true });
+  // Everyone else who works tickets may take an unassigned one for themselves.
+  const canTakeTicket =
+    !canAssign && can(session?.user, "conversations", { write: true });
   useEffect(() => {
     if (!storeCode || !canAssign) return;
 
@@ -3147,6 +3152,9 @@ export default function HelpDesk() {
       ).unwrap();
 
       const assignedStaff = staff.find((member) => member.id === staffId);
+      // An agent taking a ticket has no staff list; they are the assignee.
+      const me = session?.user;
+      const tookIt = staffId !== null && staffId === me?.user_id;
 
       applyTicketRowUpdate(ticketId, {
         internal_assignee: assignedStaff
@@ -3155,7 +3163,13 @@ export default function HelpDesk() {
               name: `${assignedStaff.first_name} ${assignedStaff.last_name}`,
               email: assignedStaff.email,
             }
-          : null,
+          : tookIt
+            ? {
+                id: staffId,
+                name: me?.name ?? me?.email ?? "",
+                email: me?.email ?? "",
+              }
+            : null,
       });
       // The assignment is now part of the ticket's history.
       if (currentActiveSupportTicketIdRef.current === ticketId) {
@@ -3748,7 +3762,13 @@ export default function HelpDesk() {
           sortOrder={sortOrder}
           onSortChange={handleSortChange}
           onSelectTicket={handleSelectTicket}
-          isLoading={FetchSupportTicketsLoading}
+          // Loading while the tickets are fetched, and also during the 800ms
+          // after typing or clearing the search, before that fetch starts.
+          // Without this, the old results would stay on screen with no
+          // spinner for that moment, as if the search did nothing.
+          isLoading={
+            FetchSupportTicketsLoading || searchValue.trim() !== debouncedSearch
+          }
           isLoadingMore={isLoadingMore}
           hasMore={Boolean(FetchSupportTicketsListData?.next)}
           onLoadMore={() => {
@@ -3884,6 +3904,11 @@ export default function HelpDesk() {
             staff={staff}
             canAssign={canAssign}
             onAssign={handleStaffAssign}
+            onTake={
+              canTakeTicket && session?.user?.user_id
+                ? () => handleStaffAssign(session.user.user_id ?? null)
+                : undefined
+            }
             onLanguageSentimentChange={
               handleSupportTicketLanguageSentimentUpdate
             }
