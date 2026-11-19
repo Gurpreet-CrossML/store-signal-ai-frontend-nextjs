@@ -262,6 +262,14 @@ export default function Dashboard() {
     return `/threads?${params.toString()}`;
   };
 
+  const liveChatHref = () => {
+    const params = new URLSearchParams({ filter: "all" });
+    params.set("from", exportRange.from);
+    params.set("to", exportRange.to);
+    if (channel) params.set("channel", channel);
+    return `/support?${params.toString()}`;
+  };
+
   const performanceSummaryMetrics: SummaryMetric[] = [
     {
       label: "CSAT Score",
@@ -291,17 +299,20 @@ export default function Dashboard() {
       status: "",
       statusVariant: "neutral" as const,
       trend: FetchEngagementData?.total_threads_trend,
-      href: threadsHref({}),
-      breakdown: [
-        {
-          label: `Active ${FetchEngagementData?.active_threads || 0}`,
-          href: threadsHref({ is_active: "true" }),
-        },
-        {
-          label: `Closed ${FetchEngagementData?.closed_threads || 0}`,
-          href: threadsHref({ is_active: "false" }),
-        },
-      ],
+      href: threadsHref({ is_active: "false" }),
+      breakdown:
+        (FetchEngagementData?.total_threads || 0) > 0
+          ? [
+              {
+                label: `${FetchEngagementData?.active_threads || 0} active`,
+                href: liveChatHref(),
+              },
+              {
+                label: `${FetchEngagementData?.closed_threads || 0} closed`,
+                href: threadsHref({ is_active: "false" }),
+              },
+            ]
+          : undefined,
     },
     {
       label: "Active Sessions",

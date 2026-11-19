@@ -1155,9 +1155,19 @@ export default function Support() {
   const [hasManualTabSelection, setHasManualTabSelection] = useState(false);
   const [isThreadFilterOpen, setIsThreadFilterOpen] = useState(false);
   const [appliedThreadFilters, setAppliedThreadFilters] =
-    useState<SupportThreadFilters>(EMPTY_SUPPORT_THREAD_FILTERS);
+    useState<SupportThreadFilters>(() => ({
+      ...EMPTY_SUPPORT_THREAD_FILTERS,
+      channels: searchParams?.get("channel")
+        ? [searchParams.get("channel") as string]
+        : [],
+    }));
   const [draftThreadFilters, setDraftThreadFilters] =
-    useState<SupportThreadFilters>(EMPTY_SUPPORT_THREAD_FILTERS);
+    useState<SupportThreadFilters>(() => ({
+      ...EMPTY_SUPPORT_THREAD_FILTERS,
+      channels: searchParams?.get("channel")
+        ? [searchParams.get("channel") as string]
+        : [],
+    }));
   const [replyWithAILoadingId, setReplyWithAILoadingId] = useState<
     string | number | null
   >(null);
@@ -1498,6 +1508,8 @@ export default function Support() {
 
   useEffect(() => {
     if (!storeCode) return;
+    const from = searchParams?.get("from");
+    const to = searchParams?.get("to");
 
     dispatch(
       FetchThreads({
@@ -1506,6 +1518,8 @@ export default function Support() {
         limit: 50,
         filters: {
           is_active: true,
+          ...(from ? { from } : {}),
+          ...(to ? { to } : {}),
           // Resolved server-side so it can reach customer email, name and
           // order ids — none of which are on the thread rows themselves.
           ...(debouncedThreadSearch ? { search: debouncedThreadSearch } : {}),
@@ -1518,7 +1532,13 @@ export default function Support() {
         },
       }),
     );
-  }, [appliedThreadFilters, dispatch, storeCode, debouncedThreadSearch]);
+  }, [
+    appliedThreadFilters,
+    debouncedThreadSearch,
+    dispatch,
+    searchParams,
+    storeCode,
+  ]);
 
   useEffect(() => {
     const timeout = setTimeout(
