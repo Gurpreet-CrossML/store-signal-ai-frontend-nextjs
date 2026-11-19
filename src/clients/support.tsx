@@ -250,7 +250,7 @@ const HANDOVER_ACTION_ID = "thread-handover-action";
 
 // Roles allowed to answer live chats (the backend's "conversations" write
 // permission). Viewers and content managers can't be assigned a chat.
-const CHAT_HANDLER_ROLES = ["supervisor", "agent"];
+const CHAT_HANDLER_ROLES = ["manager", "agent"];
 
 function getAgentInitials(name: string) {
   return name
@@ -341,11 +341,11 @@ function ThreadChatControls({
   }
 
   // A chat an admin holds can only be reassigned by an admin (the backend
-  // enforces it too), so a supervisor sees the holder but can't change it.
+  // enforces it too), so a manager sees the holder but can't change it.
   const heldByAdmin = !!agents.find((a) => a.email === connectedAgent)?.isAdmin;
   const iAmAdmin = !!agents.find((a) => a.email === user)?.isAdmin;
   const lockedByAdmin = heldByAdmin && !iAmAdmin;
-  const reassignRoleLabel = userRole === "supervisor" ? "supervisor" : "admin";
+  const reassignRoleLabel = userRole === "manager" ? "store manager" : "owner";
 
   const isUploadingAttachments = attachments.some(
     (attachment) => attachment.status === "uploading",
@@ -1177,7 +1177,7 @@ export default function Support() {
   // the permission from their role. The backend enforces this too — checking
   // here spares a round trip and says why.
   const canHandleChats = can(session?.user, "conversations", { write: true });
-  // Admins and supervisors may assign a chat to another agent.
+  // Owners and managers may assign a chat to another agent.
   const canReassign = can(session?.user, "reassignment", { write: true });
   const staff: StaffMember[] = useAppSelector(
     (state) => state.GetTenancyReducer.staff,
@@ -1202,7 +1202,7 @@ export default function Support() {
             `${member.first_name} ${member.last_name}`.trim() || member.email,
           isAdmin,
           // Admins stay visible (so you can see who holds a chat), but only
-          // an admin can assign to one — the backend refuses a supervisor.
+          // an owner can assign to one — the backend refuses a manager.
           disabled: isAdmin && !iAmAdmin,
         };
       });
@@ -1249,7 +1249,7 @@ export default function Support() {
     connectedAgentNameRef.current = connectedAgentName;
   }, [connectedAgentName]);
 
-  // Only admins and supervisors can reassign, and only they need the agent list
+  // Only owners and managers can reassign, and only they need the agent list
   // (the staff API refuses everyone else). Fetch the shared company staff roster
   // from Redux so the assignee filter and reassignment controls use the same
   // source of truth. Keyed on the boolean, not the session object, so a session
@@ -1662,7 +1662,7 @@ export default function Support() {
     }
   }, [activeThreadId, canHandleChats]);
 
-  // Admin and supervisor: hands the chat to another agent. Sent over the same
+  // Owner and manager: hands the chat to another agent. Sent over the same
   // handler_change channel as Take Over, naming the agent to assign.
   const handleReassign = useCallback(
     (email: string) => {
@@ -2138,6 +2138,18 @@ export default function Support() {
     }
 
     if (event.action_type === "thread_updated") {
+      // A chat another agent now holds leaves a support agent's list (the
+      // server stops sending its messages too).
+      const holderId = event.data.chat_handler_user?.id;
+      if (
+        session?.user?.queue_only &&
+        holderId &&
+        holderId !== session.user.user_id
+      ) {
+        removeClosedThread(event.data.thread_id);
+        return;
+      }
+
       if (
         event.data.thread_id === activeThreadId &&
         activeReadFilter !== "all"
@@ -2605,7 +2617,7 @@ export default function Support() {
                 <SearchInput
                   value={threadSearch}
                   onChange={setThreadSearch}
-                  placeholder="Name, email, phone or order #"
+                  placeholder="Name, email, phone or order ID"
                   label="Search conversations"
                 />
               </div>

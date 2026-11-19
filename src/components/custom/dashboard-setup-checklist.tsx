@@ -15,6 +15,7 @@ import {
 
 import { StoreSnippet } from "@/components/custom/go-live-card";
 import { useMetaOAuth } from "@/components/custom/settings/social-ai/use-meta-oauth";
+import { useCan } from "@/hooks/use-can";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -291,6 +292,9 @@ function ProgressRing({
  */
 export function DashboardSetupChecklist() {
   const dispatch = useAppDispatch();
+  // Store setup progress is for the store owner and manager only; agents
+  // and content managers neither fetch it nor see the ring.
+  const canSetup = useCan("setup");
   const [open, setOpen] = useState(false);
   const [scriptOpen, setScriptOpen] = useState(false);
 
@@ -320,8 +324,10 @@ export function DashboardSetupChecklist() {
   // the moment you're back, instead of needing a hard refresh — the
   // sidebar that renders this never unmounts between pages.
   useEffect(() => {
-    if (selectedStore) void dispatch(FetchDashboardChecklist(selectedStore));
+    if (canSetup && selectedStore)
+      void dispatch(FetchDashboardChecklist(selectedStore));
   }, [
+    canSetup,
     dispatch,
     selectedStore,
     pathname,
@@ -333,11 +339,11 @@ export function DashboardSetupChecklist() {
   // The widget goes live in another tab (the storefront), so check again
   // when the merchant comes back to this one.
   useEffect(() => {
-    if (!selectedStore) return;
+    if (!canSetup || !selectedStore) return;
     const refetch = () => void dispatch(FetchDashboardChecklist(selectedStore));
     window.addEventListener("focus", refetch);
     return () => window.removeEventListener("focus", refetch);
-  }, [dispatch, selectedStore]);
+  }, [canSetup, dispatch, selectedStore]);
 
   // The import of the store's pages runs in the background, so check again
   // every few seconds until it is complete (queued or running).
@@ -371,8 +377,9 @@ export function DashboardSetupChecklist() {
     previous.current = { code, pending };
   }, [checklist]);
 
-  // Nothing left to finish → no ring and no drawer.
-  if (!checklist || checklist.pending.length === 0) return null;
+  // Nothing left to finish, or a role that does not set the store up → no
+  // ring and no drawer.
+  if (!canSetup || !checklist || checklist.pending.length === 0) return null;
 
   const percent = Math.round((checklist.completed / checklist.total) * 100);
   const platformLabel =

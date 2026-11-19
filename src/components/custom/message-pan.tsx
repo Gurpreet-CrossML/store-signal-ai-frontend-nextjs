@@ -79,7 +79,7 @@ function describeHandlerEvent(
       event.assigned_by_name,
       event.assigned_by_email,
       me,
-      "A supervisor",
+      "A manager",
       opts,
     );
   const when = formatDateTime(event.created_at);

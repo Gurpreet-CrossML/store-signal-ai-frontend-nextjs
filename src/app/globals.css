@@ -332,6 +332,19 @@ div#markdown-message-bubble a {
   margin-bottom: 0;
 }
 
+/* Text indented by four spaces or more (common in a pasted or emailed message)
+   is shown by Markdown as a code block. Left to its default it never wraps, so
+   a long line runs out of its message bubble; wrap it inside the bubble. */
+.rich-text-render pre {
+  margin: 0 0 0.5rem;
+  max-width: 100%;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.rich-text-render code {
+  overflow-wrap: anywhere;
+}
+
 /* Placeholder is drawn from the empty first paragraph's data attribute. */
 .rich-text-content p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);

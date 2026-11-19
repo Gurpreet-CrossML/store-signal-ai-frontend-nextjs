@@ -70,6 +70,7 @@ import {
   type TicketSentiment,
 } from "@/lib/ticket-options";
 import { cn } from "@/lib/utils";
+import { LANGUAGE_DETECTED_NOTE } from "@/lib/config";
 import type {
   SlaTarget,
   SupportTicket,
@@ -113,6 +114,16 @@ export const PRIORITY_META: Record<
   normal: { label: "Normal", dot: "bg-blue-600" },
   high: { label: "High", dot: "bg-orange-500" },
   urgent: { label: "Urgent", dot: "bg-red-600" },
+};
+
+/** A sentiment's colours, drawn like a status: a dot and coloured text. */
+export const SENTIMENT_META: Record<
+  TicketSentiment,
+  { dot: string; text: string }
+> = {
+  positive: { dot: "bg-emerald-600", text: "text-emerald-600" },
+  neutral: { dot: "bg-zinc-400", text: "text-zinc-500" },
+  negative: { dot: "bg-red-600", text: "text-red-600" },
 };
 
 const STATUS_MENU: SupportTicketStatus[] = [
@@ -257,7 +268,8 @@ function FieldRow({
 
 const pillClass =
   "inline-flex h-8 max-w-full items-center gap-1.5 rounded-md border bg-background px-2.5 text-sm font-medium transition-colors hover:bg-muted disabled:cursor-default disabled:opacity-60 disabled:hover:bg-background";
-const ticketControlClass = cn(pillClass, "w-36 justify-between");
+// The value sits at the left; MenuChevron pushes itself to the right edge.
+const ticketControlClass = cn(pillClass, "w-36");
 
 /** A field's value on the phone page: plain text, no pill. */
 const phoneValueClass =
@@ -272,7 +284,7 @@ function MenuChevron({ hidden = false }: { hidden?: boolean }) {
   return useContext(PhoneLayout) ? (
     <IconChevronRight className={cn("size-4", className)} />
   ) : (
-    <IconChevronDown className={cn("size-3.5", className)} />
+    <IconChevronDown className={cn("ml-auto size-3.5", className)} />
   );
 }
 
@@ -838,6 +850,8 @@ export type TicketDetailsProps = TagProps & {
   staff: StaffMember[];
   canAssign: boolean;
   onAssign: (staffId: number | null) => void;
+  /** Set for a support agent: takes an unassigned ticket for themselves. */
+  onTake?: () => void;
   onLanguageSentimentChange: (payload: {
     language?: TicketLanguage;
     sentiment?: TicketSentiment;
@@ -862,17 +876,30 @@ function AssigneePicker({
   canAssign,
   isClosed,
   onAssign,
+  onTake,
 }: Pick<
   TicketDetailsProps,
-  "ticket" | "staff" | "canAssign" | "isClosed" | "onAssign"
+  "ticket" | "staff" | "canAssign" | "isClosed" | "onAssign" | "onTake"
 >) {
   const assignee = ticket.internal_assignee;
+  // A support agent may only take an unassigned ticket, for themselves.
+  if (!canAssign && onTake && !assignee && !isClosed) {
+    return (
+      <Button size="sm" variant="outline" className="h-8" onClick={onTake}>
+        Take ticket
+      </Button>
+    );
+  }
   return (
     <AssigneeSelect
       noun="ticket"
       hideLabel
       compact
-      triggerClassName="h-8 w-36 rounded-md justify-between"
+      // Value at the left, like the other fields; the chevron or lock (its
+      // last icon) at the right. Same gap and chevron colour as the others.
+      // The name (the last span) may shrink here, so a long one truncates
+      // with "…" instead of pushing the chevron out of the box.
+      triggerClassName="h-8 w-36 gap-1.5 rounded-md justify-start [&>span:last-of-type]:flex-1 [&>svg:last-child]:ml-auto [&>svg:last-child]:text-muted-foreground"
       agents={staff.map((member) => ({
         email: member.email,
         name: `${member.first_name} ${member.last_name}`.trim() || member.email,
@@ -890,10 +917,13 @@ function AssigneePicker({
 function LanguagePicker({
   language,
   disabled,
+  note,
   onChange,
 }: {
   language: TicketLanguage;
   disabled: boolean;
+  /** The footer: who last changed the language, or that the AI detected it. */
+  note: string;
   onChange: (language: TicketLanguage) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -921,10 +951,15 @@ function LanguagePicker({
           className={phone ? phoneValueClass : ticketControlClass}
           disabled={disabled}
         >
+          {/* In a slot the size of the assignee's avatar (size-5), so the
+              two icons and the names after them line up. */}
           {!phone ? (
-            <IconWorld className="size-4 text-muted-foreground" />
+            <span className="flex size-5 shrink-0 items-center justify-center">
+              <IconWorld className="size-4 text-muted-foreground" />
+            </span>
           ) : null}
-          {name}
+          {/* A long name truncates instead of pushing the chevron out. */}
+          <span className="min-w-0 truncate">{name}</span>
           <MenuChevron hidden={disabled} />
         </button>
       </PopoverTrigger>
@@ -961,8 +996,7 @@ function LanguagePicker({
           ))}
         </div>
         <p className="border-t px-3 py-2 text-xs text-muted-foreground">
-          Detected by AI from the customer&apos;s messages. &ldquo;Send in
-          customer&apos;s language&rdquo; uses this.
+          {note}
         </p>
       </PopoverContent>
     </Popover>
@@ -1079,11 +1113,22 @@ function TicketTab(props: TicketDetailsProps) {
     </FieldRow>
   );
 
+  // The newest language change in the activity (newest first), if an agent
+  // made one: then the note says who, instead of the AI having detected it.
+  const languageChange = props.activity.find(
+    (item) => item.type === SUPPORT_TICKET_CHANGE_TYPES.LANGUAGE_CHANGED,
+  );
+  const languageNote =
+    languageChange && isTicketChange(languageChange)
+      ? `${ticketChangeTitle(languageChange)}${languageChange.actor ? ` by ${languageChange.actor}` : ""}.`
+      : LANGUAGE_DETECTED_NOTE;
+
   const languageRow = (
     <FieldRow label="Language">
       <LanguagePicker
         language={language}
         disabled={isClosed}
+        note={languageNote}
         onChange={(next) => onLanguageSentimentChange({ language: next })}
       />
     </FieldRow>
@@ -1120,19 +1165,20 @@ function TicketTab(props: TicketDetailsProps) {
         <DropdownMenuTrigger asChild disabled={isClosed}>
           <button
             type="button"
+            className={cn(valueClass, SENTIMENT_META[sentiment].text)}
             disabled={isClosed}
-            className={cn(
-              "relative inline-flex h-8 w-36 items-center justify-center rounded-md border bg-background px-2.5 hover:bg-muted disabled:cursor-default disabled:opacity-60 disabled:hover:bg-transparent",
-              textClass,
-            )}
           >
+            <span
+              className={cn(
+                "size-2 rounded-full",
+                SENTIMENT_META[sentiment].dot,
+              )}
+            />
             {capitalizeText(sentiment)}
-            {!isClosed ? (
-              <IconChevronDown className="absolute right-2 size-3.5 text-muted-foreground" />
-            ) : null}
+            <MenuChevron hidden={isClosed} />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
+        <DropdownMenuContent align="end" className="w-56">
           {TICKET_SENTIMENTS.map((option) => (
             <DropdownMenuItem
               key={option.value}
@@ -1140,9 +1186,15 @@ function TicketTab(props: TicketDetailsProps) {
                 option.value !== sentiment &&
                 onLanguageSentimentChange({ sentiment: option.value })
               }
-              className="justify-between"
+              className="gap-2.5 py-2"
             >
-              {option.label}
+              <span
+                className={cn(
+                  "size-2 rounded-full",
+                  SENTIMENT_META[option.value].dot,
+                )}
+              />
+              <span className="flex-1">{option.label}</span>
               {option.value === sentiment ? (
                 <IconCheck className="size-4 text-primary" />
               ) : null}
@@ -1209,9 +1261,9 @@ function TicketTab(props: TicketDetailsProps) {
       <div className="flex flex-col gap-1.5 px-4 py-4">
         {statusRow}
         {priorityRow}
+        {sentimentRow}
         {assigneeRow}
         {languageRow}
-        {sentimentRow}
         {channelRow}
         {slaRow}
         {createdRow}
@@ -1519,7 +1571,7 @@ function ActivityPill({ status }: { status: string }) {
 const CREATED_BY_LABEL: Record<string, string> = {
   ai: "AI",
   agent: "Agent",
-  rule: "Rule",
+  email: "Email",
 };
 
 function ActivityTab({

@@ -5,7 +5,9 @@ import { APIResponse } from "@/lib/config";
 import { createAPIResponse } from "@/lib/helpers";
 import { withTenantRoute } from "@/lib/with-tenant-route";
 
-export default withTenantRoute(handler, "conversations");
+// Counts only, shown on the dashboard every role sees (an agent still counts
+// only their own chats and the queue).
+export default withTenantRoute(handler, "team_metrics");
 
 async function handler(req: NextApiRequest, res: NextApiResponse<APIResponse>) {
   if (req.method !== "GET") {
