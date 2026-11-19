@@ -18,6 +18,7 @@ import {
 
 import { CustomerAvatar } from "@/components/custom/customer-avatar";
 import { LoadingState } from "@/components/custom/loading-state";
+import { ViewedProductsCard } from "@/components/custom/thread-detail-panels";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -58,7 +59,7 @@ import { useAppDispatch, useAppSelector } from "@/redux/hooks";
  * so a row of them scans as a sentence about the shopper rather than four
  * separate widgets.
  */
-function StatTile({
+export function StatTile({
   icon: Icon,
   label,
   value,
@@ -385,6 +386,12 @@ export default function CustomerDetail({ customerId }: { customerId: number }) {
         </Card>
 
         <div className="flex flex-col gap-6">
+          {/* The thread page's own card, so a product reads the same in both
+              places; its bottom rule is for the thread side panel. */}
+          <div className="overflow-hidden rounded-xl border border-border [&>section]:border-b-0">
+            <ViewedProductsCard viewedProducts={customer.viewed_products} />
+          </div>
+
           <Card size="sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">

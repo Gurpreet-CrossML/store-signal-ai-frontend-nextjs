@@ -34,6 +34,7 @@ import {
   IconUserOff,
   IconMailOpened,
   IconUsersGroup,
+  IconUserQuestion,
   IconShoppingBag,
   IconVolume,
   type Icon,
@@ -98,6 +99,15 @@ export const NAV_AREAS = {
         pageDescription:
           "Every shopper this store has — what they have spent, how to reach them, and whether they have opted in.",
         icon: IconUsersGroup,
+      },
+      {
+        href: "/crm/guests",
+        title: "Guests",
+        description:
+          "Shoppers who chatted without signing in, and what they did.",
+        pageDescription:
+          "Every browser that opened your chat — how often they came back, what they viewed and chatted about. Once a guest is linked to a customer, they move to Customers.",
+        icon: IconUserQuestion,
       },
       {
         href: "/crm/orders",

@@ -4,7 +4,7 @@ import { toast } from "sonner";
 
 import { ENDPOINTS } from "@/lib/config";
 import { toPaginatedList } from "@/lib/helpers";
-import type { OrderData } from "@/redux/api-slice/thread-slice";
+import type { OrderData, ViewedProduct } from "@/redux/api-slice/thread-slice";
 import { axiosInstance } from "../axios-config";
 
 /** A billing/shipping address belonging to a customer. */
@@ -56,6 +56,11 @@ export type CustomerRecord = {
   orders?: OrderData[];
   /** The conversation this customer was first identified in, if any. */
   thread_id?: string | null;
+  /**
+   * Product pages they opened in any of their chats, including the guest
+   * chats of a browser that became them. Detail response only.
+   */
+  viewed_products?: ViewedProduct[];
 };
 
 export type CustomerListResponse = {
