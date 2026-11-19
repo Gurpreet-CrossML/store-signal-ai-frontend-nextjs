@@ -84,6 +84,7 @@ import {
   CustomerAvatar,
   getInitials,
 } from "@/components/custom/customer-avatar";
+import { CustomerSegmentBadge } from "@/components/custom/customer-segment-badge";
 import { MessageAttachments } from "@/components/custom/helpdesk/message-attachments";
 import { HiddenTagsBadge, tint } from "@/components/custom/helpdesk/tag-badge";
 import { TicketSlaIndicator } from "@/components/custom/helpdesk/ticket-sla";
@@ -383,6 +384,11 @@ function TicketRow({
           </span>
           <span aria-hidden>·</span>
           <span className="shrink-0">{channelLabel(ticket.channel)}</span>
+          <CustomerSegmentBadge
+            segment={ticket.customer_segment}
+            // The row's own chip size (RowChip), not the default badge's.
+            className="h-4 rounded px-1.5 text-[11px] leading-4"
+          />
           {priorityChip ? (
             <RowChip className={priorityChip}>
               {capitalizeText(ticket.priority)}
@@ -1391,9 +1397,16 @@ function ConversationPanel({
               {ticketRef(ticket.ticket_id)}
             </span>
           </div>
-          <p className="truncate text-xs text-muted-foreground">
-            {customerName} · opened {formatTicketDateTime(ticket.created_at)}
-          </p>
+          <div className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+            <span className="truncate">{customerName}</span>
+            <CustomerSegmentBadge
+              segment={ticket.customer_segment}
+              className="h-4 rounded px-1.5 text-[11px] leading-4"
+            />
+            <span className="shrink-0">
+              · opened {formatTicketDateTime(ticket.created_at)}
+            </span>
+          </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <Button

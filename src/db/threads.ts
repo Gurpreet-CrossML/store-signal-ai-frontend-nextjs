@@ -160,6 +160,7 @@ type ThreadListRow = {
   cart_total: string | number;
   ended_at: string | null;
   customer_id: number | null;
+  customer_segment: string;
   customer_first_name: string | null;
   customer_last_name: string | null;
   customer_email: string | null;
@@ -183,6 +184,8 @@ export type ThreadListItem = {
   chat_handler_user: { id: number; name: string; email: string } | null;
   need_escalation: boolean;
   escalation_time: string | null;
+  /** The customer's segment when they were linked to this chat; kept after. */
+  customer_segment: string;
   customer: {
     id: number | null;
     name: string | null;
@@ -226,6 +229,13 @@ export async function get_thread_counts(storeCode?: string) {
 }
 
 /** Threads the customer started in this store before this one. */
+/**
+ * The segment a chat shows: its own copy (taken when the customer was
+ * linked, so an October VIP chat stays VIP), else the customer's current
+ * segment from the customer table. Same rule as Django's CustomerSegmentField.
+ */
+const threadCustomerSegment = sql<string>`COALESCE(NULLIF(${chatThread.customerSegment}, ''), ${chatCustomer.segment}, '')`;
+
 const pastThreadsCount = sql<number>`CASE WHEN ${chatCustomer.id} IS NOT NULL THEN (SELECT COUNT(*)::int FROM ${chatThread} ct WHERE ct.customer_id = ${chatCustomer.id} AND ct.store_id = ${chatThread.storeId} AND ct.created_at < ${chatThread.createdAt}) ELSE 0 END`;
 
 /**
@@ -288,6 +298,7 @@ export async function list_threads(
       >`COALESCE((SELECT NULLIF(regexp_replace(${userMetadata.updatedCartData}->>'total', '[^0-9.]', '', 'g'), '')::numeric FROM ${userMetadata} WHERE ${userMetadata.threadId} = ${chatThread.id} LIMIT 1), 0)`,
       ended_at: chatThread.endedAt,
       customer_id: chatCustomer.id,
+      customer_segment: threadCustomerSegment,
       customer_first_name: chatCustomer.firstName,
       customer_last_name: chatCustomer.lastName,
       customer_email: chatCustomer.email,
@@ -318,6 +329,7 @@ export async function list_threads(
       chatCustomer.registeredAt,
       chatCustomer.totalSpent,
       chatCustomer.ordersCount,
+      chatCustomer.segment,
       authUser.id,
       authUser.firstName,
       authUser.lastName,
@@ -420,6 +432,7 @@ export async function list_threads(
           : null,
       need_escalation: row.need_escalation,
       escalation_time: row.escalation_time,
+      customer_segment: row.customer_segment,
       customer: {
         // Null for a guest — the UI keys its tickets lookup off this.
         id: row.customer_id ?? null,
@@ -750,6 +763,8 @@ export type ThreadDetail =
       last_message_at: string | null;
       customer_name: string | null;
       customer_email: string | null;
+      /** The customer's segment when they were linked to this chat; kept after. */
+      customer_segment: string;
       /** Identity, plus the phone and past-thread count the side panel shows. */
       customer: {
         id: number;
@@ -810,6 +825,7 @@ export async function get_thread_details(
       created_at: chatThread.createdAt,
       ended_at: chatThread.endedAt,
       customer_id: chatCustomer.id,
+      customer_segment: threadCustomerSegment,
       customer_first_name: chatCustomer.firstName,
       customer_last_name: chatCustomer.lastName,
       customer_email: chatCustomer.email,
@@ -993,6 +1009,7 @@ export async function get_thread_details(
     last_message_at,
     customer_name,
     customer_email: t.customer_email,
+    customer_segment: t.customer_segment,
     // The id was always selected by the join but never returned, so the
     // client's `customer?.id` reads were silently undefined.
     customer:
