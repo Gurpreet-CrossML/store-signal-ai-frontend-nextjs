@@ -251,7 +251,7 @@ const HANDOVER_ACTION_ID = "thread-handover-action";
 
 // Roles allowed to answer live chats (the backend's "conversations" write
 // permission). Viewers and content managers can't be assigned a chat.
-const CHAT_HANDLER_ROLES = ["supervisor", "agent"];
+const CHAT_HANDLER_ROLES = ["manager", "agent"];
 
 function getAgentInitials(name: string) {
   return name
@@ -342,11 +342,11 @@ function ThreadChatControls({
   }
 
   // A chat an admin holds can only be reassigned by an admin (the backend
-  // enforces it too), so a supervisor sees the holder but can't change it.
+  // enforces it too), so a manager sees the holder but can't change it.
   const heldByAdmin = !!agents.find((a) => a.email === connectedAgent)?.isAdmin;
   const iAmAdmin = !!agents.find((a) => a.email === user)?.isAdmin;
   const lockedByAdmin = heldByAdmin && !iAmAdmin;
-  const reassignRoleLabel = userRole === "supervisor" ? "supervisor" : "admin";
+  const reassignRoleLabel = userRole === "manager" ? "store manager" : "owner";
 
   const isUploadingAttachments = attachments.some(
     (attachment) => attachment.status === "uploading",
@@ -473,7 +473,7 @@ function ThreadChatControls({
                       }
                     >
                       <IconHeadset className="hidden h-4 w-4 sm:block" />
-                      <span className="sm:hidden">Take over</span>
+                      <span className="sm:hidden">Take Over</span>
                       <span className="hidden sm:inline">Take Over</span>
                     </Button>
                   </motion.div>
@@ -530,7 +530,7 @@ function ThreadChatControls({
                       isSavingInternalNote ||
                       transitionState !== "idle"
                     }
-                    title="Save internal note"
+                    title="Save Internal Note"
                     className="h-8 bg-amber-700 px-3 text-xs text-white hover:bg-amber-800 sm:text-sm dark:bg-amber-600 dark:hover:bg-amber-500"
                   >
                     {isSavingInternalNote ? (
@@ -538,7 +538,7 @@ function ThreadChatControls({
                     ) : (
                       <IconNote className="size-3.5 sm:size-4" />
                     )}
-                    Add note
+                    Add Note
                   </Button>
                 </div>
               </div>
@@ -606,7 +606,7 @@ function ThreadChatControls({
                   }
                 >
                   <IconHeadset className="h-4 w-4" />
-                  Take over
+                  Take Over
                 </Button>
               )}
             </div>
@@ -667,7 +667,7 @@ function ThreadChatControls({
                   disabled={transitionState !== "idle" || !chatSocketReady}
                 >
                   <IconArrowBackUp className="size-3.5 sm:size-4" />
-                  Hand back to AI
+                  Hand Back To AI
                 </Button>
               </motion.div>
             </div>
@@ -802,7 +802,7 @@ function ThreadChatControls({
                         disabled={isUploading}
                         className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-background/80 text-muted-foreground opacity-0 shadow-sm transition-opacity group-hover:opacity-100 hover:bg-background hover:text-foreground disabled:cursor-not-allowed disabled:opacity-0"
                         onClick={() => onRemoveAttachment(attachment.id)}
-                        title={isUploading ? "Uploading…" : "Remove attachment"}
+                        title={isUploading ? "Uploading…" : "Remove Attachment"}
                       >
                         <IconX className="h-3 w-3" />
                       </button>
@@ -848,7 +848,7 @@ function ThreadChatControls({
                   isEmojiPickerOpen && "ring-2 ring-ring/40",
                 )}
                 onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
-                title="Add emoji"
+                title="Add Emoji"
               >
                 <IconMoodSmile className="size-4" />
               </Button>
@@ -858,7 +858,7 @@ function ThreadChatControls({
                 size="icon-sm"
                 disabled={inputsDisabled}
                 onClick={() => fileInputRef.current?.click()}
-                title="Attach image or file"
+                title="Attach Image Or File"
                 className="size-7 sm:size-8"
               >
                 <IconPaperclip className="size-4" />
@@ -869,7 +869,7 @@ function ThreadChatControls({
                 size="icon-sm"
                 disabled={inputsDisabled}
                 onClick={() => setIsProductPickerOpen(true)}
-                title="Attach products (max 10)"
+                title="Attach Products (Max 10)"
                 className={cn(
                   "size-7 sm:size-8",
                   attachedProducts.length > 0 &&
@@ -913,7 +913,7 @@ function ThreadChatControls({
                     as="span"
                     className="hidden 2xl:inline"
                   >
-                    {attachedProducts.length} product
+                    {attachedProducts.length} Product
                     {attachedProducts.length > 1 ? "s" : ""}
                   </Typography>
                 )}
@@ -923,7 +923,7 @@ function ThreadChatControls({
                     as="span"
                     className="hidden 2xl:inline"
                   >
-                    {attachments.length} attached
+                    {attachments.length} Attached
                   </Typography>
                 )}
                 <Button
@@ -937,7 +937,7 @@ function ThreadChatControls({
                 >
                   <IconNote className="size-3.5 sm:size-4" />
                   <span className="hidden xl:inline">
-                    Send as Internal Note
+                    Send As Internal Note
                   </span>
                   <span className="xl:hidden">Note</span>
                 </Button>
@@ -1168,7 +1168,7 @@ export default function Support() {
   // the permission from their role. The backend enforces this too — checking
   // here spares a round trip and says why.
   const canHandleChats = can(session?.user, "conversations", { write: true });
-  // Admins and supervisors may assign a chat to another agent.
+  // Owners and managers may assign a chat to another agent.
   const canReassign = can(session?.user, "reassignment", { write: true });
   const staff: StaffMember[] = useAppSelector(
     (state) => state.GetTenancyReducer.staff,
@@ -1193,7 +1193,7 @@ export default function Support() {
             `${member.first_name} ${member.last_name}`.trim() || member.email,
           isAdmin,
           // Admins stay visible (so you can see who holds a chat), but only
-          // an admin can assign to one — the backend refuses a supervisor.
+          // an owner can assign to one — the backend refuses a manager.
           disabled: isAdmin && !iAmAdmin,
         };
       });
@@ -1240,7 +1240,7 @@ export default function Support() {
     connectedAgentNameRef.current = connectedAgentName;
   }, [connectedAgentName]);
 
-  // Only admins and supervisors can reassign, and only they need the agent list
+  // Only owners and managers can reassign, and only they need the agent list
   // (the staff API refuses everyone else). Fetch the shared company staff roster
   // from Redux so the assignee filter and reassignment controls use the same
   // source of truth. Keyed on the boolean, not the session object, so a session
@@ -1643,7 +1643,7 @@ export default function Support() {
     }
   }, [activeThreadId, canHandleChats]);
 
-  // Admin and supervisor: hands the chat to another agent. Sent over the same
+  // Owner and manager: hands the chat to another agent. Sent over the same
   // handler_change channel as Take Over, naming the agent to assign.
   const handleReassign = useCallback(
     (email: string) => {
@@ -2117,6 +2117,18 @@ export default function Support() {
     }
 
     if (event.action_type === "thread_updated") {
+      // A chat another agent now holds leaves a support agent's list (the
+      // server stops sending its messages too).
+      const holderId = event.data.chat_handler_user?.id;
+      if (
+        session?.user?.queue_only &&
+        holderId &&
+        holderId !== session.user.user_id
+      ) {
+        removeClosedThread(event.data.thread_id);
+        return;
+      }
+
       if (
         event.data.thread_id === activeThreadId &&
         activeReadFilter !== "all"
@@ -2574,7 +2586,7 @@ export default function Support() {
         <SidebarHeader className="gap-0 p-0">
           <div className="flex h-16 shrink-0 items-center justify-between gap-2 border-b px-4">
             <CardTitle className="flex items-center gap-2">
-              Live chats
+              Live Chats
             </CardTitle>
           </div>
 
@@ -2877,12 +2889,12 @@ export default function Support() {
                 <div className="flex flex-col items-center justify-center gap-1 p-6 text-center">
                   <Typography variant="small" as="p">
                     {activeReadFilter === "needs_human"
-                      ? "No chats need human help"
+                      ? "No Chats Need Human Help"
                       : activeReadFilter === "ai"
-                        ? "No AI-handled chats"
+                        ? "No AI-Handled Chats"
                         : activeReadFilter === "with_agent"
-                          ? "No chats with agents"
-                          : "No matches"}
+                          ? "No Chats With Agents"
+                          : "No Matches"}
                   </Typography>
                   <Typography variant="muted">
                     {threadSearch
@@ -3003,14 +3015,14 @@ export default function Support() {
                           onSelect={() => setIsDetailsOpen(true)}
                         >
                           <IconId className="size-4" />
-                          Customer details
+                          Customer Details
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           disabled={!canCreateTicket}
                           onSelect={() => setIsCreateTicketOpen(true)}
                         >
                           <IconTicket className="size-4" />
-                          Create ticket
+                          Create Ticket
                         </DropdownMenuItem>
                         {selectedThread?.is_active && canHandleChats ? (
                           <DropdownMenuItem
@@ -3022,7 +3034,7 @@ export default function Support() {
                             onSelect={() => setIsCloseChatOpen(true)}
                           >
                             <IconMessageOff className="size-4" />
-                            Close chat
+                            Close Chat
                           </DropdownMenuItem>
                         ) : null}
                       </DropdownMenuContent>
@@ -3095,7 +3107,7 @@ export default function Support() {
                             as="p"
                             className="text-lg font-semibold"
                           >
-                            No messages yet
+                            No Messages Yet
                           </Typography>
                           <Typography
                             variant="muted"
@@ -3215,7 +3227,7 @@ export default function Support() {
               as="p"
               className="text-lg font-semibold"
             >
-              No active chats
+              No Active Chats
             </Typography>
             <Typography
               variant="muted"

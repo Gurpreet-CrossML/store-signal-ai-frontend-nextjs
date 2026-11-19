@@ -46,7 +46,7 @@ export function WorkflowDetail({
             className={cn("uppercase", BADGE_TONE_STYLES[tone])}
           >
             <Icon data-icon="inline-start" />
-            {workflow.risk} risk
+            {workflow.risk} Risk
           </Badge>
           <Typography variant="caption">{workflow.riskNote}</Typography>
         </div>
@@ -70,7 +70,7 @@ export function WorkflowDetail({
       {workflow.branches && workflow.branches.length > 0 && (
         <div className="flex flex-col gap-3">
           <Typography variant="small" as="h3">
-            Branch by Return Reason
+            Branch By Return Reason
           </Typography>
           {workflow.branches.map((branch) => (
             <WorkflowBranchCard

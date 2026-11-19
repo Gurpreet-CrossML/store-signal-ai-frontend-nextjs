@@ -123,11 +123,11 @@ function ReplacementColumnHeader() {
   return (
     <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto] items-center gap-2">
       <Typography variant="muted" as="span" className="text-xs font-medium">
-        Instead of
+        Instead Of
       </Typography>
       <span aria-hidden className="w-4" />
       <Typography variant="muted" as="span" className="text-xs font-medium">
-        The AI says
+        The AI Says
       </Typography>
       <span aria-hidden className="w-8" />
     </div>

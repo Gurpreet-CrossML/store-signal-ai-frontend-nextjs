@@ -216,6 +216,13 @@ export const ENDPOINTS = {
   fetchKnowledgeStats: () => `/knowledge/knowledge-items/stats/`,
   // The knowledge categories with how many items are filed under each. Django.
   fetchKnowledgeCategories: () => `/knowledge/knowledge-items/categories/`,
+  // The sample customer questions a store owner can try on their AI (the same
+  // list for every store), and the questions the AI couldn't answer. Django.
+  fetchTestQuestions: () => `/knowledge/test-questions/`,
+  fetchUnansweredQuestions: () => `/chat/unanswered-questions/`,
+  // The Test AI chat: GET the user's earlier messages (each question and each answer), POST a
+  // question to have the AI answer it from the store's knowledge. Django.
+  testMessages: () => `/knowledge/test-messages/`,
   // Website URL discovery: POST a site URL, get back the pages found on it
   // (url, title, word count) so the user can pick which to index. Django.
   discoverKnowledgeUrls: () => `/knowledge/knowledge-items/discover-urls/`,
@@ -758,9 +765,9 @@ export const REGIONAL_SPELLING_CHOICES: readonly DescribedOption[] = [
 // Mirrors `onboarding_step` on the session user (Django user_context), in
 // the order the user walks through them.
 export const ONBOARDING_STEPS = [
-  { value: "store_setup", label: "Connect the store" },
-  { value: "go_live", label: "Go live on store" },
-  { value: "brand_voice", label: "Set up brand voice" },
+  { value: "store_setup", label: "Connect The Store" },
+  { value: "go_live", label: "Go Live On Store" },
+  { value: "brand_voice", label: "Set Up Brand Voice" },
 ] as const;
 
 export type OnboardingStep = (typeof ONBOARDING_STEPS)[number]["value"];
@@ -784,10 +791,10 @@ export const WIDGET_INSTALL_STEPS = {
 } as const;
 
 export const SHOPIFY_CONNECT_STEPS = [
-  "Checking permissions",
-  "Fetching connected store details",
-  "Subscribing to store updates",
-  "Setting things up",
+  "Checking Permissions",
+  "Fetching Connected Store Details",
+  "Subscribing To Store Updates",
+  "Setting Things Up",
   "Done",
 ] as const;
 
@@ -927,6 +934,42 @@ export const KNOWLEDGE_UNCATEGORIZED_ROUTE = "uncategorized";
 export const KNOWLEDGE_ALL_ROUTE = "all";
 export const KNOWLEDGE_APPROVAL_WAITING_PARAM = "approval_waiting";
 export const KNOWLEDGE_APPROVAL_WAITING_HREF = `/knowledge/categories/${KNOWLEDGE_ALL_ROUTE}?${KNOWLEDGE_APPROVAL_WAITING_PARAM}=true`;
+
+// The Test AI page, opened by the Test AI button on the Knowledge screen: the
+// AI test chat on the left and, on the right, a panel with these two tabs.
+export const KNOWLEDGE_TEST_AI_HREF = "/knowledge/test-ai";
+export const KNOWLEDGE_TEST_AI_TABS = {
+  questions: "questions",
+  unanswered: "unanswered",
+} as const;
+export type KnowledgeTestAiTab =
+  (typeof KNOWLEDGE_TEST_AI_TABS)[keyof typeof KNOWLEDGE_TEST_AI_TABS];
+// How long a question typed into the Test AI chat may be. A typed test question
+// is short; the Ask buttons on the lists skip this limit, so a longer customer
+// question can still be asked (the backend accepts up to 500 characters).
+export const KNOWLEDGE_TEST_QUESTION_MIN_LENGTH = 3;
+export const KNOWLEDGE_TEST_QUESTION_MAX_LENGTH = 100;
+// What a Test AI answer says its products came from. Shopify is the only
+// platform a store can be connected with today.
+export const KNOWLEDGE_TEST_PRODUCT_SOURCE_LABEL = "Shopify products";
+// AI credits one Test AI answer costs when the AI model runs.
+export const KNOWLEDGE_TEST_ANSWER_CREDITS = 1;
+// Who wrote a Test AI chat message, as the messages API names it (`sender`).
+export const KNOWLEDGE_TEST_SENDERS = { user: "user", ai: "ai" } as const;
+export type KnowledgeTestSender =
+  (typeof KNOWLEDGE_TEST_SENDERS)[keyof typeof KNOWLEDGE_TEST_SENDERS];
+// Why a customer question counts as one the AI couldn't answer, as the
+// unanswered questions API names it (`reason`), with its label and badge tone.
+export const KNOWLEDGE_UNANSWERED_REASONS = {
+  escalated: { label: "Escalated to a human", tone: "danger" },
+  low_confidence: { label: "Low confidence", tone: "warning" },
+} as const;
+export type KnowledgeUnansweredReason =
+  keyof typeof KNOWLEDGE_UNANSWERED_REASONS;
+// The unanswered-questions reason filter's "no filter" value.
+export const KNOWLEDGE_UNANSWERED_ALL_REASONS = "all";
+export const KNOWLEDGE_UNANSWERED_PAGE_SIZE = 25;
+export const KNOWLEDGE_TEST_QUESTIONS_PAGE_SIZE = 25;
 // How many items of each kind a category holds, as the knowledge API's
 // `source_counts` keys it, in the order they are listed ("2 website pages ·
 // 1 document"), with the words for one and for several.
@@ -936,10 +979,10 @@ export const KNOWLEDGE_SOURCE_COUNT_LABELS = [
   { key: "articles", one: "article", many: "articles" },
   { key: "faqs", one: "FAQ", many: "FAQs" },
 ] as const;
-export const KNOWLEDGE_ALL_NAME = "All knowledge";
+export const KNOWLEDGE_ALL_NAME = "All Knowledge";
 export const KNOWLEDGE_ALL_DESCRIPTION =
   "Everything your assistant knows, across every category";
-export const KNOWLEDGE_APPROVAL_WAITING_NAME = "Waiting for your approval";
+export const KNOWLEDGE_APPROVAL_WAITING_NAME = "Waiting For Your Approval";
 export const KNOWLEDGE_APPROVAL_WAITING_DESCRIPTION =
   "Pages found on your website that are saved as drafts. Check them and publish the ones your assistant should use.";
 
@@ -959,7 +1002,7 @@ export const KNOWLEDGE_URL_INPUT_DELAY_MS = 500;
 
 // What knowledge filed under no knowledge category is called, and what its card
 // says about it.
-export const KNOWLEDGE_UNCATEGORIZED_NAME = "No category";
+export const KNOWLEDGE_UNCATEGORIZED_NAME = "No Category";
 export const KNOWLEDGE_UNCATEGORIZED_DESCRIPTION =
   "Knowledge that isn't filed under any category yet";
 

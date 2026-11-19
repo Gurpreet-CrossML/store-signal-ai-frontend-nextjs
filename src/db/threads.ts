@@ -1,6 +1,6 @@
 import { alias } from "drizzle-orm/pg-core";
 import { getDb } from "@/lib/tenant-context";
-import { storeIdScope, scopedThreadFilter } from "@/db/access";
+import { queueScope, storeIdScope, scopedThreadFilter } from "@/db/access";
 import { FEEDBACK_RATING_VALUES } from "@/lib/config";
 import {
   chatThread,
@@ -213,6 +213,9 @@ export async function get_thread_counts(storeCode?: string) {
   const conditions = [eq(chatThread.isActive, true)];
   const storeScope = storeIdScope(chatThread.storeId, storeCode);
   if (storeScope) conditions.push(storeScope);
+  // An agent counts only their own chats and the unassigned queue.
+  const queue = queueScope(chatThread.chatHandlerUserId);
+  if (queue) conditions.push(queue);
 
   const [counts] = await getDb()
     .select({
@@ -476,6 +479,10 @@ function buildThreadConditions(
 
   const storeScope = storeIdScope(chatThread.storeId, filters.store_code);
   if (storeScope) conditions.push(storeScope);
+
+  // An agent lists only their own chats and the unassigned queue.
+  const queue = queueScope(chatThread.chatHandlerUserId);
+  if (queue) conditions.push(queue);
 
   if (filters.is_active) {
     conditions.push(
@@ -1306,10 +1313,12 @@ export async function get_user_metadata(
 export async function get_order_data(thread_id: string): Promise<OrderData[]> {
   const db = getDb();
 
+  // Scoped like every thread lookup: the caller's stores, and for a support
+  // agent only chats they hold or nobody holds.
   const thread = await db
     .select({ customerId: chatThread.customerId })
     .from(chatThread)
-    .where(eq(chatThread.id, thread_id))
+    .where(scopedThreadFilter(chatThread.id, thread_id))
     .then((rows) => rows[0]);
 
   if (!thread?.customerId) {

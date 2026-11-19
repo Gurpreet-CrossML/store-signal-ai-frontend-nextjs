@@ -57,7 +57,7 @@ export function GoLiveCard() {
   return (
     <Card className="flex max-h-[calc(100svh-12rem)] flex-col overflow-hidden">
       <CardHeader className="shrink-0">
-        <CardTitle>Install the widget</CardTitle>
+        <CardTitle>Install The Widget</CardTitle>
         <CardDescription>
           Paste each store&apos;s snippet before &lt;/body&gt; on every page of
           that storefront, then continue.
@@ -84,7 +84,7 @@ export function GoLiveCard() {
           ) : (
             <IconCheck data-icon="inline-start" />
           )}
-          I&apos;ve added it — continue
+          I&apos;ve Added It — Continue
         </Button>
         <Button
           variant="ghost"
@@ -92,7 +92,7 @@ export function GoLiveCard() {
           onClick={() => next("skip")}
         >
           {pressed === "skip" && <Spinner data-icon="inline-start" />}
-          Skip for now
+          Skip For Now
         </Button>
       </CardFooter>
     </Card>
@@ -142,11 +142,11 @@ export function StoreSnippet({ store }: { store: OnboardingStore }) {
         </div>
         <Button variant="outline" size="sm" onClick={copy}>
           <IconCopy data-icon="inline-start" />
-          {copied ? "Copied" : "Copy snippet"}
+          {copied ? "Copied" : "Copy Snippet"}
         </Button>
       </div>
       <div className="flex flex-col gap-2 rounded-md border border-border bg-muted/50 p-3">
-        <Typography variant="small">How to install</Typography>
+        <Typography variant="small">How To Install</Typography>
         <ol className="flex flex-col gap-1.5">
           {(isShopify
             ? WIDGET_INSTALL_STEPS.shopify

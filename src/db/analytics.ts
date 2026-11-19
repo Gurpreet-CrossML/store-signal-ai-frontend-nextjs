@@ -4,7 +4,7 @@ import {
   currentCompany,
   resolveStoreScope,
 } from "@/lib/tenant-context";
-import { storeIdScope, threadIdScope } from "@/db/access";
+import { storeIdScope, threadIdScope, threadQueueScope } from "@/db/access";
 import { threadChannelScope } from "@/db/threads";
 import { getCached, setCached } from "@/lib/dashboard-cache";
 import {
@@ -1661,6 +1661,9 @@ export async function get_chat_history_raw(params: {
   ];
   const storeScope = threadIdScope(chatHistory.threadId, params.store_code);
   if (storeScope) conds.push(storeScope);
+  // An agent searches only the messages of their own chats and the queue.
+  const queue = threadQueueScope(chatHistory.threadId);
+  if (queue) conds.push(queue);
   if (params.query) {
     conds.push(sql`${chatHistory.message} ILIKE ${"%" + params.query + "%"}`);
   }

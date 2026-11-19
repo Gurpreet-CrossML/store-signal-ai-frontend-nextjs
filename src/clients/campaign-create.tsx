@@ -493,7 +493,7 @@ export default function CampaignCreate({
                 onClick={() => handleSubmit(false)}
                 disabled={submitting}
               >
-                Save draft
+                Save Draft
               </Button>
               <Button onClick={() => handleSubmit(true)} disabled={submitting}>
                 {submitting ? "Publishing…" : "Publish"}
@@ -523,7 +523,7 @@ export default function CampaignCreate({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <IconSpeakerphone className="size-4" />
-            Campaign details
+            Campaign Details
           </CardTitle>
           <CardDescription>
             Name, target audience and when new entrants start.
@@ -605,7 +605,7 @@ export default function CampaignCreate({
               <Label htmlFor="campaign-start-time-hour">
                 <span className="inline-flex items-center gap-1.5">
                   <IconClock className="size-4" />
-                  Start time ({CAMPAIGN_TIME_ZONE}, every day)
+                  Start Time ({CAMPAIGN_TIME_ZONE}, Every Day)
                 </span>
               </Label>
               <InfoIcon
@@ -629,7 +629,7 @@ export default function CampaignCreate({
 
           <div className="flex items-center justify-between rounded-md border bg-muted/40 p-3 sm:col-span-2">
             <div>
-              <div className="text-sm font-medium">Continuous entry</div>
+              <div className="text-sm font-medium">Continuous Entry</div>
               <div className="text-xs text-muted-foreground">
                 Off: only customers who existed before this segment was created
                 enter. On: every customer currently matching the segment enters,
@@ -758,8 +758,8 @@ export default function CampaignCreate({
                   <div className="space-y-1.5">
                     <Label>
                       {index === 0
-                        ? "Fires at start"
-                        : "Wait after previous (min)"}
+                        ? "Fires At Start"
+                        : "Wait After Previous (min)"}
                     </Label>
                     <Input
                       type="number"
@@ -832,7 +832,7 @@ export default function CampaignCreate({
             className="self-start"
           >
             <IconPlus className="size-4" />
-            Add step
+            Add Step
           </Button>
         </CardContent>
       </Card>

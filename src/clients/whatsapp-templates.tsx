@@ -498,7 +498,7 @@ export default function WhatsAppTemplates() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Turn off this template?</AlertDialogTitle>
+            <AlertDialogTitle>Turn Off This Template?</AlertDialogTitle>
             <AlertDialogDescription>
               While{" "}
               <span className="font-semibold text-foreground">
@@ -522,7 +522,7 @@ export default function WhatsAppTemplates() {
               disabled={togglingId !== null}
               className={buttonVariants({ variant: "destructive" })}
             >
-              {togglingId !== null ? "Turning off…" : "Turn Off"}
+              {togglingId !== null ? "Turning Off…" : "Turn Off"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -538,8 +538,8 @@ export default function WhatsAppTemplates() {
           <AlertDialogHeader>
             <AlertDialogTitle>
               {templateToDelete?.status === "DRAFT"
-                ? "Delete draft?"
-                : "Delete template?"}
+                ? "Delete Draft?"
+                : "Delete Template?"}
             </AlertDialogTitle>
             <AlertDialogDescription>
               This will permanently delete{" "}
@@ -644,7 +644,7 @@ export default function WhatsAppTemplates() {
                 resubmitNameTaken
               }
             >
-              {resubmitting ? "Resubmitting…" : "Resubmit to Meta"}
+              {resubmitting ? "Resubmitting…" : "Resubmit To Meta"}
             </Button>
           </DialogFooter>
         </DialogContent>

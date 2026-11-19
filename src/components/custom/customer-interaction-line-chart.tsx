@@ -44,8 +44,8 @@ export type ChartPoint = {
 
 const seriesLabels: Record<Granularity, [string, string]> = {
   hourly: ["Today", "Yesterday"],
-  weekly: ["Last 7 days", "Previous 7 days"],
-  monthly: ["Selected months", "Previous months"],
+  weekly: ["Last 7 Days", "Previous 7 Days"],
+  monthly: ["Selected Months", "Previous Months"],
 };
 
 const subtitleMap: Record<Granularity, string> = {
@@ -56,8 +56,8 @@ const subtitleMap: Record<Granularity, string> = {
 
 const autoRangeLabel: Record<Granularity, string> = {
   hourly: "Today",
-  weekly: "Last 7 days",
-  monthly: "Custom range",
+  weekly: "Last 7 Days",
+  monthly: "Custom Range",
 };
 
 const formatPeakHour = (label: string) => {

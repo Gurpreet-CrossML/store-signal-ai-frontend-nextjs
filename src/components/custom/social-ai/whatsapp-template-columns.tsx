@@ -133,7 +133,7 @@ export function getWhatsAppTemplateColumns(
                     }}
                   >
                     <IconRefresh className="size-4" />
-                    Resubmit to Meta
+                    Resubmit To Meta
                   </DropdownMenuItem>
                 )}
                 {(template.status?.toUpperCase() === "PENDING_DELETION" ||

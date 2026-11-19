@@ -9,7 +9,7 @@ import type { WorkflowGate } from "./workflow-types";
  */
 
 export const META_COMPLIANCE_NOTE = {
-  title: "Enforced by the platform",
+  title: "Enforced By The Platform",
   body: "These rails are locked for every connected account and shown here for transparency. Turning them off would put your Meta accounts at risk.",
 };
 

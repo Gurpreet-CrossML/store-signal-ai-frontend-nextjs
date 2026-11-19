@@ -21,6 +21,8 @@ import type { StaffMember } from "@/redux/api-slice/tenancy-slice";
 import { ROLE_LABELS } from "@/lib/staff-roles";
 
 export type StaffRowActions = {
+  /** Whether this user may change the member (role, password, status). */
+  canManage: (staff: StaffMember) => boolean;
   onChangeRole: (staff: StaffMember) => void;
   onResetPassword: (staff: StaffMember) => void;
   onToggleActive: (staff: StaffMember) => void;
@@ -72,6 +74,8 @@ export function getStaffColumns(
       header: () => <div className="text-right">Actions</div>,
       cell: ({ row }) => {
         const s = row.original;
+        // No actions on a member this user may not change.
+        if (!actions.canManage(s)) return null;
         return (
           <div className="text-right">
             <DropdownMenu>
@@ -83,11 +87,11 @@ export function getStaffColumns(
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onSelect={() => actions.onChangeRole(s)}>
                   <IconUserCog />
-                  Change role
+                  Change Role
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => actions.onResetPassword(s)}>
                   <IconKey />
-                  Reset password
+                  Reset Password
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => actions.onToggleActive(s)}>
                   {s.is_active ? (

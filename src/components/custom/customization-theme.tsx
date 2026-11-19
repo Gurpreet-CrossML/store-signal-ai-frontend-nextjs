@@ -44,21 +44,21 @@ export default function CustomizationTheme({
   const swatches = [
     {
       which: "primary" as const,
-      label: "Brand color",
+      label: "Brand Color",
       color: themeColor,
       hex: themeHexInput,
       placeholder: "#6C5CE7",
     },
     {
       which: "secondary" as const,
-      label: "Bubble color",
+      label: "Bubble Color",
       color: secondaryColor,
       hex: secondaryHexInput,
       placeholder: "#F3F4F6",
     },
     {
       which: "tertiary" as const,
-      label: "Accent color",
+      label: "Accent Color",
       color: tertiaryColor,
       hex: tertiaryHexInput,
       placeholder: "#DFE6E9",
@@ -108,15 +108,15 @@ export default function CustomizationTheme({
         >
           <span className="flex items-center gap-2">
             <span className="inline-block size-3 rounded-full bg-[var(--cb-primary)]" />
-            Header &amp; primary buttons
+            Header &amp; Primary Buttons
           </span>
           <span className="flex items-center gap-2">
             <span className="inline-block size-3 rounded-full bg-[var(--cb-secondary)]" />
-            Bot message bubbles
+            Bot Message Bubbles
           </span>
           <span className="flex items-center gap-2">
             <span className="inline-block size-3 rounded-full bg-[var(--cb-tertiary)]" />
-            Accents &amp; surfaces
+            Accents &amp; Surfaces
           </span>
         </div>
         {/* Whatever the server rejected among this card's fields.

@@ -212,7 +212,7 @@ export default function SocialAITabContent({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Disconnect account?</AlertDialogTitle>
+            <AlertDialogTitle>Disconnect Account?</AlertDialogTitle>
             <AlertDialogDescription>
               <span className="font-semibold text-foreground">
                 {accountToDisconnect?.name}

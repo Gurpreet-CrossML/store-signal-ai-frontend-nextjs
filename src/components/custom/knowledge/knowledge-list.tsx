@@ -79,7 +79,7 @@ function itemSubtitle(item: KnowledgeItem): string {
   switch (item.source) {
     case "article": {
       const words = wordCount(item.content ?? "");
-      return `Article · ${words} ${words === 1 ? "word" : "words"}`;
+      return `Article · ${words} ${words === 1 ? "Word" : "Words"}`;
     }
     case "file": {
       const extension = fileExtension(item);
@@ -95,11 +95,11 @@ function itemSubtitle(item: KnowledgeItem): string {
         const { host, pathname } = new URL(item.url ?? "");
         return `${host}${pathname === "/" ? "" : pathname}`;
       } catch {
-        return item.url ?? "Website page";
+        return item.url ?? "Website Page";
       }
     }
     case "faq":
-      return "Question & answer";
+      return "Question & Answer";
     default:
       return "Knowledge";
   }
@@ -115,7 +115,7 @@ function appliesTo(item: KnowledgeItem): string {
   const total = groups.reduce((sum, [, names]) => sum + names.length, 0);
   const first = groups.find(([, names]) => names.length > 0);
 
-  if (item.type === "general" || !first) return "Whole store";
+  if (item.type === "general" || !first) return "Whole Store";
 
   const [label, names] = first;
   return `${label} · ${names[0]}${total > 1 ? ` +${total - 1}` : ""}`;
@@ -265,8 +265,8 @@ export function KnowledgeList({
           </EmptyMedia>
           <EmptyTitle>
             {hasFilters
-              ? "No knowledge matches your filters"
-              : "No knowledge yet"}
+              ? "No Knowledge Matches Your Filters"
+              : "No Knowledge Yet"}
           </EmptyTitle>
           <EmptyDescription>
             {hasFilters
@@ -333,7 +333,7 @@ export function KnowledgeList({
               <div className="mt-1.5 flex items-center gap-2">
                 <KnowledgeStatusBadge status={item.status} />
                 <span className="min-w-0 truncate text-xs text-muted-foreground">
-                  {item.hasUnpublishedChanges ? "Draft changes · " : ""}
+                  {item.hasUnpublishedChanges ? "Draft Changes · " : ""}
                   {appliesTo(item)} · {timeAgo(item.updatedAt)}
                 </span>
               </div>
@@ -376,10 +376,10 @@ export function KnowledgeList({
                 </TableHead>
               )}
               <TableHead className={cn(!canEdit && "px-4")}>Name</TableHead>
-              <TableHead>Applies to</TableHead>
-              <TableHead>Used by</TableHead>
+              <TableHead>Applies To</TableHead>
+              <TableHead>Used By</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Last updated</TableHead>
+              <TableHead>Last Updated</TableHead>
               <TableHead className="w-12 px-4">
                 <span className="sr-only">Actions</span>
               </TableHead>
@@ -480,7 +480,7 @@ export function KnowledgeList({
                     <KnowledgeStatusBadge status={item.status} />
                     {item.hasUnpublishedChanges && (
                       <p className="mt-1 text-xs text-muted-foreground">
-                        Draft changes
+                        Draft Changes
                       </p>
                     )}
                   </TableCell>

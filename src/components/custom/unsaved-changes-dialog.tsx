@@ -88,7 +88,7 @@ export function UnsavedChangesDialog({
     >
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Unsaved changes</AlertDialogTitle>
+          <AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
           <AlertDialogDescription>
             You have unsaved changes. Do you want to save your changes before
             leaving?
