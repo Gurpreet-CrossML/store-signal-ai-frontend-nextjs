@@ -2,8 +2,9 @@ import Link from "next/link";
 import { IconMessage2, IconPlus } from "@tabler/icons-react";
 
 import { Button } from "@/components/ui/button";
+import { KNOWLEDGE_TEST_AI_HREF } from "@/lib/config";
 
-/** The buttons beside the Knowledge heading: test the AI, and add knowledge. */
+/** The buttons beside the Knowledge heading: open the Test AI page, and add knowledge. */
 export function KnowledgeHeadingActions({
   showTest,
   canEdit,
@@ -14,12 +15,12 @@ export function KnowledgeHeadingActions({
 }) {
   return (
     <div className="flex items-center gap-2">
-      {/* Placeholder: not wired to anything yet. */}
       {showTest && (
-        <Button type="button" variant="outline" size="sm">
-          <IconMessage2 className="size-4" />
-          <span className="sm:hidden">Test</span>
-          <span className="max-sm:hidden">Test Your AI</span>
+        <Button variant="outline" size="sm" asChild>
+          <Link href={KNOWLEDGE_TEST_AI_HREF}>
+            <IconMessage2 className="size-4" />
+            Test AI
+          </Link>
         </Button>
       )}
       {canEdit && (

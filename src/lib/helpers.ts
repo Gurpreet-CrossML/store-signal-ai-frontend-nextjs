@@ -10,6 +10,17 @@ import {
   WIDGET_SCRIPT_SRC,
 } from "@/lib/config";
 
+/**
+ * Where a conversation opens: an active one in Support, where it can be
+ * answered, and a closed one in Threads, where it is only read.
+ */
+export const getThreadHref = (threadId: string, isActive: boolean) =>
+  isActive ? `/support/?chat=${threadId}` : `/threads/${threadId}`;
+
+/** A knowledge item's own page (an article is sent on to its editor from there). */
+export const getKnowledgeItemHref = (itemId: number | string) =>
+  `/knowledge/items/${itemId}`;
+
 export const formatDateTime = (dateInput: string | null) => {
   if (!dateInput || dateInput === "-") return "-";
   return new Date(dateInput).toLocaleString("en-US", {

@@ -13,6 +13,7 @@ import { PageHeading } from "@/components/custom/page-heading";
 import { ThreadsDataTable } from "@/components/custom/threads-data-table";
 import { threadsColumns } from "@/components/custom/threads-columns";
 import { useDebounce } from "@/hooks/use-debounce";
+import { getThreadHref } from "@/lib/helpers";
 import ThreadFilteration, {
   DEFAULT_THREAD_FILTERS,
   type ThreadFilterState,
@@ -101,11 +102,7 @@ export default function Threads() {
   // (the `?page=` param keeps the list position).
   const handleSelectThread = useCallback(
     (threadId: string, isActive: boolean) => {
-      if (isActive) {
-        router.push(`/support/?chat=${threadId}`);
-      } else {
-        router.push(`/threads/${threadId}`);
-      }
+      router.push(getThreadHref(threadId, isActive));
     },
     [router],
   );

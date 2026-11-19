@@ -237,7 +237,7 @@ export type SupportTicketDraftMessage = {
 };
 
 /** Who or what opened a ticket. */
-export type SupportTicketCreatedBy = "agent" | "ai" | "rule";
+export type SupportTicketCreatedBy = "agent" | "ai" | "email";
 
 export type SupportTicket = {
   id: number;

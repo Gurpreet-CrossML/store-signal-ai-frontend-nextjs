@@ -46,7 +46,7 @@ import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 const CREATED_BY_LABEL: Record<string, string> = {
   ai: "AI",
   agent: "an agent",
-  rule: "a rule",
+  email: "an email",
 };
 
 function statusTone(status: string | null): BadgeTone {

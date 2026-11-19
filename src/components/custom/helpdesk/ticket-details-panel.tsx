@@ -1542,7 +1542,7 @@ function ActivityPill({ status }: { status: string }) {
 const CREATED_BY_LABEL: Record<string, string> = {
   ai: "AI",
   agent: "Agent",
-  rule: "Rule",
+  email: "Email",
 };
 
 function ActivityTab({

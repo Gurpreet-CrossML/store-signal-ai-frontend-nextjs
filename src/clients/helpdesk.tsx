@@ -512,7 +512,7 @@ const pickParam = <T extends string>(param: string, known: readonly T[]) =>
 const CREATED_BY_LABEL: Record<SupportTicketCreatedBy, string> = {
   ai: "AI",
   agent: "an agent",
-  rule: "a rule",
+  email: "an email",
 };
 
 const priorityOptions: { value: SupportTicketPriority; label: string }[] = [
@@ -1620,9 +1620,10 @@ function ConversationPanel({
                       <p className="flex min-w-0 items-center gap-1.5 text-xs font-semibold text-primary">
                         <IconSparkles className="size-3.5 shrink-0" />
                         <span className="truncate">
-                          {isPhone
-                            ? `Created by ${creator} from ${source.replace(/^a /, "")}`
-                            : `Ticket created by ${creator} from ${source}`}{" "}
+                          {isPhone ? "Created" : "Ticket created"}{" "}
+                          {ticket.created_by_type === "email"
+                            ? "from an email"
+                            : `by ${creator} from ${isPhone ? source.replace(/^a /, "") : source}`}{" "}
                           · {clock}
                         </span>
                       </p>
