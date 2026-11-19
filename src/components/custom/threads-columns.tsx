@@ -181,8 +181,8 @@ export const threadsColumns: ColumnDef<Thread>[] = [
           variant="secondary"
           className={
             isActive
-              ? "-ml-2 bg-primary/10 text-primary"
-              : "-ml-2 bg-muted text-muted-foreground"
+              ? "bg-primary/10 text-primary"
+              : "bg-muted text-muted-foreground"
           }
         >
           <span className="size-1.5 rounded-full bg-current" />
