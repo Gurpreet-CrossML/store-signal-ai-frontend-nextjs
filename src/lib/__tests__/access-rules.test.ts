@@ -50,7 +50,8 @@ describe("buildAccess — role → store scope", () => {
 
   it("limits a queue-only agent to their own id, everyone else to nothing", () => {
     expect(
-      buildAccess({ is_staff: false, queue_only: true, user_id: 7 }).queueUserId,
+      buildAccess({ is_staff: false, queue_only: true, user_id: 7 })
+        .queueUserId,
     ).toBe(7);
     expect(buildAccess({ is_staff: false, queue_only: true }).queueUserId).toBe(
       -1,
