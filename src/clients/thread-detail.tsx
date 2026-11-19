@@ -659,7 +659,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
         <div className="flex items-center gap-4 border-b px-5 py-5">
           {hasInsights && <ResolutionRing value={resolutionRate} />}
           <div>
-            <h2 className="text-lg font-semibold">AI review</h2>
+            <h2 className="text-lg font-semibold">AI Review</h2>
             {hasInsights && (
               <p className="text-sm text-muted-foreground">
                 {FetchAIInsightData?.reason_for_score ||
@@ -751,7 +751,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
         <ThreadCard
           title={
             <div className="flex items-center justify-between">
-              <span>Suggested actions</span>
+              <span>Suggested Actions</span>
               <span className="text-sm font-normal text-muted-foreground">
                 {actions.length} actions
               </span>
@@ -852,7 +852,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
           )}
         </div>
       </ThreadCard>
-      <ThreadCard title="Thread details">
+      <ThreadCard title="Thread Details">
         <dl className="grid grid-cols-[auto_1fr] gap-x-5 gap-y-1.5 px-5 py-4 text-sm">
           <dt className="text-muted-foreground">Thread ID</dt>
           <dd className="truncate text-right font-mono">{threadId}</dd>
@@ -1018,7 +1018,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
               value="review"
               className="text-base data-active:after:bg-primary"
             >
-              AI review{" "}
+              AI Review{" "}
               {improvements.length ? (
                 <span className="rounded-full bg-red-100 px-1.5 text-xs text-red-700">
                   {improvements.length}

@@ -143,6 +143,14 @@ export type KnowledgeCategoryRef = {
   slug: string;
 };
 
+/** How many items of each kind, by the keys of `KnowledgeCounts`. */
+export type KnowledgeSourceCounts = {
+  urls: number;
+  documents: number;
+  articles: number;
+  faqs: number;
+};
+
 /** A knowledge category with how many of the store's items are filed under it. */
 export type KnowledgeCategorySummary = KnowledgeCategoryRef & {
   description: string;
@@ -154,6 +162,8 @@ export type KnowledgeCategorySummary = KnowledgeCategoryRef & {
   draft_count: number;
   /** Of those, the ones that failed to process. */
   failed_count: number;
+  /** Of those, how many of each kind. */
+  source_counts: KnowledgeSourceCounts;
 };
 
 export type KnowledgeCategories = {
@@ -162,6 +172,7 @@ export type KnowledgeCategories = {
   uncategorized_count: number;
   uncategorized_draft_count: number;
   uncategorized_failed_count: number;
+  uncategorized_source_counts: KnowledgeSourceCounts;
   /** All of the store's knowledge items. */
   total: number;
 };
@@ -358,6 +369,7 @@ export const FetchKnowledgeItems = createAsyncThunk(
       aiScope = [],
       createdBy = [],
       knowledgeCategory = [],
+      approvalWaiting = false,
     }: {
       storeCode: string;
       page?: number;
@@ -373,6 +385,8 @@ export const FetchKnowledgeItems = createAsyncThunk(
       /** Slugs of the knowledge categories the items are filed under
        * (`KNOWLEDGE_UNCATEGORIZED_FILTER` for items with none). */
       knowledgeCategory?: string[];
+      /** Only the pages the automatic import saved as drafts for approval. */
+      approvalWaiting?: boolean;
     },
     thunkAPI,
   ) => {
@@ -391,6 +405,7 @@ export const FetchKnowledgeItems = createAsyncThunk(
       if (createdBy.length) params.set("created_by", createdBy.join(","));
       if (knowledgeCategory.length)
         params.set("knowledge_category", knowledgeCategory.join(","));
+      if (approvalWaiting) params.set("approval_waiting", "true");
 
       const response = await axiosInstance.get(
         `${ENDPOINTS.fetchKnowledgeItems()}?${params.toString()}`,
@@ -614,6 +629,9 @@ export type DiscoveredPage = {
   alreadyAdded: boolean;
   /** False when the page has too few words to be worth indexing. */
   hasEnoughContent: boolean;
+  /** Ids of the knowledge categories the page's address matches, to file it
+   * under by default. */
+  categoryIds: number[];
 };
 
 type ApiDiscoveredPage = {
@@ -622,6 +640,7 @@ type ApiDiscoveredPage = {
   word_count?: number | null;
   already_added?: boolean;
   has_enough_content?: boolean;
+  knowledge_category_ids?: number[];
 };
 
 /** The most specific message in a failed scan response: the `url` field error
@@ -680,6 +699,7 @@ export const DiscoverWebsiteUrls = createAsyncThunk(
             wordCount: page.word_count ?? null,
             alreadyAdded: Boolean(page.already_added),
             hasEnoughContent: page.has_enough_content !== false,
+            categoryIds: page.knowledge_category_ids ?? [],
           }),
         ),
         truncated: Boolean(response.data?.data?.truncated),

@@ -920,6 +920,29 @@ export const ARTICLE_BODY_MAX_LENGTH = 30_000;
 export const KNOWLEDGE_UNCATEGORIZED_FILTER = "none";
 export const KNOWLEDGE_UNCATEGORIZED_ROUTE = "uncategorized";
 
+// The list of all the store's knowledge, whatever its category
+// (/knowledge/categories/all). With `?approval_waiting=true` it shows only the
+// pages the automatic import saved as drafts that wait for the user to publish
+// (the knowledge API's `approval_waiting` filter); the checklist drawer links there.
+export const KNOWLEDGE_ALL_ROUTE = "all";
+export const KNOWLEDGE_APPROVAL_WAITING_PARAM = "approval_waiting";
+export const KNOWLEDGE_APPROVAL_WAITING_HREF = `/knowledge/categories/${KNOWLEDGE_ALL_ROUTE}?${KNOWLEDGE_APPROVAL_WAITING_PARAM}=true`;
+// How many items of each kind a category holds, as the knowledge API's
+// `source_counts` keys it, in the order they are listed ("2 website pages ·
+// 1 document"), with the words for one and for several.
+export const KNOWLEDGE_SOURCE_COUNT_LABELS = [
+  { key: "urls", one: "website page", many: "website pages" },
+  { key: "documents", one: "document", many: "documents" },
+  { key: "articles", one: "article", many: "articles" },
+  { key: "faqs", one: "FAQ", many: "FAQs" },
+] as const;
+export const KNOWLEDGE_ALL_NAME = "All knowledge";
+export const KNOWLEDGE_ALL_DESCRIPTION =
+  "Everything your assistant knows, across every category";
+export const KNOWLEDGE_APPROVAL_WAITING_NAME = "Waiting for your approval";
+export const KNOWLEDGE_APPROVAL_WAITING_DESCRIPTION =
+  "Pages found on your website that are saved as drafts. Check them and publish the ones your assistant should use.";
+
 // The Add knowledge screen's limits. The caps match the backend's
 // `KNOWLEDGE_MAX_FAQS_PER_REQUEST`, `KNOWLEDGE_MAX_URLS_PER_REQUEST` and
 // `KNOWLEDGE_DISCOVERY_MAX_SPECIFIC_PAGES`; the address length is its URL field's
@@ -939,6 +962,25 @@ export const KNOWLEDGE_URL_INPUT_DELAY_MS = 500;
 export const KNOWLEDGE_UNCATEGORIZED_NAME = "No category";
 export const KNOWLEDGE_UNCATEGORIZED_DESCRIPTION =
   "Knowledge that isn't filed under any category yet";
+
+// Progress of the automatic import of a new store's policy and help pages, as the
+// dashboard checklist's knowledge step reports it ("" when it never ran).
+export const KNOWLEDGE_SCAN_STATUS = {
+  QUEUED: "queued",
+  RUNNING: "running",
+  DONE: "done",
+  FAILED: "failed",
+} as const;
+export type KnowledgeScanStatus =
+  | ""
+  | (typeof KNOWLEDGE_SCAN_STATUS)[keyof typeof KNOWLEDGE_SCAN_STATUS];
+// The statuses in which the import is not complete yet.
+export const KNOWLEDGE_SCAN_ACTIVE_STATUSES: readonly KnowledgeScanStatus[] = [
+  KNOWLEDGE_SCAN_STATUS.QUEUED,
+  KNOWLEDGE_SCAN_STATUS.RUNNING,
+];
+// How often the checklist is re-read while the import is not complete.
+export const KNOWLEDGE_SCAN_POLL_MS = 5000;
 
 // The Help Desk ticket's language dropdown footer while no agent has changed
 // the language. Once one has, it says who changed it instead.

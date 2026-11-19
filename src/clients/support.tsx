@@ -448,6 +448,8 @@ function ThreadChatControls({
                     currentAgent={null}
                     disabled={transitionState !== "idle" || !chatSocketReady}
                     onReassign={onReassign}
+                    hideLabel
+                    triggerClassName="rounded-lg sm:h-8 sm:rounded-md"
                   />
                 )}
                 {activeThreadId && (
@@ -586,6 +588,8 @@ function ThreadChatControls({
                     lockedByAdmin
                   }
                   onReassign={onReassign}
+                  hideLabel
+                  triggerClassName="h-8 rounded-md"
                 />
               )}
               {canReassign && (
@@ -648,6 +652,8 @@ function ThreadChatControls({
                     !chatSocketReady
                   }
                   onReassign={onReassign}
+                  hideLabel
+                  triggerClassName="h-8 rounded-md"
                 />
               )}
               <motion.div layoutId={HANDOVER_ACTION_ID} className="shrink-0">
