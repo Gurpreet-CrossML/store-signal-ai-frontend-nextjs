@@ -1978,9 +1978,9 @@ const SocialAISlice = createSlice({
       FetchWhatsAppTemplatesData: [] as WhatsAppTemplatesResponse,
     },
     UpdateWhatsAppTemplateActiveState: {
-      isLoading: false,
-      isSuccess: false,
-      isError: null as null | string | object,
+      UpdateWhatsAppTemplateActiveIsLoading: false,
+      UpdateWhatsAppTemplateActiveIsSuccess: false,
+      UpdateWhatsAppTemplateActiveIsError: null as null | string | object,
     },
     FetchWhatsAppTemplateLibraryState: {
       FetchWhatsAppTemplateLibraryIsLoading: false,
@@ -2243,24 +2243,24 @@ const SocialAISlice = createSlice({
           action.payload as string | object;
       })
       .addCase(updateWhatsAppTemplateActive.pending, (state) => {
-        state.UpdateWhatsAppTemplateActiveState.isLoading = true;
-        state.UpdateWhatsAppTemplateActiveState.isSuccess = false;
-        state.UpdateWhatsAppTemplateActiveState.isError = null;
+        state.UpdateWhatsAppTemplateActiveState.UpdateWhatsAppTemplateActiveIsLoading = true;
+        state.UpdateWhatsAppTemplateActiveState.UpdateWhatsAppTemplateActiveIsSuccess = false;
+        state.UpdateWhatsAppTemplateActiveState.UpdateWhatsAppTemplateActiveIsError =
+          null;
       })
       .addCase(updateWhatsAppTemplateActive.fulfilled, (state, action) => {
-        state.UpdateWhatsAppTemplateActiveState.isLoading = false;
-        state.UpdateWhatsAppTemplateActiveState.isSuccess = true;
+        state.UpdateWhatsAppTemplateActiveState.UpdateWhatsAppTemplateActiveIsLoading = false;
+        state.UpdateWhatsAppTemplateActiveState.UpdateWhatsAppTemplateActiveIsSuccess = true;
         const rows =
           state.FetchWhatsAppTemplatesState.FetchWhatsAppTemplatesData;
         const index = rows.findIndex((row) => row.id === action.payload.id);
         if (index !== -1) rows[index] = action.payload;
       })
       .addCase(updateWhatsAppTemplateActive.rejected, (state, action) => {
-        state.UpdateWhatsAppTemplateActiveState.isLoading = false;
-        state.UpdateWhatsAppTemplateActiveState.isSuccess = false;
-        state.UpdateWhatsAppTemplateActiveState.isError = action.payload as
-          | string
-          | object;
+        state.UpdateWhatsAppTemplateActiveState.UpdateWhatsAppTemplateActiveIsLoading = false;
+        state.UpdateWhatsAppTemplateActiveState.UpdateWhatsAppTemplateActiveIsSuccess = false;
+        state.UpdateWhatsAppTemplateActiveState.UpdateWhatsAppTemplateActiveIsError =
+          action.payload as string | object;
       })
       .addCase(fetchWhatsAppTemplateLibrary.pending, (state) => {
         state.FetchWhatsAppTemplateLibraryState.FetchWhatsAppTemplateLibraryIsLoading = true;
