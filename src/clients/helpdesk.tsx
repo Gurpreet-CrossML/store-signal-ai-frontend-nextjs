@@ -376,7 +376,7 @@ function TicketRow({
         </Tooltip>
         <div className="mt-1.5 flex min-w-0 items-center gap-1.5 overflow-hidden text-xs text-muted-foreground">
           <span className="shrink-0">
-            {ticket.order_id ? ticket.order_id : "No order linked"}
+            {ticket.order_id ? `#${ticket.order_id}` : "No order linked"}
             {orderTotal
               ? ` · ${formatMoney(orderTotal, orderCurrency).replace(/\.00$/, "")}`
               : ""}

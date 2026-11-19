@@ -634,7 +634,7 @@ function OrderCard({
       >
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className="font-semibold">{number}</span>
+            <span className="font-semibold">#{number}</span>
             <span
               className={cn(
                 "rounded px-1.5 py-0.5 text-[11px] font-medium",
@@ -786,7 +786,7 @@ function LinkedOrderSection({
       ) : ticket.order_id ? (
         <div className="flex items-center justify-between gap-2 rounded-lg border px-3 py-3">
           <div>
-            <p className="font-semibold">{ticket.order_id}</p>
+            <p className="font-semibold">#{ticket.order_id}</p>
             <p className="text-xs text-muted-foreground">
               Order details not synced yet.
             </p>
@@ -884,8 +884,8 @@ function AssigneePicker({
       hideLabel
       compact
       // Value at the left, like the other fields; the chevron or lock (its
-      // last icon) at the right.
-      triggerClassName="h-8 w-36 rounded-md justify-start [&>svg:last-child]:ml-auto"
+      // last icon) at the right. Same gap and chevron colour as the others.
+      triggerClassName="h-8 w-36 gap-1.5 rounded-md justify-start [&>svg:last-child]:ml-auto [&>svg:last-child]:text-muted-foreground"
       agents={staff.map((member) => ({
         email: member.email,
         name: `${member.first_name} ${member.last_name}`.trim() || member.email,
@@ -942,9 +942,10 @@ function LanguagePicker({
           disabled={disabled}
         >
           {!phone ? (
-            <IconWorld className="size-4 text-muted-foreground" />
+            <IconWorld className="size-4 shrink-0 text-muted-foreground" />
           ) : null}
-          {name}
+          {/* A long name truncates instead of pushing the chevron out. */}
+          <span className="min-w-0 truncate">{name}</span>
           <MenuChevron hidden={disabled} />
         </button>
       </PopoverTrigger>
@@ -1246,9 +1247,9 @@ function TicketTab(props: TicketDetailsProps) {
       <div className="flex flex-col gap-1.5 px-4 py-4">
         {statusRow}
         {priorityRow}
+        {sentimentRow}
         {assigneeRow}
         {languageRow}
-        {sentimentRow}
         {channelRow}
         {slaRow}
         {createdRow}

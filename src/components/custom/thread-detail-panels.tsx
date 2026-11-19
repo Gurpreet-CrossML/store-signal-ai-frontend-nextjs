@@ -620,7 +620,7 @@ export function OrdersCard({
                         as="p"
                         className="shrink-0 leading-normal"
                       >
-                        {order.order_number}
+                        #{order.order_number}
                       </Typography>
                       <FulfillmentBadge status={order.fulfillment_status} />
                     </div>

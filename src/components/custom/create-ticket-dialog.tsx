@@ -36,7 +36,6 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { Typography } from "@/components/ui/typography";
-import { orderLabel } from "@/components/custom/crm/orders-columns";
 import {
   applyServerFieldErrors,
   formikErrorsFromZod,
@@ -647,7 +646,7 @@ export function CreateTicketDialog({
                 <SelectItem value={NO_ORDER}>No order</SelectItem>
                 {orders.map((order) => (
                   <SelectItem key={order.id} value={String(order.id)}>
-                    {orderLabel(order)} ·{" "}
+                    {order.name || `#${order.order_number}`} ·{" "}
                     {formatPrice(
                       Number(order.total_price ?? 0),
                       order.currency,

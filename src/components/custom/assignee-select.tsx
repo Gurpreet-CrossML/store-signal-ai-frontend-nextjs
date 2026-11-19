@@ -124,7 +124,7 @@ export function AssigneeSelect({
       ) : (
         <span
           className={cn(
-            "flex shrink-0 items-center justify-center rounded-full border bg-background text-muted-foreground",
+            "flex shrink-0 items-center justify-center rounded-full bg-muted-foreground/50 text-foreground",
             compact ? "size-5" : "size-5 sm:size-6",
           )}
         >
@@ -158,7 +158,7 @@ export function AssigneeSelect({
           onSelect={() => selectAgent("")}
           className="items-center gap-3 py-2"
         >
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-full border bg-background text-muted-foreground">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted-foreground/50 text-background">
             <IconUser className="size-4" />
           </span>
           <span className="flex-1">Unassigned</span>
