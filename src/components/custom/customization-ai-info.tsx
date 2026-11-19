@@ -100,7 +100,7 @@ export default function CustomizationAiInfo({
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
         <Field className="gap-2">
-          <FieldLabel htmlFor="ai-title">Popup title</FieldLabel>
+          <FieldLabel htmlFor="ai-title">Popup Title</FieldLabel>
           <Input
             id="ai-title"
             value={state.title}

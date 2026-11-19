@@ -60,7 +60,7 @@ export function KnowledgeSettingsDrawer({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="gap-0 sm:max-w-sm">
         <SheetHeader>
-          <SheetTitle>Usage &amp; details</SheetTitle>
+          <SheetTitle>Usage &amp; Details</SheetTitle>
           <SheetDescription>{description}</SheetDescription>
         </SheetHeader>
         <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-4">

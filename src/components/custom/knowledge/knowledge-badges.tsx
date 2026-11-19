@@ -93,7 +93,7 @@ export function AIScopeBadges({
   nowrap?: boolean;
 }) {
   if (scope.length === 0) {
-    return <span className="text-xs text-muted-foreground">No AI scope</span>;
+    return <span className="text-xs text-muted-foreground">No AI Scope</span>;
   }
   return (
     <div className={cn("flex gap-1", nowrap ? "flex-nowrap" : "flex-wrap")}>

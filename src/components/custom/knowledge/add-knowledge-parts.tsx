@@ -20,8 +20,8 @@ export type AddableSource = "url" | "file" | "article" | "faq";
 export type AddStep = "source" | "content" | "done";
 
 const STEPS: { key: AddStep; label: string }[] = [
-  { key: "source", label: "Choose a source" },
-  { key: "content", label: "Add content" },
+  { key: "source", label: "Choose A Source" },
+  { key: "content", label: "Add Content" },
   { key: "done", label: "Done" },
 ];
 
@@ -109,7 +109,7 @@ const SOURCE_CARDS: {
 }[] = [
   {
     value: "url",
-    title: "Website pages",
+    title: "Website Pages",
     description:
       "Pages from your store, like shipping, refunds or contact us. We read the text on each page.",
     icon: IconGlobe,
@@ -129,13 +129,13 @@ const SOURCE_CARDS: {
     title: "Article",
     description:
       "Write a help article in the editor, with headings, lists and tables. Keep it as a draft until it's ready.",
-    tag: "Draft or publish",
+    tag: "Draft Or Publish",
     icon: IconArticle,
     tone: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40",
   },
   {
     value: "faq",
-    title: "Questions and answers",
+    title: "Questions And Answers",
     description:
       "Write the answer to a question shoppers ask, in your own words. The quickest way to fix a wrong answer.",
     icon: IconMessageQuestion,
@@ -273,7 +273,7 @@ export function ContentLayout({
             disabled={changeSourceDisabled}
             onClick={onChangeSource}
           >
-            Change source
+            Change Source
           </Button>
         </div>
         {children}
@@ -304,7 +304,7 @@ export const SOURCE_META: Record<
   { title: string; icon: Icon; tone: string }
 > = {
   url: {
-    title: "Website pages",
+    title: "Website Pages",
     icon: IconGlobe,
     tone: "bg-blue-50 text-blue-600 dark:bg-blue-950/40",
   },
@@ -314,7 +314,7 @@ export const SOURCE_META: Record<
     tone: "bg-violet-50 text-violet-600 dark:bg-violet-950/40",
   },
   faq: {
-    title: "Questions and answers",
+    title: "Questions And Answers",
     icon: IconMessageQuestion,
     tone: "bg-orange-50 text-orange-600 dark:bg-orange-950/40",
   },

@@ -88,7 +88,7 @@ const SOURCE_TABS: {
   { value: "all", label: "All", countKey: "knowledge_items" },
   { value: "article", label: "Articles", countKey: "articles" },
   { value: "file", label: "Documents", countKey: "documents" },
-  { value: "url", label: "Website pages", countKey: "urls" },
+  { value: "url", label: "Website Pages", countKey: "urls" },
   { value: "faq", label: "Q&A", countKey: "faqs" },
 ];
 
@@ -451,7 +451,7 @@ export default function KnowledgeLibraryTabContent({
           Knowledge
         </Link>
         <div className="rounded-xl border bg-card px-4 py-10 text-center">
-          <h2 className="text-base font-semibold">Category not found</h2>
+          <h2 className="text-base font-semibold">Category Not Found</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             This category doesn&apos;t exist or is no longer available.
           </p>
@@ -572,7 +572,7 @@ export default function KnowledgeLibraryTabContent({
           </Button>
 
           <span className="text-sm text-muted-foreground max-sm:hidden">
-            {items.length} of {totalCount} items
+            {items.length} Of {totalCount} Items
           </span>
         </div>
 
@@ -580,7 +580,7 @@ export default function KnowledgeLibraryTabContent({
           {selectedItems.length > 0 && (
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm font-medium">
-                {selectedItems.length} selected
+                {selectedItems.length} Selected
               </span>
               {selectedDrafts.length > 0 && (
                 <Button
@@ -597,7 +597,7 @@ export default function KnowledgeLibraryTabContent({
                   )}
                   {selectedDrafts.length === selectedItems.length
                     ? "Publish"
-                    : `Publish ${selectedDrafts.length} ${selectedDrafts.length === 1 ? "draft" : "drafts"}`}
+                    : `Publish ${selectedDrafts.length} ${selectedDrafts.length === 1 ? "Draft" : "Drafts"}`}
                 </Button>
               )}
               <BulkAssistantsPopover
@@ -655,7 +655,7 @@ export default function KnowledgeLibraryTabContent({
         >
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Delete this knowledge?</AlertDialogTitle>
+              <AlertDialogTitle>Delete This Knowledge?</AlertDialogTitle>
               <AlertDialogDescription>
                 This will permanently remove{" "}
                 <strong className="font-semibold break-words text-foreground">
@@ -699,8 +699,8 @@ export default function KnowledgeLibraryTabContent({
             <AlertDialogHeader>
               <AlertDialogTitle>
                 {publishTargets.length === 1
-                  ? "Publish this knowledge?"
-                  : `Publish ${publishTargets.length} knowledge items?`}
+                  ? "Publish This Knowledge?"
+                  : `Publish ${publishTargets.length} Knowledge Items?`}
               </AlertDialogTitle>
               <AlertDialogDescription>
                 {publishTargets.length === 1 ? (
@@ -744,8 +744,8 @@ export default function KnowledgeLibraryTabContent({
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>
-                Delete {selectedItems.length} knowledge{" "}
-                {selectedItems.length === 1 ? "item" : "items"}?
+                Delete {selectedItems.length} Knowledge{" "}
+                {selectedItems.length === 1 ? "Item" : "Items"}?
               </AlertDialogTitle>
               <AlertDialogDescription>
                 This will permanently remove the selected knowledge. This action

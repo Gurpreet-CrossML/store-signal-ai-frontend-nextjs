@@ -121,7 +121,7 @@ export function AccountSwitcher({
             sideOffset={4}
           >
             <DropdownMenuLabel className="text-xs text-muted-foreground">
-              {channelLabel} accounts
+              {channelLabel} Accounts
             </DropdownMenuLabel>
             {accounts.map((acc) => {
               const accountName = acc.name || acc.username || acc.external_id;

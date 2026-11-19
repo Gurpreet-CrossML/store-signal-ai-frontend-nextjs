@@ -144,8 +144,8 @@ export function PostFiltersPopover({
             row of controls. */}
         <Typography variant="muted">
           {isFiltered
-            ? `Showing ${matchCount} of ${totalCount} posts`
-            : `${totalCount} ${totalCount === 1 ? "post" : "posts"}`}
+            ? `Showing ${matchCount} Of ${totalCount} Posts`
+            : `${totalCount} ${totalCount === 1 ? "Post" : "Posts"}`}
         </Typography>
         <Separator />
         <RangeField
@@ -162,7 +162,7 @@ export function PostFiltersPopover({
         <Separator />
         <div className="flex flex-col gap-2">
           <Typography variant="muted" className="font-medium">
-            Posted between
+            Posted Between
           </Typography>
           <DateRangePicker
             from={filters.from}

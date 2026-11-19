@@ -127,7 +127,7 @@ function AccessDenied() {
 
         <div className="flex flex-col items-center gap-2.5">
           <p className="text-xs leading-4 font-semibold tracking-[0.6px] text-primary uppercase">
-            Access denied
+            Access Denied
           </p>
           <h1 className="text-[22px] leading-[30px] font-semibold tracking-[-0.5px] text-foreground sm:text-3xl sm:leading-[38px]">
             You don&apos;t have access to this page
@@ -146,7 +146,7 @@ function AccessDenied() {
           <Button asChild className="w-full sm:w-auto">
             <Link href="/">
               <IconDashboard data-icon="inline-start" />
-              Go to dashboard
+              Go To Dashboard
             </Link>
           </Button>
           <Button
@@ -155,7 +155,7 @@ function AccessDenied() {
             onClick={goBack}
           >
             <IconArrowLeft data-icon="inline-start" />
-            Go back
+            Go Back
           </Button>
         </div>
 

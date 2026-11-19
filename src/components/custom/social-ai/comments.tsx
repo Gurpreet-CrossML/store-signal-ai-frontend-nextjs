@@ -407,7 +407,7 @@ function CommentItem({
             {showsDraft && (
               <Badge variant="outline" className="gap-1">
                 <IconSparkles className="size-3" />
-                Draft awaiting approval
+                Draft Awaiting Approval
               </Badge>
             )}
             <CommentTags analysis={comment.analysis} />
@@ -535,8 +535,8 @@ function CommentItem({
               }}
             >
               {showReplies
-                ? "Hide replies"
-                : `View ${localReplyCount} ${localReplyCount === 1 ? "reply" : "replies"}`}
+                ? "Hide Replies"
+                : `View ${localReplyCount} ${localReplyCount === 1 ? "Reply" : "Replies"}`}
             </Button>
             {/* Mounted on first open and kept mounted after — collapsing
                 used to unmount the list, so every re-open refetched. Hidden

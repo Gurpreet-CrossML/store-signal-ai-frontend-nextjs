@@ -308,7 +308,7 @@ export default function EmailTemplateForm({
 
             {/* Icon */}
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="icon">Icon (emoji)</Label>
+              <Label htmlFor="icon">Icon (Emoji)</Label>
               <Input
                 id="icon"
                 value={icon}

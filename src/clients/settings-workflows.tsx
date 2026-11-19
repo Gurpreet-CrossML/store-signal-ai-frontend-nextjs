@@ -96,7 +96,7 @@ function getColumns(
     },
     {
       accessorKey: "agent_label",
-      header: "AI agent",
+      header: "AI Agent",
       cell: ({ row }) => (
         <Badge variant="secondary" className="whitespace-nowrap">
           {row.original.agent_label}
@@ -152,7 +152,7 @@ function getColumns(
               <TooltipTrigger asChild>
                 <span className="flex items-center gap-1 text-xs text-muted-foreground">
                   <IconLock className="size-4" />
-                  Always on
+                  Always On
                 </span>
               </TooltipTrigger>
               <TooltipContent>
@@ -283,7 +283,7 @@ export default function SettingsWorkflows() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={ALL_FILTER_VALUE}>All AI agents</SelectItem>
+            <SelectItem value={ALL_FILTER_VALUE}>All AI Agents</SelectItem>
             {agentOptions.map(([value, label]) => (
               <SelectItem key={value} value={value}>
                 {label}
@@ -318,7 +318,7 @@ export default function SettingsWorkflows() {
         }
         noun="workflow"
         emptyTitle={
-          filtered ? "No workflows match these filters" : "No workflows yet"
+          filtered ? "No Workflows Match These Filters" : "No Workflows Yet"
         }
         emptyDescription={
           filtered
@@ -374,7 +374,7 @@ export function ConfirmSwitch({
   const affected = [workflow, ...linked];
   const agents = [...new Set(affected.map((item) => item.agent_label))];
   const linkedNames = joinNames(linked.map((other) => other.name));
-  const verb = isEnabled ? "on" : "off";
+  const verb = isEnabled ? "On" : "Off";
 
   return (
     <AlertDialog
@@ -439,7 +439,7 @@ export function ConfirmSwitch({
           >
             {saving && <Spinner data-icon="inline-start" />}
             {linked.length
-              ? `Turn ${verb} ${affected.length} workflows`
+              ? `Turn ${verb} ${affected.length} Workflows`
               : `Turn ${verb}`}
           </AlertDialogAction>
         </AlertDialogFooter>

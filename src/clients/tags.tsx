@@ -73,10 +73,10 @@ const TAG_TYPE_FILTERS: TagTypeFilter[] = [ALL_TYPES, "custom", "system"];
 function describeTagUsage(tag: SupportTicketTagData | null): string {
   const parts = [
     tag?.ticket_count
-      ? `${tag.ticket_count} ticket${tag.ticket_count === 1 ? "" : "s"}`
+      ? `${tag.ticket_count} Ticket${tag.ticket_count === 1 ? "" : "s"}`
       : "",
     tag?.thread_count
-      ? `${tag.thread_count} analysed thread${tag.thread_count === 1 ? "" : "s"}`
+      ? `${tag.thread_count} Analysed Thread${tag.thread_count === 1 ? "" : "s"}`
       : "",
     tag?.has_sla_policy ? "an SLA policy" : "",
   ].filter(Boolean);
@@ -545,7 +545,7 @@ export default function Tags() {
             {hasActiveFilters && (
               <Button type="button" variant="ghost" onClick={clearFilters}>
                 <IconX className="size-4" />
-                Clear filters
+                Clear Filters
               </Button>
             )}
           </div>
@@ -566,8 +566,8 @@ export default function Tags() {
           headerClassName="bg-muted hover:bg-muted"
           emptyTitle={
             debouncedSearch || typeFilter !== ALL_TYPES
-              ? "No matching tags"
-              : "No tags yet"
+              ? "No Matching Tags"
+              : "No Tags Yet"
           }
           emptyDescription={
             debouncedSearch || typeFilter !== ALL_TYPES
@@ -625,7 +625,7 @@ export default function Tags() {
               <Form className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">
-                    Tag name <RequiredMark />
+                    Tag Name <RequiredMark />
                   </Label>
                   <Field name="name">
                     {({ field }: FieldProps) => (
@@ -806,7 +806,7 @@ export default function Tags() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Update this tag everywhere?</AlertDialogTitle>
+            <AlertDialogTitle>Update This Tag Everywhere?</AlertDialogTitle>
             <AlertDialogDescription>
               Changing this tag will update it everywhere it is used (
               {pendingSave?.usage}). Do you want to continue?
@@ -839,7 +839,7 @@ export default function Tags() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {pendingDeleteUsage ? "Tag is in use" : "Remove tag?"}
+              {pendingDeleteUsage ? "Tag Is In Use" : "Remove Tag?"}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {pendingDeleteUsage ? (

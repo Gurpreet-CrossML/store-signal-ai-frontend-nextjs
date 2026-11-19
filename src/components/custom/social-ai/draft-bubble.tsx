@@ -150,7 +150,7 @@ export function DraftBubble({
         <>
           {draft.response_text && (
             <div className="flex flex-col gap-1">
-              <Typography variant="caption">Public reply</Typography>
+              <Typography variant="caption">Public Reply</Typography>
               <Textarea
                 value={responseText}
                 onChange={(event) => setResponseText(event.target.value)}
@@ -176,7 +176,7 @@ export function DraftBubble({
           {draft.response_text && (
             <div className="flex flex-col gap-1">
               {draft.dm_text && (
-                <Typography variant="caption">Comment reply</Typography>
+                <Typography variant="caption">Comment Reply</Typography>
               )}
               <div className="inline-block max-w-full self-start rounded-lg bg-muted px-3 py-2">
                 <Typography variant="small" as="p">

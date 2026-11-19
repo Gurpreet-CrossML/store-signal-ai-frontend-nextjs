@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils";
 const APPLIES_TO: { value: ScopeKind; label: string; hint: string }[] = [
   {
     value: "general",
-    label: "Whole store",
+    label: "Whole Store",
     hint: "Store-wide info like policies, shipping and contact details.",
   },
   {
@@ -168,13 +168,13 @@ export function KnowledgeScopePanel({
       )}
     >
       <div>
-        <h2 className="font-semibold">Who uses it and where</h2>
+        <h2 className="font-semibold">Who Uses It And Where</h2>
         <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
       </div>
 
       <fieldset className="flex flex-col gap-3">
         <legend className="mb-2 text-xs font-semibold text-muted-foreground">
-          Applies to
+          Applies To
         </legend>
         <RadioGroup
           value={value.scopeKind}
@@ -206,7 +206,7 @@ export function KnowledgeScopePanel({
 
       <fieldset className="flex flex-col gap-3">
         <legend className="mb-2 text-xs font-semibold text-muted-foreground">
-          Used by
+          Used By
         </legend>
         {AI_SCOPE_OPTIONS.map(({ value: scope, label }) => (
           <Label key={scope} className="items-start gap-2.5 font-normal">

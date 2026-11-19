@@ -95,12 +95,6 @@ export function AssigneeSelect({
     currentAgentName ||
     currentAgent ||
     "Unassigned";
-  const currentAgentInitials = currentAgentDisplayName
-    .split(" ")
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
 
   const selectAgent = (email: string) => {
     if (email !== currentAgent) onReassign(email);
@@ -110,27 +104,6 @@ export function AssigneeSelect({
 
   const renderTriggerContent = (open: boolean) => (
     <>
-      {currentAgent ? (
-        <span
-          className={cn(
-            "flex shrink-0 items-center justify-center rounded-full bg-primary font-semibold text-primary-foreground",
-            compact
-              ? "size-5 text-[9px]"
-              : "size-5 text-[9px] sm:size-6 sm:text-[10px]",
-          )}
-        >
-          {currentAgentInitials}
-        </span>
-      ) : (
-        <span
-          className={cn(
-            "flex shrink-0 items-center justify-center rounded-full bg-muted-foreground/50 text-foreground",
-            compact ? "size-5" : "size-5 sm:size-6",
-          )}
-        >
-          <IconUser className="size-3.5" />
-        </span>
-      )}
       <span className="min-w-0 flex-1 truncate text-left sm:max-w-45 sm:flex-none">
         {currentAgentDisplayName}
       </span>
@@ -174,11 +147,7 @@ export function AssigneeSelect({
             onSelect={() => selectAgent(agent.email)}
             className="items-start gap-3 py-2"
           >
-            <span
-              className={cn(
-                "flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground",
-              )}
-            >
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
               {agent.name
                 .split(" ")
                 .map((part) => part[0])
@@ -232,7 +201,9 @@ export function AssigneeSelect({
         >
           <div className="mx-auto mt-3 h-1 w-9 shrink-0 rounded-full bg-muted-foreground/30" />
           <SheetHeader className="border-b px-4 pb-3 pt-4 text-left">
-            <SheetTitle className="text-lg">Assign {noun}</SheetTitle>
+            <SheetTitle className="text-lg">
+              Assign {noun === "chat" ? "Chat" : "Ticket"}
+            </SheetTitle>
             <SheetDescription className="sr-only">
               Search for a teammate and assign this{" "}
               {noun === "chat" ? "conversation" : "ticket"}.

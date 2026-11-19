@@ -97,7 +97,7 @@ export function describeScope(scope: KnowledgeScope): string {
     category: ["Category", scope.categories],
     collection: ["Collection", scope.collections],
   } as const;
-  if (scope.scopeKind === "general") return "Whole store";
+  if (scope.scopeKind === "general") return "Whole Store";
 
   const [label, picked] = labels[scope.scopeKind];
   return picked.length > 0

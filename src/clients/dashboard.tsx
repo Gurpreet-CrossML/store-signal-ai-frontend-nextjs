@@ -276,7 +276,7 @@ export default function Dashboard() {
       value: `${FetchConversionRateData?.percentage || 0}%`,
       infoText:
         "Percentage of chatbot sessions that led to an order, where the customer added a product to cart in the chat and ordered it within 24 hours, out of all sessions in the selected period.",
-      status: `${FetchConversionRateData?.converted_count || 0} of ${FetchConversionRateData?.total_count || 0} sessions`,
+      status: `${FetchConversionRateData?.converted_count || 0} Of ${FetchConversionRateData?.total_count || 0} Sessions`,
       statusVariant: "info" as const,
       trend: FetchConversionRateData?.trend,
       href: threadsHref({ has_order: "true" }),
@@ -297,7 +297,7 @@ export default function Dashboard() {
       value: FetchThreadCountsData?.active.toLocaleString() || "0",
       infoText:
         "Shows the number of sessions currently marked as active in the analytics data, helping you gauge current engagement.",
-      status: `${FetchThreadCountsData.needsHuman || 0} need a human`,
+      status: `${FetchThreadCountsData.needsHuman || 0} Need A Human`,
       statusVariant: "danger" as const,
       // The count is every active chat; only the "needs a human" sub-line
       // goes to the filtered queue.
@@ -327,7 +327,7 @@ export default function Dashboard() {
       value: `${FetchOperationalEfficiencyData?.bot_resolution_rate?.percentage || 0}%`,
       infoText:
         "Shows the share of closed conversations the chatbot resolved on its own, without a human agent taking over or a support ticket being raised.",
-      status: `${FetchOperationalEfficiencyData?.bot_resolution_rate?.count || 0} of ${FetchOperationalEfficiencyData?.bot_resolution_rate?.total || 0} chats`,
+      status: `${FetchOperationalEfficiencyData?.bot_resolution_rate?.count || 0} Of ${FetchOperationalEfficiencyData?.bot_resolution_rate?.total || 0} Chats`,
       statusVariant: "info" as const,
       trend: FetchOperationalEfficiencyData?.bot_resolution_rate?.trend,
       href: threadsHref({
@@ -348,7 +348,7 @@ export default function Dashboard() {
       value: `${FetchOperationalEfficiencyData?.escalation_rate?.percentage || 0}%`,
       infoText:
         "Shows the share of all conversations in the selected period that were escalated to a human agent through a support ticket, which can highlight where the bot needs support.",
-      status: `${FetchOperationalEfficiencyData?.escalation_rate?.count || 0} of ${FetchOperationalEfficiencyData?.escalation_rate?.total || 0} chats`,
+      status: `${FetchOperationalEfficiencyData?.escalation_rate?.count || 0} Of ${FetchOperationalEfficiencyData?.escalation_rate?.total || 0} Chats`,
       statusVariant: "info" as const,
       trend: FetchOperationalEfficiencyData?.escalation_rate?.trend,
       href: threadsHref({ has_ticket: "true" }),
@@ -362,37 +362,37 @@ export default function Dashboard() {
     const quote = (value: string) => `"${value.replaceAll('"', '""')}"`;
     const reportRows = [
       ...performanceSummaryMetrics.map((metric) => [
-        "Performance summary",
+        "Performance Summary",
         metric.label,
         metric.value,
         metric.status,
       ]),
       ...sentimentPieChartData.map((item) => [
-        "Sentiment distribution",
+        "Sentiment Distribution",
         item.sentiment,
         String(item.score),
-        "Customer feedback",
+        "Customer Feedback",
       ]),
       ...performanceRadialChartData.map((item) => [
-        "Performance overview",
+        "Performance Overview",
         displayMetricName(item.metric),
         String(item.value),
-        "Service metric",
+        "Service Metric",
       ]),
       [
-        "User activity",
-        "Guest visitors",
+        "User Activity",
+        "Guest Visitors",
         String(userActivityChartData[0]?.guest ?? 0),
-        "Guest vs signed-in users",
+        "Guest Vs Signed-In Users",
       ],
       [
-        "User activity",
-        "Signed-in users",
+        "User Activity",
+        "Signed-In Users",
         String(userActivityChartData[0]?.signed ?? 0),
-        "Guest vs signed-in users",
+        "Guest Vs Signed-In Users",
       ],
       ...conversationHistoryChartData.map((point) => [
-        "Customer interaction analytics",
+        "Customer Interaction Analytics",
         point.label,
         String(point.value ?? ""),
         `${granularity} user queries`,
@@ -401,7 +401,7 @@ export default function Dashboard() {
     const rows = [
       ["Store", "From", "To", "Section", "Metric", "Value", "Detail"],
       ...reportRows.map((row) => [
-        storeCode || "All stores",
+        storeCode || "All Stores",
         exportRange.from,
         exportRange.to,
         ...row,
@@ -435,7 +435,7 @@ export default function Dashboard() {
     reportWindow.document.write(
       buildDashboardReportHtml({
         fileName: exportFileStem,
-        storeName: storeCode || "All stores",
+        storeName: storeCode || "All Stores",
         from: exportRange.from,
         to: exportRange.to,
         summary: performanceSummaryMetrics.map((metric) => ({
@@ -452,10 +452,10 @@ export default function Dashboard() {
           String(item.value),
         ]),
         activity: [
-          ["Guest visitors", String(userActivityChartData[0]?.guest ?? 0)],
-          ["Signed-in users", String(userActivityChartData[0]?.signed ?? 0)],
+          ["Guest Visitors", String(userActivityChartData[0]?.guest ?? 0)],
+          ["Signed-In Users", String(userActivityChartData[0]?.signed ?? 0)],
           [
-            "Total visitors",
+            "Total Visitors",
             String(
               (userActivityChartData[0]?.guest ?? 0) +
                 (userActivityChartData[0]?.signed ?? 0),

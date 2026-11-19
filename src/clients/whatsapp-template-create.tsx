@@ -646,7 +646,7 @@ export default function WhatsAppTemplateCreate({
             ) : (
               <IconSend2 className="size-4" />
             )}
-            {isEditMode ? "Save Changes" : "Submit for Review"}
+            {isEditMode ? "Save Changes" : "Submit For Review"}
           </Button>
         </div>
       </div>
@@ -856,7 +856,7 @@ export default function WhatsAppTemplateCreate({
                         onClick={() => fileInputRef.current?.click()}
                       >
                         <IconUpload className="size-4" />
-                        Upload sample
+                        Upload Sample
                       </Button>
                     )}
                     {isMediaHeaderFormat(headerFormat) && (
@@ -1158,7 +1158,7 @@ export default function WhatsAppTemplateCreate({
 
             <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 text-sm">
               <p className="font-medium text-primary">
-                Follow WhatsApp&apos;s template guidelines
+                Follow WhatsApp&apos;s Template Guidelines
               </p>
               <p className="mt-1 text-muted-foreground">
                 Templates will be reviewed by Meta before they can be used to
@@ -1170,7 +1170,7 @@ export default function WhatsAppTemplateCreate({
                 rel="noopener noreferrer"
                 className="mt-2 inline-block font-medium text-primary hover:underline"
               >
-                Learn more →
+                Learn More →
               </a>
             </div>
           </div>

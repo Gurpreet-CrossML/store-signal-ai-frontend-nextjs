@@ -122,7 +122,7 @@ export function ComposerAttachments({
             disabled={disabled}
             onClick={() => onRemove(attachment.id)}
             aria-label={`Remove ${attachment.file.name}`}
-            title="Remove attachment"
+            title="Remove Attachment"
             className="flex size-4 shrink-0 items-center justify-center rounded-full bg-background/80 text-muted-foreground opacity-0 shadow-sm transition-opacity group-hover:opacity-100 hover:bg-background hover:text-foreground disabled:cursor-not-allowed disabled:opacity-0"
           >
             <IconX className="size-3" />

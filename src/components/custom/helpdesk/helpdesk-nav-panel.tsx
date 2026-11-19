@@ -209,8 +209,8 @@ export function HelpdeskNavPanel({
                 onClick={() => setShowAllTags((shown) => !shown)}
               >
                 {showAllTags
-                  ? "Show fewer tags"
-                  : `Show all ${tags.length} tags`}
+                  ? "Show Fewer Tags"
+                  : `Show All ${tags.length} Tags`}
               </button>
             ) : null}
           </>
@@ -273,7 +273,7 @@ export function HelpdeskViewsMenuItems({
           className="mb-1 justify-center gap-1.5 bg-primary py-2 font-medium text-primary-foreground focus:bg-primary/90 focus:text-primary-foreground"
         >
           <IconPlus className="size-4 text-primary-foreground" />
-          Create ticket
+          Create Ticket
         </DropdownMenuItem>
       ) : null}
       {HELPDESK_VIEWS.map((view) => {
