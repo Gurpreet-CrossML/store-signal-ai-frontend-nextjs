@@ -6758,3 +6758,85 @@ export const supportTicketChangeAudit = pgTable(
     }),
   ],
 );
+
+export const knowledgeTestQuestion = pgTable(
+  "knowledge_test_question",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "knowledge_test_question_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    question: varchar({ length: 500 }).notNull(),
+    isActive: boolean("is_active").notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+  },
+  (table) => [
+    index("knowledge_test_question_question_d50ebe63_like").using(
+      "btree",
+      table.question.asc().nullsLast().op("varchar_pattern_ops"),
+    ),
+    unique("knowledge_test_question_question_key").on(table.question),
+  ],
+);
+
+export const knowledgeTestMessage = pgTable(
+  "knowledge_test_message",
+  {
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity({
+      name: "knowledge_test_message_id_seq",
+      startWith: 1,
+      increment: 1,
+      minValue: 1,
+      maxValue: 9223372036854775807,
+      cache: 1,
+    }),
+    sender: varchar({ length: 20 }).notNull(),
+    message: text().notNull(),
+    metadata: jsonb().notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    // You can use { mode: "bigint" } if numbers are exceeding js number limitations
+    storeId: bigint("store_id", { mode: "number" }).notNull(),
+    userId: integer("user_id"),
+  },
+  (table) => [
+    index("knowledge_t_store_i_b238b8_idx").using(
+      "btree",
+      table.storeId.asc().nullsLast().op("int4_ops"),
+      table.userId.asc().nullsLast().op("int4_ops"),
+      table.createdAt.asc().nullsLast().op("timestamptz_ops"),
+    ),
+    index("knowledge_test_message_store_id_c501ef06").using(
+      "btree",
+      table.storeId.asc().nullsLast().op("int8_ops"),
+    ),
+    index("knowledge_test_message_user_id_f8eaeea0").using(
+      "btree",
+      table.userId.asc().nullsLast().op("int4_ops"),
+    ),
+    foreignKey({
+      columns: [table.storeId],
+      foreignColumns: [store.id],
+      name: "knowledge_test_message_store_id_c501ef06_fk_store_id",
+    }),
+  ],
+);
