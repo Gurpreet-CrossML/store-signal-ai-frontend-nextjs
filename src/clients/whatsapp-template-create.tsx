@@ -67,6 +67,7 @@ import {
   LOCATION_HEADER_FORMAT,
   HEADER_MEDIA_RULES,
   isMediaHeaderFormat,
+  languageLabel,
   renderPreviewText,
   WHATSAPP_LANGUAGES,
   WHATSAPP_VARIABLES_BY_TOKEN,
@@ -369,11 +370,11 @@ export default function WhatsAppTemplateCreate({
 
     // Refuse it here rather than spending an upload on a file the server
     // will reject anyway — and never hold an oversized one in the tab.
-    const { accept, maxMB } = HEADER_MEDIA_RULES[headerFormat];
+    const { accept, formats, maxMB } = HEADER_MEDIA_RULES[headerFormat];
     if (!accept.split(",").includes(file.type)) {
       toast.error(
         `${file.type || "That file type"} can't be used as a ${headerFormat} ` +
-          `header. Supported: ${accept.split(",").join(", ")}.`,
+          `header. Supported: ${formats}.`,
       );
       return;
     }
@@ -858,6 +859,12 @@ export default function WhatsAppTemplateCreate({
                         Upload sample
                       </Button>
                     )}
+                    {isMediaHeaderFormat(headerFormat) && (
+                      <Typography variant="caption">
+                        {HEADER_MEDIA_RULES[headerFormat].formats} · up to{" "}
+                        {HEADER_MEDIA_RULES[headerFormat].maxMB} MB
+                      </Typography>
+                    )}
                   </div>
                 )}
               </CardContent>
@@ -1129,7 +1136,9 @@ export default function WhatsAppTemplateCreate({
                 </div>
                 <div className="flex items-center justify-between gap-2">
                   <Typography variant="caption">Language</Typography>
-                  <Typography variant="small">{language}</Typography>
+                  <Typography variant="small">
+                    {languageLabel(language)}
+                  </Typography>
                 </div>
                 <div className="flex items-center justify-between gap-2">
                   <Typography variant="caption">Variable Type</Typography>

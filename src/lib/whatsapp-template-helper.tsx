@@ -281,6 +281,10 @@ export const WHATSAPP_LANGUAGES: { code: string; label: string }[] = [
   { code: "gu", label: "Gujarati" },
 ];
 
+/** A language code's readable name ("en_US" → "English (US)"); unknown codes show as is. */
+export const languageLabel = (code: string) =>
+  WHATSAPP_LANGUAGES.find((lang) => lang.code === code)?.label ?? code;
+
 /**
  * A WhatsApp template's top-level category, as Meta labels it — mirrors
  * campaign.constants.WhatsAppTemplateCategory.
@@ -320,9 +324,13 @@ export type HeaderFormat =
  * the two in step.
  */
 export const HEADER_MEDIA_RULES = {
-  IMAGE: { accept: "image/jpeg,image/png", maxMB: 5 },
-  VIDEO: { accept: "video/mp4,video/3gpp", maxMB: 16 },
-  DOCUMENT: { accept: "application/pdf", maxMB: 100 },
+  IMAGE: {
+    accept: "image/jpeg,image/png",
+    formats: "JPG, JPEG, PNG",
+    maxMB: 5,
+  },
+  VIDEO: { accept: "video/mp4,video/3gpp", formats: "MP4", maxMB: 16 },
+  DOCUMENT: { accept: "application/pdf", formats: "PDF", maxMB: 100 },
 } as const;
 
 export type MediaHeaderFormat = keyof typeof HEADER_MEDIA_RULES;
