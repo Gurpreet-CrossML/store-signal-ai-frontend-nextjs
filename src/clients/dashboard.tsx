@@ -288,7 +288,7 @@ export default function Dashboard() {
       value: FetchEngagementData?.total_threads?.toLocaleString() || "0",
       infoText:
         "Shows how many chatbot sessions happened in the selected time range, so you can quickly understand overall traffic volume.",
-      status: "All Sessions",
+      status: "",
       statusVariant: "neutral" as const,
       trend: FetchEngagementData?.total_threads_trend,
       href: threadsHref({}),
@@ -615,13 +615,13 @@ export default function Dashboard() {
                 {metric.value}
               </Typography>
             );
-            const statusBadge = (
+            const statusBadge = metric.status ? (
               <span
                 className={`inline-block px-3 py-1 text-xs font-semibold rounded-full ${statusColors[metric.statusVariant]}`}
               >
                 {metric.status}
               </span>
-            );
+            ) : null;
 
             // The value and the status pill link independently (e.g. Active
             // Now's count goes to all active chats, its "needs a human"
