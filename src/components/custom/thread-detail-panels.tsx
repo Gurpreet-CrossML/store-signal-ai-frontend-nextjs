@@ -433,7 +433,15 @@ export function OrdersSummary({
     (sum, order) => sum + Number(order.total_price ?? 0),
     0,
   );
-  const currency = orderList[0]?.currency ?? "USD";
+  // A guest or a new customer has no orders to read it from, so fall back
+  // to the store's own currency rather than dollars.
+  const storeCurrency = useAppSelector(
+    (state) =>
+      state.GetStoresReducer.GetStoresState.GetStoresListData.find(
+        (store) => store.code === state.GetStoresReducer.selectedStore,
+      )?.currency,
+  );
+  const currency = orderList[0]?.currency ?? storeCurrency ?? "USD";
   if (loading && customerData?.total_spent == null) return null;
   const totalSpent = customerData?.total_spent ?? loadedTotalSpent;
   const orderCount = customerData?.orders_count ?? orderList.length;
@@ -633,7 +641,7 @@ export function OrdersCard({
                         className="min-w-0 flex-1 truncate"
                       >
                         {formatDate(order.created_at)} · {order.items.length}{" "}
-                        item
+                        Item
                         {order.items.length !== 1 ? "s" : ""}
                       </Typography>
                       <Typography

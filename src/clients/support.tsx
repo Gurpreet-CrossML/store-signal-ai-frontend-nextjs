@@ -108,6 +108,7 @@ import {
   IconSend,
   IconShoppingBag,
   IconMessageOff,
+  IconPlus,
   IconTicket,
   IconX,
 } from "@tabler/icons-react";
@@ -2595,7 +2596,7 @@ export default function Support() {
                 <SearchInput
                   value={threadSearch}
                   onChange={setThreadSearch}
-                  placeholder="Name, email, phone or order ID"
+                  placeholder="Name, email, phone, order"
                   label="Search conversations"
                 />
               </div>
@@ -2720,13 +2721,15 @@ export default function Support() {
                 </PopoverContent>
               </Popover>
             </div>
-            <div className="grid grid-cols-4 gap-1 rounded-xl bg-muted/60 p-1">
+            {/* Each tab is as wide as its label plus an equal share of the
+                rest: equal columns squeezed "Human 15" past its own pill. */}
+            <div className="flex gap-1 rounded-xl bg-muted/60 p-1">
               {(
                 [
+                  { key: "all", label: "All" },
                   { key: "needs_human", label: "Human" },
                   { key: "ai", label: "AI" },
                   { key: "with_agent", label: "Agent" },
-                  { key: "all", label: "All" },
                 ] as const
               ).map((option) => (
                 <button
@@ -2757,7 +2760,7 @@ export default function Support() {
                     });
                   }}
                   className={cn(
-                    "flex min-w-0 items-center justify-center gap-1 rounded-lg px-1.5 py-2 text-xs font-medium whitespace-nowrap transition-colors",
+                    "flex flex-auto items-center justify-center gap-1 rounded-lg px-1.5 py-2 text-xs font-medium whitespace-nowrap transition-colors",
                     activeReadFilter === option.key
                       ? "bg-background text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground",
@@ -3032,13 +3035,13 @@ export default function Support() {
                       <CustomerDetailsButton
                         onClick={() => setIsDetailsOpen(true)}
                       />
+                      {/* Same look as Create Ticket in Help Desk. */}
                       <Button
-                        variant="outline"
                         size="sm"
                         disabled={!canCreateTicket}
                         onClick={() => setIsCreateTicketOpen(true)}
                       >
-                        <IconTicket className="size-4" />
+                        <IconPlus data-icon="inline-start" />
                         Create Ticket
                       </Button>
                       {selectedThread?.is_active && canHandleChats && (
