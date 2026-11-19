@@ -56,6 +56,7 @@ type SummaryMetric = {
   statusVariant: "success" | "warning" | "neutral" | "info" | "danger";
   href?: string;
   statusHref?: string;
+  breakdown?: { label: string; href: string }[];
   trend?: MetricTrend;
 };
 
@@ -291,6 +292,16 @@ export default function Dashboard() {
       statusVariant: "neutral" as const,
       trend: FetchEngagementData?.total_threads_trend,
       href: threadsHref({}),
+      breakdown: [
+        {
+          label: `Active ${FetchEngagementData?.active_threads || 0}`,
+          href: threadsHref({ is_active: "true" }),
+        },
+        {
+          label: `Closed ${FetchEngagementData?.closed_threads || 0}`,
+          href: threadsHref({ is_active: "false" }),
+        },
+      ],
     },
     {
       label: "Active Sessions",
@@ -347,8 +358,8 @@ export default function Dashboard() {
       label: "Escalation Rate",
       value: `${FetchOperationalEfficiencyData?.escalation_rate?.percentage || 0}%`,
       infoText:
-        "Shows the share of all conversations in the selected period that were escalated to a human agent through a support ticket, which can highlight where the bot needs support.",
-      status: `${FetchOperationalEfficiencyData?.escalation_rate?.count || 0} of ${FetchOperationalEfficiencyData?.escalation_rate?.total || 0} chats`,
+        "Shows the share of closed conversations in the selected period that were escalated to a human agent through a support ticket, which can highlight where the bot needs support.",
+      status: `${FetchOperationalEfficiencyData?.escalation_rate?.count || 0} of ${FetchOperationalEfficiencyData?.escalation_rate?.total || 0} closed chats`,
       statusVariant: "info" as const,
       trend: FetchOperationalEfficiencyData?.escalation_rate?.trend,
       href: threadsHref({ has_ticket: "true" }),
@@ -636,11 +647,22 @@ export default function Dashboard() {
                   )}
                 </CardContent>
                 <CardFooter className="justify-between gap-1.5">
-                  {metric.statusHref ? (
-                    <Link href={metric.statusHref}>{statusBadge}</Link>
-                  ) : (
-                    statusBadge
-                  )}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {metric.statusHref ? (
+                      <Link href={metric.statusHref}>{statusBadge}</Link>
+                    ) : (
+                      statusBadge
+                    )}
+                    {metric.breakdown?.map((chip) => (
+                      <Link
+                        key={chip.label}
+                        href={chip.href}
+                        className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary"
+                      >
+                        {chip.label}
+                      </Link>
+                    ))}
+                  </div>
                   {metric.trend && (
                     <Badge
                       variant="outline"
