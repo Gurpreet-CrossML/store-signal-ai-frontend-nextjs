@@ -5,7 +5,6 @@ import {
   IconChevronDown,
   IconChevronUp,
   IconLock,
-  IconShieldCheck,
   IconUser,
   IconX,
 } from "@tabler/icons-react";
@@ -54,8 +53,7 @@ export type AgentOption = {
 /** Small "Admin" tag shown beside an admin's name. */
 export function AdminBadge() {
   return (
-    <Badge variant="outline" className="gap-1 px-1.5 py-0 text-[10px]">
-      <IconShieldCheck className="size-3" />
+    <Badge variant="outline" className="px-1.5 py-0 text-[10px]">
       Admin
     </Badge>
   );

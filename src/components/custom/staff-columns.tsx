@@ -4,16 +4,11 @@ import type { ColumnDef } from "@tanstack/react-table";
 import {
   IconArrowDown,
   IconArrowUp,
-  IconCrown,
   IconDotsVertical,
-  IconFileText,
-  IconHeadset,
   IconKey,
-  IconShieldCheck,
   IconUserCheck,
   IconUserCog,
   IconUserOff,
-  type Icon,
 } from "@tabler/icons-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -39,31 +34,13 @@ export type StaffRowActions = {
   onToggleActive: (staff: StaffMember) => void;
 };
 
-/** The mark beside each role's name. */
-const ROLE_ICONS: Record<StaffRole, Icon> = {
-  admin: IconCrown,
-  manager: IconShieldCheck,
-  agent: IconHeadset,
-  content_manager: IconFileText,
-};
-
 export const fullName = (s: StaffMember) =>
   `${s.first_name ?? ""} ${s.last_name ?? ""}`.trim() || "—";
 
-/** The role as a pill; the roles that manage others are tinted. */
+/** The role's name as a plain pill: no icon, no tint. */
 export function StaffRoleBadge({ role }: { role: StaffRole }) {
-  const RoleIcon = ROLE_ICONS[role] ?? IconUserCog;
   return (
-    <Badge
-      variant="outline"
-      className={cn(
-        "gap-1 rounded-full font-normal",
-        BADGE_TONE_STYLES[
-          role === "admin" || role === "manager" ? "accent" : "neutral"
-        ],
-      )}
-    >
-      <RoleIcon className="size-3" />
+    <Badge variant="outline" className="rounded-full font-normal">
       {ROLE_LABELS[role] ?? role}
     </Badge>
   );

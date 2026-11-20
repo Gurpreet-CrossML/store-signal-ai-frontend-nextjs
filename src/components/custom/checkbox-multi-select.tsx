@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import { IconChevronDown } from "@tabler/icons-react";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { SearchInput } from "@/components/custom/search-input";
 import {
   Popover,
   PopoverContent,
@@ -37,6 +38,7 @@ export function CheckboxMultiSelect({
   onChange,
   placeholder,
   emptyMessage,
+  searchPlaceholder = "Search",
   isLoading = false,
   disabled = false,
 }: {
@@ -45,6 +47,8 @@ export function CheckboxMultiSelect({
   onChange: (next: string[]) => void;
   placeholder: string;
   emptyMessage: string;
+  /** Filters the list by label and hint. */
+  searchPlaceholder?: string;
   isLoading?: boolean;
   disabled?: boolean;
 }) {
@@ -57,6 +61,14 @@ export function CheckboxMultiSelect({
     [options, value],
   );
 
+  const [query, setQuery] = useState("");
+  const needle = query.trim().toLowerCase();
+  const shown = needle
+    ? options.filter((option) =>
+        `${option.label} ${option.hint ?? ""}`.toLowerCase().includes(needle),
+      )
+    : options;
+
   const toggle = (option: CheckboxOption, checked: boolean) =>
     onChange(
       checked
@@ -65,7 +77,7 @@ export function CheckboxMultiSelect({
     );
 
   return (
-    <Popover>
+    <Popover onOpenChange={(open) => !open && setQuery("")}>
       <PopoverTrigger asChild>
         <Button
           type="button"
@@ -99,6 +111,12 @@ export function CheckboxMultiSelect({
         align="start"
         className="w-(--radix-popover-trigger-width) min-w-56 gap-2 p-2"
       >
+        <SearchInput
+          value={query}
+          onChange={setQuery}
+          placeholder={searchPlaceholder}
+          label={searchPlaceholder}
+        />
         <div className="flex items-center justify-between px-1.5 text-xs">
           <span className="text-muted-foreground">
             {selected.length === 0
@@ -115,12 +133,16 @@ export function CheckboxMultiSelect({
           </button>
         </div>
         <ul className="flex max-h-60 flex-col overflow-y-auto">
-          {options.length === 0 && (
+          {shown.length === 0 && (
             <li className="px-1.5 py-2 text-sm text-muted-foreground">
-              {isLoading ? "Loading…" : emptyMessage}
+              {isLoading
+                ? "Loading…"
+                : needle
+                  ? "No results found."
+                  : emptyMessage}
             </li>
           )}
-          {options.map((option) => (
+          {shown.map((option) => (
             <li key={option.value}>
               <label className="flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-1.5 text-sm hover:bg-muted">
                 <Checkbox

@@ -2723,6 +2723,7 @@ export default function Support() {
                             }))
                           }
                           placeholder="Choose assignees"
+                          searchPlaceholder="Search name or email"
                           emptyMessage="No assignees found."
                         />
                       </fieldset>
