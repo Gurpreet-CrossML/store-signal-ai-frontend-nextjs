@@ -24,62 +24,28 @@ import {
 } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { BADGE_TONE_STYLES } from "@/lib/badge-tones";
 import {
   KNOWLEDGE_TEST_ANSWER_CREDITS,
+  KNOWLEDGE_TEST_CHAT_NOTICE,
   KNOWLEDGE_TEST_PRODUCT_SOURCE_LABEL,
   KNOWLEDGE_TEST_SENDERS,
 } from "@/lib/config";
-import { formatDateTime, getKnowledgeItemHref } from "@/lib/helpers";
+import { getKnowledgeItemHref } from "@/lib/helpers";
 import { cn } from "@/lib/utils";
 import type { TestMessage } from "@/redux/api-slice/knowledge-test-ai-slice";
 import { useAppSelector } from "@/redux/hooks";
 
-/**
- * What the user asked, on the right like a sent message: their profile icon
- * (their initials, with their name and email on hover), the question and when
- * it was asked. A question still being
- * answered has no time yet.
- */
-function QuestionBubble({
-  children,
-  createdAt,
-}: {
-  children: string;
-  /** When the question was saved; left out while it is still being answered. */
-  createdAt?: string;
-}) {
+/** What the user asked, on the right like a sent message, with their profile icon (their initials). */
+function QuestionBubble({ children }: { children: string }) {
   const { data: session } = useSession();
   const { name, email } = session?.user ?? {};
   return (
     <div className="ml-auto flex max-w-[85%] items-start gap-2">
-      <div className="flex min-w-0 flex-col items-end gap-1">
-        <div className="rounded-2xl rounded-tr-sm bg-primary px-3.5 py-2 text-sm break-words text-primary-foreground">
-          {children}
-        </div>
-        {createdAt && (
-          <span className="text-xs text-muted-foreground">
-            {formatDateTime(createdAt)}
-          </span>
-        )}
+      <div className="rounded-2xl rounded-tr-sm bg-primary px-3.5 py-2 text-sm break-words text-primary-foreground">
+        {children}
       </div>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          {/* Focusable, so the name and email show for keyboard users too. */}
-          <span tabIndex={0} className="rounded-full">
-            <CustomerAvatar name={name || email} size="h-7 w-7" />
-          </span>
-        </TooltipTrigger>
-        <TooltipContent side="left" className="flex flex-col gap-0.5">
-          {name && <span className="font-medium">{name}</span>}
-          {email && <span className="opacity-80">{email}</span>}
-        </TooltipContent>
-      </Tooltip>
+      <CustomerAvatar name={name || email} size="h-7 w-7" />
     </div>
   );
 }
@@ -146,9 +112,6 @@ function AnswerMessage({ item }: { item: TestMessage }) {
         ) : (
           <CreditChip />
         )}
-        <span className="text-xs text-muted-foreground">
-          {formatDateTime(item.createdAt)}
-        </span>
       </div>
       {(sources.length > 0 || hasProducts) && (
         <p className="mt-1.5 text-xs text-muted-foreground">
@@ -194,13 +157,11 @@ export function TestChatPanel({
   isAsking: boolean;
 }) {
   const {
-    TestChatIsLoading: isLoadingHistory,
-    TestChatItems: items,
+    TestChatItems: messages,
     TestChatPendingQuestion: pendingQuestion,
     TestChatError: error,
   } = useAppSelector((state) => state.GetKnowledgeTestAiReducer.TestChatState);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const messages = items ?? [];
 
   // Keep the newest exchange in view as it is added.
   useEffect(() => {
@@ -218,8 +179,8 @@ export function TestChatPanel({
       <header className="flex flex-col gap-0.5 border-b px-3 py-2.5 sm:px-4 sm:py-3">
         <h3 className="text-sm font-semibold">AI test chat</h3>
         <p className="text-xs text-muted-foreground">
-          Answers come from your knowledge and products ·{" "}
-          {KNOWLEDGE_TEST_ANSWER_CREDITS} AI credit each
+          Answers come from your knowledge and products.{" "}
+          {KNOWLEDGE_TEST_CHAT_NOTICE}
         </p>
       </header>
 
@@ -227,12 +188,7 @@ export function TestChatPanel({
         ref={scrollRef}
         className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-3 sm:gap-5 sm:p-4"
       >
-        {isLoadingHistory && items === null ? (
-          <div className="flex flex-col gap-4">
-            <Skeleton className="ml-auto h-9 w-2/3 rounded-2xl" />
-            <Skeleton className="h-24 w-4/5 rounded-2xl" />
-          </div>
-        ) : isEmpty ? (
+        {isEmpty ? (
           <Empty className="my-auto">
             <EmptyHeader>
               <EmptyMedia variant="icon">
@@ -249,9 +205,7 @@ export function TestChatPanel({
           <>
             {messages.map((item) =>
               item.sender === KNOWLEDGE_TEST_SENDERS.user ? (
-                <QuestionBubble key={item.id} createdAt={item.createdAt}>
-                  {item.message}
-                </QuestionBubble>
+                <QuestionBubble key={item.id}>{item.message}</QuestionBubble>
               ) : (
                 <AnswerMessage key={item.id} item={item} />
               ),
