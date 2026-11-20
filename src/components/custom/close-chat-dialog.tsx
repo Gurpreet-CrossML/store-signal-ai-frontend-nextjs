@@ -43,7 +43,7 @@ export function CloseChatDialog({
     >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Close chat</DialogTitle>
+          <DialogTitle>Close Chat</DialogTitle>
           <DialogDescription>
             The customer is asked for optional feedback first. The chat closes
             with this reason once they submit it. If they skip, it stays open
@@ -93,7 +93,7 @@ export function CloseChatDialog({
             }}
             disabled={!reason}
           >
-            Request feedback & close
+            Request Feedback & Close
           </Button>
         </DialogFooter>
       </DialogContent>

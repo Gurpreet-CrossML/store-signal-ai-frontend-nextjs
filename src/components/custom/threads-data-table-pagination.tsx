@@ -9,6 +9,7 @@ import {
 } from "@tabler/icons-react";
 
 import { Button } from "@/components/ui/button";
+import { capitalizeText } from "@/lib/helpers";
 import { cn } from "@/lib/utils";
 import {
   Select,
@@ -24,6 +25,8 @@ interface DataTablePaginationProps<TData> {
   table: Table<TData>;
   totalCount: number;
   noun?: string;
+  /** Plural of `noun` when it is not just noun + "s" (policy → policies). */
+  nounPlural?: string;
   /**
    * On a phone, lay the bar out in two rows instead of stacking every part:
    * the total and the rows-per-page picker, then previous, the page
@@ -36,6 +39,7 @@ export function DataTablePagination<TData>({
   table,
   totalCount,
   noun = "thread",
+  nounPlural = `${noun}s`,
   compactOnMobile = false,
 }: DataTablePaginationProps<TData>) {
   // TanStack hands back the same `table` object on every render and changes
@@ -76,7 +80,8 @@ export function DataTablePagination<TData>({
           compactOnMobile && "max-sm:whitespace-normal",
         )}
       >
-        {totalCount} {totalCount === 1 ? noun : `${noun}s`} total
+        {totalCount} {capitalizeText(totalCount === 1 ? noun : nounPlural)}{" "}
+        Total
       </div>
 
       {/* In the compact layout this wrapper (and the nav one below) vanish,
@@ -95,7 +100,7 @@ export function DataTablePagination<TData>({
               "max-sm:col-span-2 max-sm:col-start-2 max-sm:row-start-1 max-sm:justify-self-end",
           )}
         >
-          <p className="text-sm font-medium whitespace-nowrap">Rows per page</p>
+          <p className="text-sm font-medium whitespace-nowrap">Rows Per Page</p>
           <Select
             value={`${pageSize}`}
             onValueChange={(value) => handlePageSizeChange(Number(value))}

@@ -46,8 +46,8 @@ function AttachmentCard({ attachment }: { attachment: Attachment }) {
   const attachmentLabel = {
     image: "Image",
     pdf: "PDF",
-    word: "Word document",
-    other: "Other document",
+    word: "Word Document",
+    other: "Other Document",
   }[attachmentType];
 
   if (!url) return null;

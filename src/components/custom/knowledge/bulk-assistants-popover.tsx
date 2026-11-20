@@ -51,7 +51,7 @@ export function BulkAssistantsPopover({
     >
       <PopoverTrigger asChild>
         <Button type="button" variant="outline" size="sm">
-          Change assistants
+          Change Assistants
         </Button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-72 gap-3">

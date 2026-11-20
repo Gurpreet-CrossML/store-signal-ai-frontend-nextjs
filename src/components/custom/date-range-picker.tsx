@@ -121,13 +121,13 @@ export function DateRangePicker({
         ? `From ${format(committed.from, DISPLAY_DATE_TIME_FORMAT)}`
         : committed?.to
           ? `Until ${format(committed.to, DISPLAY_DATE_TIME_FORMAT)}`
-          : "Pick a Date/Time Range"
+          : "Pick A Date/Time Range"
     : committed?.from && committed?.to
       ? `${format(committed.from, DISPLAY_DATE_FORMAT)} – ${format(
           committed.to,
           DISPLAY_DATE_FORMAT,
         )}`
-      : "Pick a Date Range";
+      : "Pick A Date Range";
 
   const maxDateTimeValue =
     disabled &&

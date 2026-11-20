@@ -64,8 +64,8 @@ const AI_SCOPE_FILTER_OPTIONS: Option<AIScope>[] = AI_SCOPE_OPTIONS.map(
 );
 
 const APPLIES_TO_OPTIONS: Option<KnowledgeType>[] = [
-  { value: "general", label: "Whole store" },
-  { value: "product", label: "Specific products" },
+  { value: "general", label: "Whole Store" },
+  { value: "product", label: "Specific Products" },
 ];
 
 /** `list` with `value` removed if it is there, added if it is not. */
@@ -169,7 +169,7 @@ export function KnowledgeFilterPopover({
             }
             className="text-sm font-medium text-primary hover:underline disabled:pointer-events-none disabled:opacity-50"
           >
-            Clear all
+            Clear All
           </button>
         </div>
 
@@ -180,20 +180,20 @@ export function KnowledgeFilterPopover({
           onChange={(status) => onFiltersChange({ ...filters, status })}
         />
         <FilterSection
-          title="Used by"
+          title="Used By"
           options={AI_SCOPE_FILTER_OPTIONS}
           selected={filters.aiScope}
           onChange={(aiScope) => onFiltersChange({ ...filters, aiScope })}
         />
         <FilterSection
-          title="Applies to"
+          title="Applies To"
           options={APPLIES_TO_OPTIONS}
           selected={filters.type}
           onChange={(type) => onFiltersChange({ ...filters, type })}
         />
         {creatorOptions.length > 0 && (
           <FilterSection
-            title="Added by"
+            title="Added By"
             options={creatorOptions}
             selected={filters.createdBy}
             onChange={(createdBy) => onFiltersChange({ ...filters, createdBy })}

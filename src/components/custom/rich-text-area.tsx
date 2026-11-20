@@ -283,7 +283,7 @@ const Toolbar = ({
           <IconItalic className="size-4" />
         </ToolbarButton>
         <ToolbarButton
-          label="Bulleted list"
+          label="Bulleted List"
           active={state.bulletList}
           disabled={disabled}
           onClick={() => editor.chain().focus().toggleBulletList().run()}
@@ -291,7 +291,7 @@ const Toolbar = ({
           <IconList className="size-4" />
         </ToolbarButton>
         <ToolbarButton
-          label="Numbered list"
+          label="Numbered List"
           active={state.orderedList}
           disabled={disabled}
           onClick={() => editor.chain().focus().toggleOrderedList().run()}
@@ -376,7 +376,7 @@ const Toolbar = ({
       <span className="mx-1 h-5 w-px bg-border" aria-hidden />
 
       <ToolbarButton
-        label="Bulleted list"
+        label="Bulleted List"
         active={state.bulletList}
         disabled={disabled}
         onClick={() => editor.chain().focus().toggleBulletList().run()}
@@ -384,7 +384,7 @@ const Toolbar = ({
         <IconList className="size-4" />
       </ToolbarButton>
       <ToolbarButton
-        label="Numbered list"
+        label="Numbered List"
         active={state.orderedList}
         disabled={disabled}
         onClick={() => editor.chain().focus().toggleOrderedList().run()}

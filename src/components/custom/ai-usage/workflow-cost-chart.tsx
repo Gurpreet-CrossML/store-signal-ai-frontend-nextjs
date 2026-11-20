@@ -48,7 +48,7 @@ export default function WorkflowCostChart({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-1.5">
-          Cost by Workflow
+          Cost By Workflow
           <InfoIcon text="Ranks your AI workflows by estimated spend, so you can see which automations drive the most cost." />
         </CardTitle>
         <CardDescription>Estimated spend per workflow, in USD</CardDescription>

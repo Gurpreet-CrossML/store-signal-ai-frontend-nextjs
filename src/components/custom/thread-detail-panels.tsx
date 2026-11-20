@@ -163,11 +163,11 @@ export function ViewedProductsCard({
       <div className="flex items-center justify-between gap-3">
         <CardTitle className="flex items-center gap-2">
           <IconEye className="size-4" />
-          Viewed product
+          Viewed Product
         </CardTitle>
         <Typography variant="muted" as="span">
           {viewedProducts.length}{" "}
-          {viewedProducts.length === 1 ? "product" : "products"}
+          {viewedProducts.length === 1 ? "Product" : "Products"}
         </Typography>
       </div>
       {loading ? (
@@ -190,7 +190,7 @@ export function ViewedProductsCard({
             expanded={viewedExpanded}
             onToggle={toggleViewed}
             noun="product"
-            collapsedLabel={`Show ${hiddenViewedCount} more`}
+            collapsedLabel={`Show ${hiddenViewedCount} More`}
             className="text-primary hover:text-primary"
           />
         </div>
@@ -223,12 +223,12 @@ export function SessionDataCard({
   const pastThreadsCount = customer?.past_threads_count ?? 0;
   const pastChatsLabel =
     pastThreadsCount > 0
-      ? `${pastThreadsCount} ${pastThreadsCount === 1 ? "thread" : "threads"}`
+      ? `${pastThreadsCount} ${pastThreadsCount === 1 ? "Thread" : "Threads"}`
       : "None";
 
   const facts = [
     { label: "Location", value: userMetadata?.geo_location || "—" },
-    { label: "IP address", value: userMetadata?.ip_address || "—" },
+    { label: "IP Address", value: userMetadata?.ip_address || "—" },
     { label: "Device", value: device },
   ];
 
@@ -236,7 +236,7 @@ export function SessionDataCard({
     <section className="flex flex-col gap-4 border-b p-4 sm:p-5">
       <CardTitle className="flex items-center gap-2">
         <IconDeviceLaptop className="size-4" />
-        Visit details
+        Visit Details
       </CardTitle>
       {loading ? (
         <CardLoadingState />
@@ -260,7 +260,7 @@ export function SessionDataCard({
             </div>
           ))}
           <div className="flex min-w-0 items-center justify-between gap-3">
-            <Typography variant="muted">Past chats</Typography>
+            <Typography variant="muted">Past Chats</Typography>
             {customer?.email && currentThreadId && pastThreadsCount > 0 ? (
               <Link
                 href={`/threads?search=${encodeURIComponent(customer.email)}&before_thread_id=${encodeURIComponent(currentThreadId)}`}
@@ -315,7 +315,7 @@ export function CartDetailsCard({
           {items.length > 0 && formatCartPrice(cart?.total)
             ? `${formatCartPrice(cart?.total)} · `
             : ""}
-          {items.length} {items.length === 1 ? "item" : "items"}
+          {items.length} {items.length === 1 ? "Item" : "Items"}
         </Typography>
       </div>
       {loading ? (
@@ -338,7 +338,7 @@ export function CartDetailsCard({
             expanded={itemsExpanded}
             onToggle={toggleItems}
             noun="product"
-            collapsedLabel={`View all ${items.length} products`}
+            collapsedLabel={`View All ${items.length} Products`}
             className="text-primary hover:text-primary"
           />
           <div className="mt-1 flex items-center justify-between gap-3 border-t border-dashed pt-3">
@@ -384,11 +384,11 @@ export function SupportTicketsCard({
       <div className="flex items-center justify-between gap-3">
         <CardTitle className="flex items-center gap-2">
           <IconTicket className="size-4" />
-          Support tickets
+          Support Tickets
         </CardTitle>
         {!loading && liveCount > 0 ? (
           <span className="rounded-full bg-orange-50 px-3 py-1 text-sm font-medium text-orange-700">
-            {liveCount} open
+            {liveCount} Open
           </span>
         ) : null}
       </div>
@@ -408,7 +408,7 @@ export function SupportTicketsCard({
             expanded={ticketsExpanded}
             onToggle={toggleTickets}
             noun="ticket"
-            collapsedLabel={`View all tickets (${liveCount} open, ${tickets.length - liveCount} closed)`}
+            collapsedLabel={`View All Tickets (${liveCount} Open, ${tickets.length - liveCount} Closed)`}
             className="text-primary hover:text-primary"
           />
         </div>
@@ -433,7 +433,15 @@ export function OrdersSummary({
     (sum, order) => sum + Number(order.total_price ?? 0),
     0,
   );
-  const currency = orderList[0]?.currency ?? "USD";
+  // A guest or a new customer has no orders to read it from, so fall back
+  // to the store's own currency rather than dollars.
+  const storeCurrency = useAppSelector(
+    (state) =>
+      state.GetStoresReducer.GetStoresState.GetStoresListData.find(
+        (store) => store.code === state.GetStoresReducer.selectedStore,
+      )?.currency,
+  );
+  const currency = orderList[0]?.currency ?? storeCurrency ?? "USD";
   if (loading && customerData?.total_spent == null) return null;
   const totalSpent = customerData?.total_spent ?? loadedTotalSpent;
   const orderCount = customerData?.orders_count ?? orderList.length;
@@ -458,7 +466,7 @@ export function OrdersSummary({
         </TooltipContent>
       </Tooltip>
       <div className="flex flex-col gap-0.5 bg-background px-3 py-2">
-        <Typography variant="muted">Lifetime value</Typography>
+        <Typography variant="muted">Lifetime Value</Typography>
         <Typography variant="small" as="p" className="truncate tabular-nums">
           {formatPrice(totalSpent, currency)}
         </Typography>
@@ -566,7 +574,7 @@ export function OrdersCard({
             </Button>
           </TooltipTrigger>
           <TooltipContent>
-            {orderSyncLoading ? "Syncing…" : "Sync orders"}
+            {orderSyncLoading ? "Syncing…" : "Sync Orders"}
           </TooltipContent>
         </Tooltip>
       </div>
@@ -633,7 +641,7 @@ export function OrdersCard({
                         className="min-w-0 flex-1 truncate"
                       >
                         {formatDate(order.created_at)} · {order.items.length}{" "}
-                        item
+                        Item
                         {order.items.length !== 1 ? "s" : ""}
                       </Typography>
                       <Typography
@@ -668,7 +676,7 @@ export function OrdersCard({
                         rel="noopener noreferrer"
                       >
                         <IconExternalLink className="size-4" />
-                        Open in store admin
+                        Open In Store Admin
                       </a>
                     </Button>
                   </div>
@@ -712,7 +720,7 @@ export function OrdersCard({
               href={`/crm/orders?customer=${customerData.id}`}
               className="text-center text-primary underline underline-offset-2 hover:text-primary"
             >
-              View all orders
+              View All Orders
             </Link>
           ) : null}
         </div>

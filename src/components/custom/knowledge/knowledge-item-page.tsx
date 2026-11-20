@@ -324,7 +324,7 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
           It may have been deleted, or it belongs to another store.
         </p>
         <Button asChild variant="outline">
-          <Link href="/knowledge">Back to Knowledge</Link>
+          <Link href="/knowledge">Back To Knowledge</Link>
         </Button>
       </div>
     );
@@ -373,13 +373,13 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
           </dd>
           {item.createdBy && (
             <>
-              <dt className="text-muted-foreground">Added by</dt>
+              <dt className="text-muted-foreground">Added By</dt>
               <dd>{item.createdBy}</dd>
             </>
           )}
           <dt className="text-muted-foreground">Added</dt>
           <dd>{formatDate(item.createdAt)}</dd>
-          <dt className="text-muted-foreground">Last updated</dt>
+          <dt className="text-muted-foreground">Last Updated</dt>
           <dd>
             {formatDate(item.updatedAt)}
             {item.updatedBy ? ` by ${item.updatedBy}` : ""}
@@ -435,7 +435,7 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
                 onClick={() => void handleSave()}
               >
                 {isSaving && <Spinner data-icon="inline-start" />}
-                Save changes
+                Save Changes
               </Button>
             </>
           ) : (
@@ -502,12 +502,12 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
               <Stat
                 label="Type"
                 value={
-                  item.source === "faq" ? "Question & answer" : "Website page"
+                  item.source === "faq" ? "Question & Answer" : "Website Page"
                 }
               />
             )}
             <Stat label="Added" value={formatDate(item.createdAt)} />
-            <Stat label="Last updated" value={formatDate(item.updatedAt)} />
+            <Stat label="Last Updated" value={formatDate(item.updatedAt)} />
           </dl>
 
           {item.status === "failed" && (
@@ -522,7 +522,7 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
 
           {item.source === "faq" && (
             <section className="flex flex-col gap-3">
-              <h2 className="text-sm font-semibold">Question and answer</h2>
+              <h2 className="text-sm font-semibold">Question And Answer</h2>
               {editing ? (
                 <div className="flex flex-col gap-4 rounded-xl border p-4">
                   <div className="flex flex-col gap-1.5">
@@ -530,7 +530,7 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
                       htmlFor="faq-question"
                       className="text-xs font-medium"
                     >
-                      Customer asks
+                      Customer Asks
                     </label>
                     <Input
                       id="faq-question"
@@ -548,7 +548,7 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label htmlFor="faq-answer" className="text-xs font-medium">
-                      Your answer
+                      Your Answer
                     </label>
                     <Textarea
                       id="faq-answer"
@@ -593,7 +593,7 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
           {item.source === "url" &&
             (editing ? (
               <section className="flex flex-col gap-2">
-                <h2 className="text-sm font-semibold">Page address</h2>
+                <h2 className="text-sm font-semibold">Page Address</h2>
                 <Input
                   value={url}
                   autoComplete="off"
@@ -617,7 +617,7 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
                   label="Page"
                   href={item.url}
                   text={item.url}
-                  action="Open page"
+                  action="Open Page"
                 />
               )
             ))}
@@ -627,7 +627,7 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
               label="Document"
               href={item.fileUrl}
               text={item.fileName || item.title}
-              action="View document"
+              action="View Document"
             />
           )}
         </main>
@@ -655,7 +655,7 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Publish this knowledge?</AlertDialogTitle>
+            <AlertDialogTitle>Publish This Knowledge?</AlertDialogTitle>
             <AlertDialogDescription>
               <strong className="font-semibold break-words text-foreground">
                 {item.title}

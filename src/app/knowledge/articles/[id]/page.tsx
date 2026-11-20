@@ -1,7 +1,7 @@
 import { ArticleEditorPage } from "@/components/custom/knowledge/article-editor-page";
 
 export const metadata = {
-  title: "Edit article",
+  title: "Edit Article",
 };
 
 export default async function Page({

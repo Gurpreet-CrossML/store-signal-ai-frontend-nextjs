@@ -87,11 +87,11 @@ export function getStaffColumns(
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onSelect={() => actions.onChangeRole(s)}>
                   <IconUserCog />
-                  Change role
+                  Change Role
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => actions.onResetPassword(s)}>
                   <IconKey />
-                  Reset password
+                  Reset Password
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => actions.onToggleActive(s)}>
                   {s.is_active ? (

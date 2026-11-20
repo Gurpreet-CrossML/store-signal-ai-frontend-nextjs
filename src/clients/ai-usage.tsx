@@ -125,7 +125,7 @@ export default function AIUsage({
 
   const metrics = [
     {
-      label: "Credits left",
+      label: "Credits Left",
       value: credits ? credits.balance.toLocaleString() : "–",
       // Empty until loaded, so it never flashes the out-of-credits warning.
       note: !credits
@@ -136,7 +136,7 @@ export default function AIUsage({
       danger: credits && !credits.has_quota,
     },
     {
-      label: "Plan cycle",
+      label: "Plan Cycle",
       value: credits?.plan?.name ?? "No active plan",
       note:
         credits?.start_date && credits.end_date
@@ -146,14 +146,14 @@ export default function AIUsage({
           : "No plan month is running",
     },
     {
-      label: "Plan allowance",
+      label: "Plan Allowance",
       value: credits?.monthly_credits
         ? `${credits.monthly_credits.toLocaleString()} / month`
         : "–",
       note: "Credits added each plan month",
     },
     {
-      label: "Credits used",
+      label: "Credits Used",
       value: used.toLocaleString(),
       note: dashboardRangeLabel(filters),
     },
@@ -201,7 +201,7 @@ export default function AIUsage({
 
       <Card>
         <CardHeader>
-          <CardTitle>Where the credits went</CardTitle>
+          <CardTitle>Where The Credits Went</CardTitle>
           <CardDescription>
             Credits by capability in this period, largest first. Open a group to
             see its features. Each billed AI call is charged one credit; chat

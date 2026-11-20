@@ -261,7 +261,7 @@ export default function EmailTemplates() {
         onPaginationChange={setPagination}
         isLoading={loading}
         noun="template"
-        emptyTitle="No email templates found."
+        emptyTitle="No Email Templates Found."
       />
 
       <EmailTemplatePreviewDialog
@@ -279,7 +279,7 @@ export default function EmailTemplates() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete template?</AlertDialogTitle>
+            <AlertDialogTitle>Delete Template?</AlertDialogTitle>
             <AlertDialogDescription>
               This will permanently delete{" "}
               <span className="font-semibold text-foreground">

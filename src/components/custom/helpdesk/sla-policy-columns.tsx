@@ -42,13 +42,13 @@ export function getSlaPolicyColumns({
     },
     {
       accessorKey: "first_reply_minutes",
-      header: "First reply",
+      header: "First Reply",
       meta: { cellClassName: "w-[12%] min-w-24" },
       cell: ({ row }) => targetCell(row.original.first_reply_minutes),
     },
     {
       accessorKey: "every_reply_minutes",
-      header: "Every reply",
+      header: "Every Reply",
       meta: { cellClassName: "w-[12%] min-w-24" },
       cell: ({ row }) => targetCell(row.original.every_reply_minutes),
     },

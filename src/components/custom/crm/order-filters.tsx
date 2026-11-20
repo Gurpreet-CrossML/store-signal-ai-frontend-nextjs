@@ -32,8 +32,8 @@ export const FINANCIAL_STATUSES = [
   { value: "paid", label: "Paid" },
   { value: "pending", label: "Pending" },
   { value: "authorized", label: "Authorized" },
-  { value: "partially_paid", label: "Partially paid" },
-  { value: "partially_refunded", label: "Partially refunded" },
+  { value: "partially_paid", label: "Partially Paid" },
+  { value: "partially_refunded", label: "Partially Refunded" },
   { value: "refunded", label: "Refunded" },
   { value: "voided", label: "Voided" },
   { value: "unpaid", label: "Unpaid" },
@@ -45,7 +45,7 @@ export const FINANCIAL_STATUSES = [
  */
 export const FULFILLMENT_STATUSES = [
   { value: "fulfilled", label: "Fulfilled" },
-  { value: "partial", label: "Partially fulfilled" },
+  { value: "partial", label: "Partially Fulfilled" },
   { value: "unfulfilled", label: "Unfulfilled" },
   { value: "restocked", label: "Restocked" },
 ] as const;
@@ -263,8 +263,8 @@ export function OrderFilterPopover({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="any">Any</SelectItem>
-                <SelectItem value="outstanding">Has amount owing</SelectItem>
-                <SelectItem value="refunded">Has a refund</SelectItem>
+                <SelectItem value="outstanding">Has Amount Owing</SelectItem>
+                <SelectItem value="refunded">Has A Refund</SelectItem>
               </SelectContent>
             </Select>
           </FilterGroup>
@@ -289,8 +289,8 @@ export function OrderFilterPopover({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="any">Any</SelectItem>
-                <SelectItem value="no">Hide cancelled</SelectItem>
-                <SelectItem value="yes">Only cancelled</SelectItem>
+                <SelectItem value="no">Hide Cancelled</SelectItem>
+                <SelectItem value="yes">Only Cancelled</SelectItem>
               </SelectContent>
             </Select>
           </FilterGroup>

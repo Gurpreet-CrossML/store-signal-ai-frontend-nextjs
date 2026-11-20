@@ -100,7 +100,7 @@ function getColumns(
       header: "Window",
       cell: ({ row }) => (
         <span className="text-sm text-muted-foreground">
-          Last {row.original.time_period} days
+          Last {row.original.time_period} Days
         </span>
       ),
     },
@@ -410,7 +410,7 @@ export default function Segments() {
         emptyTitle={
           debouncedSearch
             ? `No segments matching "${debouncedSearch}".`
-            : "No segments yet."
+            : "No Segments Yet."
         }
       />
 
@@ -435,7 +435,7 @@ export default function Segments() {
             <AlertDialogMedia className="rounded-full bg-destructive/10 text-destructive">
               <IconTrash />
             </AlertDialogMedia>
-            <AlertDialogTitle>Delete segment?</AlertDialogTitle>
+            <AlertDialogTitle>Delete Segment?</AlertDialogTitle>
             <AlertDialogDescription>
               This will permanently delete{" "}
               <span className="font-semibold text-foreground">

@@ -204,7 +204,7 @@ export default function StaffManagement({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Change role</AlertDialogTitle>
+            <AlertDialogTitle>Change Role</AlertDialogTitle>
             <AlertDialogDescription>
               Choose what {roleTarget?.email} can do. The role applies to every
               store and takes effect within a minute.
@@ -242,7 +242,7 @@ export default function StaffManagement({
                 setRoleTarget(null);
               }}
             >
-              Save role
+              Save Role
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -255,7 +255,7 @@ export default function StaffManagement({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Reset password?</AlertDialogTitle>
+            <AlertDialogTitle>Reset Password?</AlertDialogTitle>
             <AlertDialogDescription>
               A new temporary password will be generated and emailed to{" "}
               {resetTarget?.email}. Their current password will stop working.
@@ -275,7 +275,7 @@ export default function StaffManagement({
                 setResetTarget(null);
               }}
             >
-              Reset &amp; email
+              Reset &amp; Email
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -289,7 +289,7 @@ export default function StaffManagement({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {toggleTarget?.is_active ? "Deactivate" : "Activate"} staff user?
+              {toggleTarget?.is_active ? "Deactivate" : "Activate"} Staff User?
             </AlertDialogTitle>
             <AlertDialogDescription>
               {toggleTarget?.is_active

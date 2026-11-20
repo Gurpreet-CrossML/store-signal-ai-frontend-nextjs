@@ -89,14 +89,14 @@ const TARGET_INPUTS = [
     value: "firstReply",
     unit: "firstReplyUnit",
     field: "first_reply_minutes",
-    label: "First reply",
+    label: "First Reply",
     hint: "From ticket creation to the first agent reply.",
   },
   {
     value: "everyReply",
     unit: "everyReplyUnit",
     field: "every_reply_minutes",
-    label: "Every reply",
+    label: "Every Reply",
     hint: "From each customer message to the next agent reply.",
   },
   {
@@ -459,9 +459,10 @@ export default function SlaPolicies() {
           onPaginationChange={handlePaginationChange}
           isLoading={FetchSlaPoliciesIsLoading}
           noun="policy"
+          nounPlural="policies"
           headerClassName="bg-muted hover:bg-muted"
           emptyTitle={
-            debouncedSearch ? "No matching policies" : "No SLA policies yet"
+            debouncedSearch ? "No Matching Policies" : "No SLA Policies Yet"
           }
           emptyDescription={
             debouncedSearch
@@ -692,7 +693,7 @@ export default function SlaPolicies() {
                       />
                       <div className="space-y-0.5">
                         <Label htmlFor="applyToExisting">
-                          Apply to existing tickets immediately
+                          Apply To Existing Tickets Immediately
                         </Label>
                         <p className="text-xs text-muted-foreground">
                           Checked: tickets that already carry these tags are
@@ -744,7 +745,7 @@ export default function SlaPolicies() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Update this SLA policy?</AlertDialogTitle>
+            <AlertDialogTitle>Update This SLA Policy?</AlertDialogTitle>
             <AlertDialogDescription>
               This policy applies to every ticket that carries{" "}
               <span className="font-semibold text-foreground">
@@ -781,7 +782,7 @@ export default function SlaPolicies() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete SLA policy?</AlertDialogTitle>
+            <AlertDialogTitle>Delete SLA Policy?</AlertDialogTitle>
             <AlertDialogDescription>
               Tickets with{" "}
               <span className="font-semibold text-foreground">

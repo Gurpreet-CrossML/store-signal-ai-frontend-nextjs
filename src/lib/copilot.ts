@@ -91,18 +91,18 @@ export const COPILOT_ACTION_OPTIONS: {
 }[] = [
   {
     action: "summary",
-    title: "Summarize this ticket",
+    title: "Summarize This Ticket",
     description:
       "Core issue, steps tried, what's pending, sentiment and urgency",
   },
   {
     action: "kb_answer",
-    title: "Search the KB and answer",
+    title: "Search The KB And Answer",
     description: "Answer from your knowledge base and products, with citations",
   },
   {
     action: "draft",
-    title: "Draft a reply",
+    title: "Draft A Reply",
     description: "A reply to review, then insert into the editor",
   },
 ];

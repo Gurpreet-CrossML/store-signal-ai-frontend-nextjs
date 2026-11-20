@@ -34,6 +34,8 @@ import HoverZoomImage from "@/components/custom/hover-zoom-image";
 import { ProductCarousel } from "@/components/custom/product-carousel";
 import { ProductStrip } from "@/components/custom/product-strip";
 import { getInitials } from "@/components/custom/customer-avatar";
+import { InfoIcon } from "@/components/custom/info-icon";
+import { cn } from "@/lib/utils";
 import { Spinner } from "../ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
@@ -140,7 +142,7 @@ function HandlerEventGroupRow({
   return (
     <div className="flex flex-col items-center gap-1 py-1">
       <span className="max-w-full wrap-anywhere rounded-full border border-dashed border-border bg-background px-3 py-1 text-center text-xs text-muted-foreground">
-        ↔ {events.length} handoffs, {formatTime(start)}–{formatTime(end)}{" "}
+        ↔ {events.length} Handoffs, {formatTime(start)}–{formatTime(end)}{" "}
         <button
           type="button"
           className="font-medium text-primary hover:underline"
@@ -158,6 +160,47 @@ function HandlerEventGroupRow({
             />
           ))
         : null}
+    </div>
+  );
+}
+
+/**
+ * The quick replies the AI offered the customer under its answer. The
+ * customer taps one in the chat widget; here they are only shown, so they
+ * are plain chips, not buttons, with a note saying what they are.
+ *
+ * Args:
+ *   suggestions: The reply texts from the message, if any.
+ *   alignEnd: Line up on the right, under an AI message in Live Chat.
+ */
+function SuggestedReplies({
+  suggestions,
+  alignEnd = false,
+}: {
+  suggestions?: string[] | null;
+  alignEnd?: boolean;
+}) {
+  if (!suggestions?.length) return null;
+
+  return (
+    <div
+      className={cn(
+        "mt-2 flex flex-wrap items-center gap-2",
+        alignEnd ? "justify-end" : "justify-start",
+      )}
+    >
+      <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
+        Suggested Replies
+        <InfoIcon text="Quick replies the AI offered the customer. The customer can tap one in the chat widget to send it." />
+      </span>
+      {suggestions.map((suggestion, index) => (
+        <span
+          key={index}
+          className="inline-flex h-7 items-center rounded-full border border-border bg-background px-3 text-sm text-foreground"
+        >
+          {suggestion}
+        </span>
+      ))}
     </div>
   );
 }
@@ -285,7 +328,7 @@ export function MessagePan({
                   onClick={() => setShowAllMessages(true)}
                   className="rounded-full border bg-background px-4 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary hover:text-primary"
                 >
-                  Show {hiddenMessageCount} more messages
+                  Show {hiddenMessageCount} More Messages
                 </button>
                 <span className="h-px flex-1 bg-border" />
               </div>
@@ -318,14 +361,14 @@ export function MessagePan({
           );
           const isCustomer = message.role === "user";
           const senderLabel = isCustomer
-            ? customerName || "User"
+            ? customerName || "Guest"
             : message.role === "assistant" && !message.agent_name
               ? "AI Assistant"
               : message.messaged_by_email &&
                   me &&
                   message.messaged_by_email.toLowerCase() === me.toLowerCase()
                 ? "You"
-                : message.messaged_by || message.role;
+                : message.messaged_by || "Agent";
           // Bot responses normally carry the display name "StoreSignal AI".
           // That is not a human assignment, and should still receive the
           // distinct AI avatar, confidence, and source treatment.
@@ -557,7 +600,7 @@ export function MessagePan({
                           ) : (
                             <>
                               <IconSparkles className="h-3 w-3" />
-                              <CreditLabel>Reply with AI</CreditLabel>
+                              <CreditLabel>Reply With AI</CreditLabel>
                             </>
                           )}
                         </Button>
@@ -695,28 +738,11 @@ export function MessagePan({
                         </div>
                       )}
 
-                    {message.role === "assistant" &&
-                      message.json_content?.suggestions &&
-                      message.json_content.suggestions.length > 0 && (
-                        <div className="mt-2 flex justify-start">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-sm text-muted-foreground">
-                              Suggested replies:
-                            </span>
-                            {message.json_content.suggestions.map(
-                              (s: string, idx: number) => (
-                                <Button
-                                  key={idx}
-                                  variant="outline"
-                                  className="h-7 rounded-full px-3 text-sm font-normal hover:border-primary hover:bg-primary/25 hover:text-primary"
-                                >
-                                  {s}
-                                </Button>
-                              ),
-                            )}
-                          </div>
-                        </div>
-                      )}
+                    {message.role === "assistant" && (
+                      <SuggestedReplies
+                        suggestions={message.json_content?.suggestions}
+                      />
+                    )}
 
                     {message.image_url && (
                       <div className="mt-2 flex flex-wrap justify-end gap-2 md:justify-start">
@@ -791,8 +817,8 @@ export function MessagePan({
               </p>
               {closedCartItemCount !== undefined ? (
                 <span className="mt-1 inline-flex rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                  {closedCartItemCount} item
-                  {closedCartItemCount === 1 ? "" : "s"} left in cart
+                  {closedCartItemCount} Item
+                  {closedCartItemCount === 1 ? "" : "s"} Left In Cart
                 </span>
               ) : null}
             </div>
@@ -911,14 +937,19 @@ export function LiveMessagePan({
           const isAgentMessage = Boolean(
             message.agent_name || message.messaged_by,
           );
+          // A customer shows by name; without one they are a guest. A message
+          // an agent sent during this session carries only `messaged_by`
+          // (no `agent_name`), so that is what tells it apart from the AI.
           const senderLabel =
-            message.role === "assistant" && !message.agent_name
-              ? "AI Assistant"
-              : message.messaged_by_email &&
-                  me &&
-                  message.messaged_by_email.toLowerCase() === me.toLowerCase()
-                ? "You"
-                : message.messaged_by || message.role;
+            message.role === "user"
+              ? customerName || "Guest"
+              : message.role === "assistant" && !isAgentMessage
+                ? "AI Assistant"
+                : message.messaged_by_email &&
+                    me &&
+                    message.messaged_by_email.toLowerCase() === me.toLowerCase()
+                  ? "You"
+                  : message.messaged_by || "Agent";
           const showReplyWithAI =
             isLastMessage && message.role === "user" && !!onReplyWithAI;
           const isCustomer = message.role === "user";
@@ -1119,7 +1150,7 @@ export function LiveMessagePan({
                           ) : (
                             <>
                               <IconSparkles className="h-3 w-3" />
-                              <CreditLabel>Reply with AI</CreditLabel>
+                              <CreditLabel>Reply With AI</CreditLabel>
                             </>
                           )}
                         </Button>
@@ -1255,25 +1286,12 @@ export function LiveMessagePan({
                         </div>
                       )}
 
-                    {message.role === "assistant" &&
-                      message.json_content?.suggestions &&
-                      message.json_content.suggestions.length > 0 && (
-                        <div className="flex justify-end mt-2">
-                          <div className="flex flex-wrap gap-2">
-                            {message.json_content.suggestions.map(
-                              (s: string, idx: number) => (
-                                <Button
-                                  key={idx}
-                                  variant="outline"
-                                  className="text-xs hover:bg-primary/25 hover:text-primary hover:border-primary rounded-full"
-                                >
-                                  {s}
-                                </Button>
-                              ),
-                            )}
-                          </div>
-                        </div>
-                      )}
+                    {message.role === "assistant" && (
+                      <SuggestedReplies
+                        suggestions={message.json_content?.suggestions}
+                        alignEnd
+                      />
+                    )}
 
                     {message.image_url && (
                       <div

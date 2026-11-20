@@ -2,10 +2,10 @@ import type { StaffRole } from "@/lib/tenant-types";
 
 /** Display name of every role, the store owner's included. */
 export const ROLE_LABELS: Record<StaffRole, string> = {
-  admin: "Store owner",
-  manager: "Store manager",
-  agent: "Support agent",
-  content_manager: "Content manager",
+  admin: "Store Owner",
+  manager: "Store Manager",
+  agent: "Support Agent",
+  content_manager: "Content Manager",
 };
 
 /**

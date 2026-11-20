@@ -115,6 +115,7 @@ import {
   workflowDependsOn,
   aiInsightsTicketTags,
   supportTicketChangeAudit,
+  knowledgeTestMessage,
 } from "./schema";
 
 export const authPermissionRelations = relations(
@@ -568,6 +569,7 @@ export const storeRelations = relations(store, ({ many }) => ({
   supportConfigurations: many(supportConfiguration),
   notifications: many(notification),
   storeWorkflowSettings: many(storeWorkflowSetting),
+  knowledgeTestMessages: many(knowledgeTestMessage),
 }));
 
 export const chatBoteventRelations = relations(chatBotevent, ({ one }) => ({
@@ -1490,6 +1492,16 @@ export const supportTicketChangeAuditRelations = relations(
     supportTicket: one(supportTicket, {
       fields: [supportTicketChangeAudit.ticketId],
       references: [supportTicket.id],
+    }),
+  }),
+);
+
+export const knowledgeTestMessageRelations = relations(
+  knowledgeTestMessage,
+  ({ one }) => ({
+    store: one(store, {
+      fields: [knowledgeTestMessage.storeId],
+      references: [store.id],
     }),
   }),
 );

@@ -257,7 +257,7 @@ export function TicketActivityDrawer({
           className="w-full gap-0 p-0 data-[side=right]:sm:max-w-md"
         >
           <SheetHeader className="border-b">
-            <SheetTitle>Ticket activities</SheetTitle>
+            <SheetTitle>Ticket Activities</SheetTitle>
             <SheetDescription className="sr-only">
               Creation, status changes and assignments for this ticket.
             </SheetDescription>

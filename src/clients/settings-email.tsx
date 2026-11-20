@@ -118,7 +118,7 @@ function ConnectForm({ storeCode }: { storeCode: string }) {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <IconMail className="size-5" /> Connect your support mailbox
+          <IconMail className="size-5" /> Connect Your Support Mailbox
         </CardTitle>
         <CardDescription>
           Enter the address customers write to. We&apos;ll give you an address
@@ -128,7 +128,7 @@ function ConnectForm({ storeCode }: { storeCode: string }) {
       <CardContent>
         <form onSubmit={submit} className="space-y-3" noValidate>
           <div className="space-y-1.5">
-            <Label htmlFor="support-email">Support email address</Label>
+            <Label htmlFor="support-email">Support Email Address</Label>
             <Input
               id="support-email"
               type="email"
@@ -175,7 +175,7 @@ function SetupCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Forward {channel.email} to Store Signal</CardTitle>
+        <CardTitle>Forward {channel.email} To Store Signal</CardTitle>
         <CardDescription>
           Add this address as a forwarding destination in your mailbox.
         </CardDescription>
@@ -208,7 +208,7 @@ function SetupCard({
 
         {confirmed && (
           <div className="space-y-3 rounded-lg border border-primary/30 bg-primary/5 p-3">
-            <p className="text-sm font-medium">Google sent a confirmation</p>
+            <p className="text-sm font-medium">Google Sent A Confirmation</p>
             {channel.confirmation_code && (
               <p className="text-sm">
                 Enter this code in Gmail:{" "}
@@ -230,7 +230,7 @@ function SetupCard({
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    <IconExternalLink /> Open confirmation link
+                    <IconExternalLink /> Open Confirmation Link
                   </a>
                 </Button>
               </div>
@@ -243,7 +243,7 @@ function SetupCard({
               onClick={() => dispatch(SendEmailChannelTest({ storeCode }))}
             >
               {(isSaving || waitingForTest) && <Spinner />}
-              {testSentAt ? "Send another test" : "Send test email"}
+              {testSentAt ? "Send Another Test" : "Send Test Email"}
             </Button>
             {waitingForTest && (
               <p className="text-sm text-muted-foreground">
@@ -272,7 +272,7 @@ function VerifiedCard({ channel }: { channel: EmailChannel }) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <IconCircleCheck className="size-5 text-emerald-600" />
-          {channel.email} is connected
+          {channel.email} Is Connected
         </CardTitle>
         <CardDescription>
           Emails sent to this address become tickets in the helpdesk
@@ -337,13 +337,13 @@ export default function SettingsEmail() {
         disabled={isSaving}
         onClick={() => setConfirmDisconnect(true)}
       >
-        Disconnect / change email
+        Disconnect / Change Email
       </Button>
 
       <AlertDialog open={confirmDisconnect} onOpenChange={setConfirmDisconnect}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Disconnect this mailbox?</AlertDialogTitle>
+            <AlertDialogTitle>Disconnect This Mailbox?</AlertDialogTitle>
             <AlertDialogDescription>
               Emails forwarded to the address will no longer become tickets.
               Remember to remove the forwarding rule in your mailbox too.
