@@ -853,36 +853,37 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
         </div>
       </ThreadCard>
       <ThreadCard title="Thread Details">
+        {/* Values line up on the left of their column, like Help Desk. */}
         <dl className="grid grid-cols-[auto_1fr] gap-x-5 gap-y-1.5 px-5 py-4 text-sm">
           <dt className="text-muted-foreground">Thread ID</dt>
-          <dd className="truncate text-right font-mono">{threadId}</dd>
+          <dd className="truncate font-mono">{threadId}</dd>
           <dt className="text-muted-foreground">Channel</dt>
-          <dd className="text-right">Web Chat</dd>
+          <dd>Web Chat</dd>
           <dt className="text-muted-foreground">Started</dt>
-          <dd className="text-right">{started}</dd>
+          <dd>{started}</dd>
           <dt className="text-muted-foreground">Ended</dt>
-          <dd className="text-right">{ended}</dd>
+          <dd>{ended}</dd>
           <dt className="text-muted-foreground">Duration</dt>
-          <dd className="text-right">
+          <dd>
             {getDuration(
               details?.created_at ?? null,
               details?.ended_at ?? null,
             ) || "—"}
           </dd>
           <dt className="text-muted-foreground">Handled By</dt>
-          <dd className="text-right">{handledBy}</dd>
+          <dd>{handledBy}</dd>
           {closeReason ? (
             <>
               <dt className="text-muted-foreground">Close Reason</dt>
-              <dd className="text-right">{closeReason}</dd>
+              <dd>{closeReason}</dd>
             </>
           ) : null}
           <dt className="text-muted-foreground">Category</dt>
-          <dd className="text-right">{threadTagLabels[0] ?? "—"}</dd>
+          <dd>{threadTagLabels[0] ?? "—"}</dd>
           {feedback ? (
             <>
               <dt className="text-muted-foreground">User Feedback</dt>
-              <dd className="flex items-center justify-end gap-1.5 text-right">
+              <dd className="flex items-center gap-1.5">
                 <span aria-label={feedback.rating}>
                   {FEEDBACK_RATINGS.find(
                     (rating) => rating.value === feedback.rating,

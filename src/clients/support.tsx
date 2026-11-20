@@ -3111,7 +3111,7 @@ export default function Support() {
                             {selectedThread?.chat_handler === "human" &&
                             selectedThread.chat_handler_user?.name
                               ? ` ${selectedThread.chat_handler_user.email?.toLowerCase() === session?.user?.email?.toLowerCase() ? "You" : selectedThread.chat_handler_user.name} will reply as soon as they do.`
-                              : "The AI Assistant will reply as soon as they do."}
+                              : " The AI Assistant will reply as soon as they do."}
                           </Typography>
                         </div>
                       )}

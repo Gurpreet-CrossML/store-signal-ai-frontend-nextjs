@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import Link from "next/link";
 import { LoadingState } from "@/components/custom/loading-state";
 import { CardTitle } from "@/components/ui/card";
@@ -241,43 +241,34 @@ export function SessionDataCard({
       {loading ? (
         <CardLoadingState />
       ) : (
-        <div className="flex flex-col gap-2">
+        // Labels in one column, values lined up on the left of the next,
+        // like Thread Details and Help Desk.
+        <div className="grid grid-cols-[auto_1fr] items-center gap-x-5 gap-y-2">
           {facts.map((fact) => (
-            <div
-              key={fact.label}
-              className="flex min-w-0 items-center justify-between gap-3"
-            >
-              <Typography variant="muted" className="shrink-0">
-                {fact.label}
-              </Typography>
+            <Fragment key={fact.label}>
+              <Typography variant="muted">{fact.label}</Typography>
               <Typography
                 variant="small"
                 as="span"
-                className="min-w-0 flex-1 truncate text-right leading-snug"
+                className="min-w-0 truncate leading-snug"
               >
                 {fact.value}
               </Typography>
-            </div>
+            </Fragment>
           ))}
-          <div className="flex min-w-0 items-center justify-between gap-3">
-            <Typography variant="muted">Past Chats</Typography>
-            {customer?.email && currentThreadId && pastThreadsCount > 0 ? (
-              <Link
-                href={`/threads?search=${encodeURIComponent(customer.email)}&before_thread_id=${encodeURIComponent(currentThreadId)}`}
-                className="min-w-0 truncate text-right text-sm font-medium text-primary hover:underline"
-              >
-                {pastChatsLabel}
-              </Link>
-            ) : (
-              <Typography
-                variant="small"
-                as="span"
-                className="min-w-0 truncate text-right"
-              >
-                {pastChatsLabel}
-              </Typography>
-            )}
-          </div>
+          <Typography variant="muted">Past Chats</Typography>
+          {customer?.email && currentThreadId && pastThreadsCount > 0 ? (
+            <Link
+              href={`/threads?search=${encodeURIComponent(customer.email)}&before_thread_id=${encodeURIComponent(currentThreadId)}`}
+              className="min-w-0 truncate text-sm font-medium text-primary hover:underline"
+            >
+              {pastChatsLabel}
+            </Link>
+          ) : (
+            <Typography variant="small" as="span" className="min-w-0 truncate">
+              {pastChatsLabel}
+            </Typography>
+          )}
         </div>
       )}
     </section>

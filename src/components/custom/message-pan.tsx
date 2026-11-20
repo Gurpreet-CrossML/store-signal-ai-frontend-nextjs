@@ -360,15 +360,16 @@ export function MessagePan({
             message.agent_name || message.messaged_by,
           );
           const isCustomer = message.role === "user";
+          // Not the customer and not a person: the AI.
           const senderLabel = isCustomer
             ? customerName || "Guest"
-            : message.role === "assistant" && !message.agent_name
+            : !isAgentMessage
               ? "AI Assistant"
               : message.messaged_by_email &&
                   me &&
                   message.messaged_by_email.toLowerCase() === me.toLowerCase()
                 ? "You"
-                : message.messaged_by || "Agent";
+                : message.messaged_by || message.agent_name || "Agent";
           // Bot responses normally carry the display name "StoreSignal AI".
           // That is not a human assignment, and should still receive the
           // distinct AI avatar, confidence, and source treatment.
@@ -937,19 +938,21 @@ export function LiveMessagePan({
           const isAgentMessage = Boolean(
             message.agent_name || message.messaged_by,
           );
-          // A customer shows by name; without one they are a guest. A message
-          // an agent sent during this session carries only `messaged_by`
-          // (no `agent_name`), so that is what tells it apart from the AI.
+          // A customer shows by name; without one they are a guest. Anything
+          // else not sent by a person is the AI — including a follow-up
+          // nudge, which arrives over the socket with no role at all. A
+          // message an agent sent during this session carries only
+          // `messaged_by` (no `agent_name`), so either one marks a person.
           const senderLabel =
             message.role === "user"
               ? customerName || "Guest"
-              : message.role === "assistant" && !isAgentMessage
+              : !isAgentMessage
                 ? "AI Assistant"
                 : message.messaged_by_email &&
                     me &&
                     message.messaged_by_email.toLowerCase() === me.toLowerCase()
                   ? "You"
-                  : message.messaged_by || "Agent";
+                  : message.messaged_by || message.agent_name || "Agent";
           const showReplyWithAI =
             isLastMessage && message.role === "user" && !!onReplyWithAI;
           const isCustomer = message.role === "user";
