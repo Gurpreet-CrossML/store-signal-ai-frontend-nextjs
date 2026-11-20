@@ -382,14 +382,14 @@ export function NewKnowledgePage() {
   const footerMessage = isStorageFull
     ? "Your storage is full. Free up space or upgrade your plan to add more."
     : source === "url"
-      ? `${plural(readyCount, "page")} selected${
-          alreadyAdded > 0 ? ` · ${alreadyAdded} already in your knowledge` : ""
+      ? `${plural(readyCount, "Page")} Selected${
+          alreadyAdded > 0 ? ` · ${alreadyAdded} Already In Your Knowledge` : ""
         }`
       : source === "file"
-        ? `${plural(documents.length, "file")} ready`
-        : `${plural(completeFaqs.length, "question")} ready${
+        ? `${plural(documents.length, "File")} Ready`
+        : `${plural(completeFaqs.length, "Question")} Ready${
             faqRows.length > completeFaqs.length && !hasIncompleteFaq
-              ? " · the empty one is skipped"
+              ? " · The Empty One Is Skipped"
               : ""
           }`;
 
@@ -430,11 +430,7 @@ export function NewKnowledgePage() {
             <SourceCards value={source} onChange={setSource} />
             <ShopifySyncedNote />
           </div>
-          <StepFooter
-            message={
-              source ? "Ready when you are." : "Choose a source to continue."
-            }
-          >
+          <StepFooter>
             <Button type="button" variant="ghost" onClick={goToLibrary}>
               Cancel
             </Button>

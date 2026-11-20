@@ -32,7 +32,7 @@ export function AddKnowledgeStepper({ step }: { step: AddStep }) {
   return (
     <ol
       aria-label="Progress"
-      className="flex items-center gap-4 overflow-x-auto border-b sm:gap-6"
+      className="scrollbar-hidden flex items-center gap-4 overflow-x-auto border-b sm:gap-6"
     >
       {STEPS.map(({ key, label }, index) => {
         const isCurrent = index === current;
@@ -74,13 +74,15 @@ export function StepFooter({
   message,
   children,
 }: {
-  message: React.ReactNode;
+  message?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
     <div className="sticky bottom-0 z-10 -mx-4 mt-auto flex flex-col gap-3 border-t bg-background px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-      <p className="text-sm text-muted-foreground">{message}</p>
-      <div className="flex items-center justify-end gap-2">{children}</div>
+      {message && <p className="text-sm text-muted-foreground">{message}</p>}
+      <div className="flex items-center justify-end gap-2 sm:ml-auto">
+        {children}
+      </div>
     </div>
   );
 }
@@ -209,7 +211,7 @@ export function ShopifySyncedNote() {
       <IconBolt className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
       <div>
         <p className="font-semibold">
-          Your Shopify products and collections are already synced
+          Your Shopify Products And Collections Are Already Synced
         </p>
         <p className="text-xs text-muted-foreground">
           They update automatically when you change them in Shopify, so you
