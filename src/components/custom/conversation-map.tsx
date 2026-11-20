@@ -83,8 +83,14 @@ export default function ConversationMap({
       (message.message_type === "ai_action" &&
         /(?:view(?:ed)?|show(?:ed)?)\s+(?:the )?cart/i.test(message.message))
     ) {
-      const action =
-        `${message.json_content?.cart_action ?? ""} ${message.message}`.toLowerCase();
+      // The reply text names the product ("Stain Remover added…"), so trust the
+      // structured action; only `update` needs the text (quantity 0 = removed).
+      const cartAction = message.json_content?.cart_action;
+      const action = (
+        cartAction && cartAction !== "update"
+          ? cartAction
+          : `${cartAction ?? ""} ${message.message}`
+      ).toLowerCase();
       const isRemoval = action.includes("remove") || action.includes("clear");
       const isCartView =
         action.includes("view") ||
@@ -113,11 +119,13 @@ export default function ConversationMap({
     }
     return [];
   });
-  // Overlapping markers hide each other at minute-level resolution, so retain
-  // the first meaningful event in each minute.
+  // One marker per event type per minute; different events in the same minute
+  // are spread across that minute's column below rather than dropped.
   const dedupedMarkers = markers.filter(
     (marker, index) =>
-      markers.findIndex((item) => item.minute === marker.minute) === index,
+      markers.findIndex(
+        (item) => item.minute === marker.minute && item.label === marker.label,
+      ) === index,
   );
   // AI issues carry no timestamp, so the diamond sits on the AI reply it was
   // least sure about (the last reply when none has a score), on a free minute.
@@ -152,7 +160,13 @@ export default function ConversationMap({
       shape: "diamond",
     });
   }
-  const visibleMarkers = [...dedupedMarkers, ...issueMarkers];
+  const visibleMarkers = [...dedupedMarkers, ...issueMarkers].map(
+    (marker, _, all) => {
+      const sameMinute = all.filter((item) => item.minute === marker.minute);
+      const slot = (sameMinute.indexOf(marker) + 1) / (sameMinute.length + 1);
+      return { ...marker, position: ((marker.minute + slot) / minutes) * 100 };
+    },
+  );
   const removedCount = markers.filter(
     (marker) => marker.label === "Removed from cart",
   ).length;
@@ -225,8 +239,7 @@ export default function ConversationMap({
             <span className="absolute bottom-0.5 left-1/2 size-4 -translate-x-1/2 rounded-[5px] border-2 border-background bg-muted-foreground ring-1 ring-muted-foreground" />
           </div>
         ) : null}
-        {visibleMarkers.map((marker, index) => {
-          const position = ((marker.minute + 0.5) / minutes) * 100;
+        {visibleMarkers.map(({ position, ...marker }, index) => {
           const labelTop = [0, 22, 44][index % 3];
           const labelClass =
             position > 84
