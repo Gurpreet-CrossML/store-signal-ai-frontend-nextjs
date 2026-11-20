@@ -161,7 +161,11 @@ import {
   type SupportTicketStatusCounts,
   type SupportSocketPayload,
 } from "@/redux/api-slice/support-ticket-slice";
-import { FetchStaff, type StaffMember } from "@/redux/api-slice/tenancy-slice";
+import {
+  FetchAssignableStaff,
+  FetchStaff,
+  type StaffMember,
+} from "@/redux/api-slice/tenancy-slice";
 import { can } from "@/lib/access-rules";
 import { FetchFreshdeskTicketId } from "@/redux/api-slice/thread-slice";
 import {
@@ -1949,7 +1953,10 @@ export default function HelpDesk() {
     (state) =>
       state.GetSupportTicketsReducer.SupportTicketMessagesTranslateState,
   );
-  const { staff } = useAppSelector((state) => state.GetTenancyReducer);
+  // Everyone (for names on old messages) and who a ticket can be given to.
+  const { staff, assignableStaff } = useAppSelector(
+    (state) => state.GetTenancyReducer,
+  );
   const { FetchFreshdeskTicketIdData, FetchFreshdeskTicketIdIsLoading } =
     useAppSelector(
       (state) => state.GetThreadReducer.FetchFreshdeskTicketIdState,
@@ -2562,6 +2569,7 @@ export default function HelpDesk() {
     if (!storeCode || !canAssign) return;
 
     dispatch(FetchStaff());
+    dispatch(FetchAssignableStaff());
   }, [dispatch, storeCode, canAssign]);
 
   useEffect(() => {
@@ -3191,7 +3199,9 @@ export default function HelpDesk() {
         }),
       ).unwrap();
 
-      const assignedStaff = staff.find((member) => member.id === staffId);
+      const assignedStaff = assignableStaff.find(
+        (member) => member.id === staffId,
+      );
       // An agent taking a ticket has no staff list; they are the assignee.
       const me = session?.user;
       const tookIt = staffId !== null && staffId === me?.user_id;
@@ -3945,7 +3955,7 @@ export default function HelpDesk() {
               status !== "snoozed" && setPendingStatus(status)
             }
             onPriorityChange={handleSupportTicketPriorityUpdate}
-            staff={staff}
+            staff={assignableStaff}
             canAssign={canAssign}
             onAssign={handleStaffAssign}
             onTake={
