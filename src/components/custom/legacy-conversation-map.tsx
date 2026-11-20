@@ -132,7 +132,7 @@ export function LegacyConversationMap({
   return (
     <ThreadCard className="hidden rounded-xl lg:block">
       <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-4">
-        <h2 className="text-sm font-semibold">Conversation map</h2>
+        <h2 className="text-sm font-semibold">Conversation Map</h2>
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
           <span>
             <i className="mr-2 inline-block size-2 rounded-full bg-primary" />
@@ -158,11 +158,11 @@ export function LegacyConversationMap({
       </div>
       <div className="mx-5 mt-4 grid grid-cols-5 overflow-hidden rounded-lg border">
         {[
-          ["Resolution score", `${rate || "—"}%`, "text-primary"],
+          ["Resolution Score", `${rate || "—"}%`, "text-primary"],
           ["Messages", String(messages.length), ""],
-          ["Cart at close", `${cartCount} items`, ""],
-          ["Removed by AI", `${removedCount} items`, ""],
-          ["AI issues", String(issueCount), "text-red-600"],
+          ["Cart At Close", `${cartCount} Items`, ""],
+          ["Removed By AI", `${removedCount} Items`, ""],
+          ["AI Issues", String(issueCount), "text-red-600"],
         ].map(([label, value, color]) => (
           <div key={label} className="border-r px-3 py-2.5 last:border-r-0">
             <p className="text-xs text-muted-foreground">{label}</p>

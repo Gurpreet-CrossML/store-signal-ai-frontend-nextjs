@@ -22,8 +22,8 @@ import {
 import type { AIUsageSummary } from "@/redux/api-slice/ai-usage-slice";
 
 const chartConfig = {
-  input: { label: "Total Input tokens", color: "var(--chart-3)" },
-  output: { label: "Total Output tokens", color: "var(--chart-1)" },
+  input: { label: "Total Input Tokens", color: "var(--chart-3)" },
+  output: { label: "Total Output Tokens", color: "var(--chart-1)" },
 } satisfies ChartConfig;
 
 const compact = new Intl.NumberFormat("en-US", {
@@ -50,7 +50,7 @@ export default function TokenSplitChart({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-1.5">
-          Input vs Output Tokens
+          Input Vs Output Tokens
           <InfoIcon text="Compares tokens sent to the model (input — prompts and context) with tokens the model generated (output — responses). Output tokens usually cost more per token." />
         </CardTitle>
         <CardDescription>
@@ -91,7 +91,7 @@ export default function TokenSplitChart({
                             y={(viewBox.cy || 0) + 18}
                             className="fill-muted-foreground text-xs"
                           >
-                            Total tokens
+                            Total Tokens
                           </tspan>
                         </text>
                       );

@@ -45,7 +45,7 @@ function dateKey(value: string): string {
 
 function dateGroupLabel(value: string): string {
   const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "Unknown date";
+  if (Number.isNaN(d.getTime())) return "Unknown Date";
   const full = new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
@@ -164,7 +164,7 @@ export function ThreadsDataTable<TData, TValue>({
                   colSpan={columns.length}
                   className="h-24 text-center text-muted-foreground"
                 >
-                  No threads found.
+                  No Threads Found
                 </TableCell>
               </TableRow>
             )}

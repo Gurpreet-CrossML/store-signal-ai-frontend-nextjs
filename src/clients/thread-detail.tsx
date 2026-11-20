@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   IconAlertTriangle,
   IconArrowLeft,
+  IconArrowUpRight,
   IconBrain,
   IconCalendarTime,
   IconCheck,
@@ -14,6 +15,7 @@ import {
   IconFlag,
   IconHash,
   IconListCheck,
+  IconLoader2,
   IconMessage2,
   IconMessages,
   IconSparkles,
@@ -38,12 +40,8 @@ import {
 } from "@/components/custom/customer-header";
 import { TagsCell } from "@/components/custom/threads-columns";
 import { InfoIcon } from "@/components/custom/info-icon";
-import { BADGE_TONE_STYLES } from "@/lib/badge-tones";
-import {
-  closedByLabel,
-  closeReasonLabel,
-  closeReasonTone,
-} from "@/lib/thread-options";
+import { CreditLabel } from "@/components/custom/credit-label";
+import { closedByLabel, closeReasonLabel } from "@/lib/thread-options";
 import { LinkCustomerDialog } from "@/components/custom/link-customer-dialog";
 import {
   CreateTicketDialog,
@@ -52,6 +50,7 @@ import {
 import { LoadingState } from "@/components/custom/loading-state";
 import {
   Empty,
+  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
@@ -70,6 +69,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Typography } from "@/components/ui/typography";
 import { getDuration } from "@/lib/helpers";
+import { FEEDBACK_RATINGS } from "@/lib/config";
 import { cn } from "@/lib/utils";
 import {
   FetchAIInsight,
@@ -81,6 +81,7 @@ import {
   FetchTags,
   FetchThreadDetails,
   FetchUserMetadata,
+  GenerateAIInsight,
   ThreadCustomerLink,
   type ThreadMessage,
   type ThreadTagData,
@@ -336,7 +337,7 @@ function AIInsightsSection({
           <>
             <InsightGroup
               icon={IconListCheck}
-              title="Suggested Follow-ups"
+              title="Suggested Follow-Ups"
               tone="action"
               items={nextActionableItems}
             />
@@ -408,39 +409,6 @@ function ResolutionRing({
 // object on every call, which makes react-redux warn and re-render.
 const EMPTY_TAGS: (string | ThreadTagData)[] = [];
 
-/**
- * Header date range: "15 Oct 2026, 10:57–11:28 AM" (the year is optional).
- * AM/PM is shown once when the start and end share it, as in the design.
- */
-function formatHeaderRange(
-  start?: string | null,
-  end?: string | null,
-  withYear = true,
-) {
-  if (!start) return "—";
-  const from = new Date(start);
-  if (Number.isNaN(from.getTime())) return "—";
-
-  const month = from.toLocaleDateString("en-US", { month: "short" });
-  const date = `${from.getDate()} ${month}${withYear ? ` ${from.getFullYear()}` : ""}`;
-  const time = (value: Date) =>
-    value
-      .toLocaleTimeString("en-US", {
-        hour: "numeric",
-        minute: "2-digit",
-        hour12: true,
-      })
-      .replace(/\s/g, " ");
-
-  const startTime = time(from);
-  const to = end ? new Date(end) : null;
-  if (!to || Number.isNaN(to.getTime())) return `${date}, ${startTime}`;
-
-  const endTime = time(to);
-  const sameMeridiem = startTime.slice(-2) === endTime.slice(-2);
-  return `${date}, ${sameMeridiem ? startTime.slice(0, -3) : startTime}–${endTime}`;
-}
-
 /** "10:57 AM" */
 function formatClock(value: Date) {
   return value
@@ -461,14 +429,6 @@ function formatDayFirst(value?: string | null) {
   return `${date.getDate()} ${month} ${date.getFullYear()}, ${formatClock(date)}`;
 }
 
-/** "31 min", whole minutes, for the header line. */
-function formatHeaderDuration(start?: string | null, end?: string | null) {
-  if (!start || !end) return "—";
-  const diff = new Date(end).getTime() - new Date(start).getTime();
-  if (!Number.isFinite(diff) || diff < 0) return "—";
-  return `${Math.floor(diff / 60000)} min`;
-}
-
 export default function ThreadDetail({ threadId }: { threadId: string }) {
   const dispatch = useAppDispatch();
   const router = useRouter();
@@ -482,11 +442,20 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
   const { FetchConversationSummaryData } = useAppSelector(
     (state) => state.GetThreadReducer.FetchConversationSummaryState,
   );
-  const { FetchAIInsightData } = useAppSelector(
+  const { FetchAIInsightData, FetchAIInsightIsSuccess } = useAppSelector(
     (state) => state.GetThreadReducer.FetchAIInsightState,
+  );
+  const { GenerateAIInsightIsLoading } = useAppSelector(
+    (state) => state.GetThreadReducer.GenerateAIInsightState,
   );
   const { FetchCartData } = useAppSelector(
     (state) => state.GetThreadReducer.FetchCartDataState,
+  );
+  const { FetchFeedbackSequenceData } = useAppSelector(
+    (state) => state.GetThreadReducer.FetchFeedbackSequenceState,
+  );
+  const { FetchFreshdeskTicketIdData } = useAppSelector(
+    (state) => state.GetThreadReducer.FetchFreshdeskTicketIdState,
   );
   const { FetchOrderData } = useAppSelector(
     (state) => state.GetThreadReducer.FetchOrderDataState,
@@ -535,6 +504,15 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
     loadData();
   }, [dispatch, storeCode, threadId]);
 
+  const handleGenerateInsights = async () => {
+    if (!threadId) return;
+    const result = await dispatch(GenerateAIInsight(threadId));
+    if (GenerateAIInsight.fulfilled.match(result)) {
+      // The summary comes from the same analysis; tags are set on thread close.
+      dispatch(FetchConversationSummary(threadId));
+    }
+  };
+
   const handleLinkCustomer = async (customerId: string) => {
     if (!storeCode || !threadId) return;
     setIsLinkingCustomer(true);
@@ -574,7 +552,6 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
   // so every section shows its own loader rather than the last thread's
   // answer. Each section then falls back to its own request's flag.
   const detailsLoading = !isThisThread;
-  const isResolved = details?.verdict?.verdict === "resolved";
   // Breadcrumb title: the thread's own name, else what the customer first asked.
   const threadTitle =
     details?.name ||
@@ -606,7 +583,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
           </EmptyDescription>
         </EmptyHeader>
         <Button variant="outline" asChild>
-          <Link href="/threads">Back to Threads</Link>
+          <Link href="/threads">Back To Threads</Link>
         </Button>
       </Empty>
     );
@@ -620,10 +597,20 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
     ),
   );
   const cartItems = FetchCartData?.updated_cart_data?.items ?? [];
+  const feedback = FetchFeedbackSequenceData?.feedback;
+  const feedbackComment = feedback?.feedback_message?.trim();
   const improvements = FetchAIInsightData?.underperforming_cases ?? [];
   const successes = FetchAIInsightData?.overperforming_cases ?? [];
   const actions = FetchAIInsightData?.next_actionable_items ?? [];
+  // The endpoint answers `{}` until the insights are generated.
+  const hasInsights = Object.keys(FetchAIInsightData ?? {}).length > 0;
+  // The customer endpoint can include tickets from other conversations. Only
+  // a ticket explicitly linked to this thread replaces its Create action.
+  const existingThreadTicket = (FetchFreshdeskTicketIdData ?? []).find(
+    (ticket) => ticket.thread_id?.toLowerCase() === threadId.toLowerCase(),
+  );
   const started = formatDayFirst(details?.created_at);
+  const closeReason = closeReasonLabel(details?.close_reason);
   // "11:28 AM · closed after inactivity". A chat that is still open has no end.
   const endedAtDate = details?.ended_at ? new Date(details.ended_at) : null;
   const endedNote = !details
@@ -653,7 +640,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
     ? "—"
     : handlerNames.length
       ? `AI + ${handlerNames.join(", ")}`
-      : "AI only";
+      : "AI Only";
 
   const transcript = (
     <ConversationTranscript
@@ -670,26 +657,69 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
     <div className="space-y-4">
       <ThreadCard>
         <div className="flex items-center gap-4 border-b px-5 py-5">
-          <ResolutionRing value={resolutionRate} />
+          {hasInsights && <ResolutionRing value={resolutionRate} />}
           <div>
-            <h2 className="text-lg font-semibold">AI review</h2>
-            <p className="text-sm text-muted-foreground">
-              {FetchAIInsightData?.reason_for_score ||
-                "Conversation quality and resolution analysis."}
-            </p>
+            <h2 className="text-lg font-semibold">AI Review</h2>
+            {hasInsights && (
+              <p className="text-sm text-muted-foreground">
+                {FetchAIInsightData?.reason_for_score ||
+                  "Conversation quality and resolution analysis."}
+              </p>
+            )}
           </div>
         </div>
         <div>
-          <div className="border-b px-5 py-5">
-            <p className="text-sm leading-6 text-muted-foreground">
-              {FetchConversationSummaryData?.conversation_summary ||
-                "No summary available for this conversation."}
-            </p>
-          </div>
+          {/* Generated only when the merchant asks for it. */}
+          {FetchAIInsightIsSuccess && !hasInsights ? (
+            <Empty className="gap-3 p-5">
+              <EmptyHeader className="gap-1">
+                <EmptyMedia variant="icon" className="mb-1 size-8">
+                  <IconSparkles className="size-4" />
+                </EmptyMedia>
+                <EmptyTitle className="text-base">
+                  No AI Insights Yet
+                </EmptyTitle>
+                <EmptyDescription className="text-sm">
+                  Generate a summary, score and suggestions for this
+                  conversation.
+                </EmptyDescription>
+              </EmptyHeader>
+              <EmptyContent>
+                <Button
+                  // Same look as "Draft With AI" (create-ticket-dialog).
+                  variant="outline"
+                  size="sm"
+                  className="h-auto gap-2 px-4 py-1"
+                  disabled={GenerateAIInsightIsLoading}
+                  onClick={handleGenerateInsights}
+                >
+                  {GenerateAIInsightIsLoading ? (
+                    <IconLoader2 className="size-4 animate-spin" />
+                  ) : (
+                    <IconSparkles className="size-4" />
+                  )}
+                  {GenerateAIInsightIsLoading ? (
+                    "Generating Insights…"
+                  ) : (
+                    <CreditLabel className="self-center text-xs">
+                      Generate AI Insights
+                    </CreditLabel>
+                  )}
+                </Button>
+              </EmptyContent>
+            </Empty>
+          ) : (
+            <div className="border-b px-5 py-5">
+              <p className="text-sm leading-6 text-muted-foreground">
+                {FetchConversationSummaryData?.conversation_summary ||
+                  "No summary available for this conversation."}
+              </p>
+            </div>
+          )}
           {successes.length > 0 && (
             <div className="border-b px-5 py-5">
               <h3 className="mb-3 text-xs font-bold uppercase tracking-wide text-emerald-700">
-                Went well
+                Went Well
               </h3>
               <ul className="space-y-3.5">
                 {successes.map((item, index) => (
@@ -707,7 +737,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
           {improvements.length > 0 && (
             <div className="px-5 py-5">
               <h3 className="mb-3 text-xs font-bold uppercase tracking-wide text-red-700">
-                To improve
+                To Improve
               </h3>
               <div className="space-y-3.5">
                 {improvements.map((item, index) => (
@@ -730,28 +760,21 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
         <ThreadCard
           title={
             <div className="flex items-center justify-between">
-              <span>Suggested actions</span>
+              <span>Suggested Actions</span>
               <span className="text-sm font-normal text-muted-foreground">
-                {actions.length} actions
+                {actions.length} Actions
               </span>
             </div>
           }
         >
           <div>
             {actions.map((action, index) => (
-              <button
-                type="button"
+              <div
                 key={index}
-                className="flex w-full items-start justify-between border-b p-5 text-left last:border-b-0 hover:bg-muted/30"
+                className="border-b p-5 text-sm font-semibold last:border-b-0"
               >
-                <span>
-                  <strong className="block">{action}</strong>
-                  <small className="mt-1 block leading-5 text-muted-foreground">
-                    Open suggested action
-                  </small>
-                </span>
-                <span className="text-muted-foreground">›</span>
-              </button>
+                {action}
+              </div>
             ))}
           </div>
         </ThreadCard>
@@ -764,7 +787,22 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
         <ThreadCard title="Customer">
           <div className="space-y-4 p-5">
             <div>
-              <p className="font-semibold">{customerName}</p>
+              {details?.customer?.id ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Link
+                      href={`/crm/customers/${details.customer.id}`}
+                      className="inline-flex items-center gap-1 font-semibold hover:underline hover:underline-offset-2"
+                    >
+                      {customerName}
+                      <IconArrowUpRight className="size-3.5" />
+                    </Link>
+                  </TooltipTrigger>
+                  <TooltipContent>Open Full Profile</TooltipContent>
+                </Tooltip>
+              ) : (
+                <p className="font-semibold">{customerName}</p>
+              )}
               <CustomerContact
                 email={details?.customer_email}
                 phone={details?.customer?.phone}
@@ -777,28 +815,21 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
                 <p className="font-semibold">{FetchOrderData?.length ?? 0}</p>
               </div>
               <div className="p-3">
-                <p className="text-xs text-muted-foreground">Past chats</p>
+                <p className="text-xs text-muted-foreground">Past Chats</p>
                 <p className="font-semibold">
                   {details?.customer?.past_threads_count ?? 0}
                 </p>
               </div>
             </div>
-            {details?.customer?.id && (
-              <Button variant="outline" className="w-full" asChild>
-                <Link href={`/crm/customers/${details.customer.id}`}>
-                  Open full profile
-                </Link>
-              </Button>
-            )}
           </div>
         </ThreadCard>
       )}
       <ThreadCard
         title={
           <div className="flex justify-between">
-            <span>Cart when the chat closed</span>
+            <span>Cart</span>
             <span className="text-sm font-normal text-muted-foreground">
-              {cartItems.length} items
+              {cartItems.length} Items
             </span>
           </div>
         }
@@ -830,27 +861,47 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
           )}
         </div>
       </ThreadCard>
-      <ThreadCard title="Thread details">
+      <ThreadCard title="Thread Details">
+        {/* Values line up on the left of their column, like Help Desk. */}
         <dl className="grid grid-cols-[auto_1fr] gap-x-5 gap-y-1.5 px-5 py-4 text-sm">
           <dt className="text-muted-foreground">Thread ID</dt>
-          <dd className="truncate text-right font-mono">{threadId}</dd>
+          <dd className="truncate font-mono">{threadId}</dd>
           <dt className="text-muted-foreground">Channel</dt>
-          <dd className="text-right">Web chat</dd>
+          <dd>Web Chat</dd>
           <dt className="text-muted-foreground">Started</dt>
-          <dd className="text-right">{started}</dd>
+          <dd>{started}</dd>
           <dt className="text-muted-foreground">Ended</dt>
-          <dd className="text-right">{ended}</dd>
+          <dd>{ended}</dd>
           <dt className="text-muted-foreground">Duration</dt>
-          <dd className="text-right">
+          <dd>
             {getDuration(
               details?.created_at ?? null,
               details?.ended_at ?? null,
             ) || "—"}
           </dd>
-          <dt className="text-muted-foreground">Handled by</dt>
-          <dd className="text-right">{handledBy}</dd>
+          <dt className="text-muted-foreground">Handled By</dt>
+          <dd>{handledBy}</dd>
+          {closeReason ? (
+            <>
+              <dt className="text-muted-foreground">Close Reason</dt>
+              <dd>{closeReason}</dd>
+            </>
+          ) : null}
           <dt className="text-muted-foreground">Category</dt>
-          <dd className="text-right">{threadTagLabels[0] ?? "—"}</dd>
+          <dd>{threadTagLabels[0] ?? "—"}</dd>
+          {feedback ? (
+            <>
+              <dt className="text-muted-foreground">User Feedback</dt>
+              <dd className="flex items-center gap-1.5">
+                <span aria-label={feedback.rating}>
+                  {FEEDBACK_RATINGS.find(
+                    (rating) => rating.value === feedback.rating,
+                  )?.label ?? feedback.rating}
+                </span>
+                {feedbackComment ? <InfoIcon text={feedbackComment} /> : null}
+              </dd>
+            </>
+          ) : null}
         </dl>
       </ThreadCard>
     </div>
@@ -894,99 +945,46 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
                 {getInitials(customerName) ?? "?"}
               </span>
               <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <h1 className="truncate text-2xl font-bold">
-                    {customerName}
-                  </h1>
-                  <div className="hidden items-center gap-2 lg:flex">
-                    <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50">
-                      {isResolved ? "Resolved by AI" : "AI review"}
+                <h1 className="truncate text-2xl font-bold">{customerName}</h1>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  {threadTagLabels.map((tag) => (
+                    <Badge
+                      key={tag}
+                      className="bg-primary/10 text-primary hover:bg-primary/10"
+                    >
+                      {tag}
                     </Badge>
-                    <Badge variant="secondary">
-                      {details?.is_active ? "Active" : "Closed"}
-                    </Badge>
-                    {threadTagLabels.slice(0, 1).map((tag) => (
-                      <Badge
-                        key={tag}
-                        className="bg-primary/10 text-primary hover:bg-primary/10"
-                      >
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-                  <p className="flex w-full flex-wrap gap-x-5 gap-y-0 text-sm text-muted-foreground">
-                    <span className="lg:hidden">
-                      Web chat ·{" "}
-                      {formatHeaderRange(
-                        details?.created_at,
-                        details?.ended_at,
-                        false,
-                      )}
-                    </span>
-                    <span className="hidden lg:inline">Web chat</span>
-                    <span className="hidden lg:inline">
-                      {formatHeaderRange(
-                        details?.created_at,
-                        details?.ended_at,
-                      )}
-                    </span>
-                    <span className="hidden lg:inline">
-                      {formatHeaderDuration(
-                        details?.created_at,
-                        details?.ended_at,
-                      )}
-                    </span>
-                    <span className="hidden lg:inline">
-                      {details?.total_messages ?? threadMessages.length}{" "}
-                      messages
-                    </span>
-                  </p>
+                  ))}
                 </div>
               </div>
             </div>
-            <div className="mt-5 flex flex-wrap items-center gap-2 lg:hidden">
-              <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50">
-                {isResolved ? "Resolved by AI" : "AI review"}
-              </Badge>
-              <Badge variant="secondary">
-                {details?.is_active ? "Active" : "Closed"}
-              </Badge>
-              {threadTagLabels.slice(0, 1).map((tag) => (
-                <Badge
-                  key={tag}
-                  className="bg-primary/10 text-primary hover:bg-primary/10"
-                >
-                  {tag}
-                </Badge>
-              ))}
-            </div>
           </div>
-          {/* Desktop thread actions. The mobile Create ticket control below is
-              unchanged. mt-8 lines the buttons up with the avatar row, under
-              the breadcrumb. */}
+          {/* mt-8 lines the action up with the avatar row, under the breadcrumb. */}
           <div className="mt-8 hidden shrink-0 gap-2 lg:flex">
             {/* <Button variant="outline">Export</Button> */}
             {/* <Button variant="outline">Flag for review</Button> */}
-            <Button
-              disabled={!storeCode || !canCreateTicket}
-              onClick={() => setIsCreateTicketOpen(true)}
-            >
-              Create ticket
-            </Button>
+            {existingThreadTicket ? (
+              <Button asChild>
+                <Link href={`/helpdesk?ticket=${existingThreadTicket.id}`}>
+                  Open Ticket #{existingThreadTicket.ticket_id}
+                </Link>
+              </Button>
+            ) : (
+              <Button
+                disabled={!storeCode || !canCreateTicket}
+                onClick={() => setIsCreateTicketOpen(true)}
+              >
+                Create Ticket
+              </Button>
+            )}
           </div>
         </div>
-        <div className="mx-6 mb-3 grid grid-cols-3 overflow-hidden rounded-xl border lg:hidden">
+        <div className="mx-6 mb-3 grid grid-cols-2 overflow-hidden rounded-xl border lg:hidden">
           <div className="flex flex-col items-start gap-1 border-r px-2 py-2 leading-tight">
             <small className="text-muted-foreground">Resolution</small>
             <span className="self-center">
               <ResolutionRing value={resolutionRate} compact />
             </span>
-          </div>
-          <div className="flex flex-col items-start gap-1 border-r px-2 py-2 leading-tight">
-            <small className="text-muted-foreground">Messages</small>
-            <b className="flex min-h-8 items-center whitespace-nowrap text-base">
-              {details?.total_messages ?? threadMessages.length}
-            </b>
           </div>
           <div className="flex flex-col items-start gap-1 px-2 py-2 leading-tight">
             <small className="text-muted-foreground">Duration</small>
@@ -1030,7 +1028,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
               value="review"
               className="text-base data-active:after:bg-primary"
             >
-              AI review{" "}
+              AI Review{" "}
               {improvements.length ? (
                 <span className="rounded-full bg-red-100 px-1.5 text-xs text-red-700">
                   {improvements.length}
@@ -1053,13 +1051,21 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
         <Button variant="outline" size="icon" aria-label="Flag for review">
           <IconFlag />
         </Button>
-        <Button
-          className="flex-1"
-          disabled={!storeCode || !canCreateTicket}
-          onClick={() => setIsCreateTicketOpen(true)}
-        >
-          Create ticket
-        </Button>
+        {existingThreadTicket ? (
+          <Button className="flex-1" asChild>
+            <Link href={`/helpdesk?ticket=${existingThreadTicket.id}`}>
+              Open Ticket #{existingThreadTicket.ticket_id}
+            </Link>
+          </Button>
+        ) : (
+          <Button
+            className="flex-1"
+            disabled={!storeCode || !canCreateTicket}
+            onClick={() => setIsCreateTicketOpen(true)}
+          >
+            Create Ticket
+          </Button>
+        )}
       </div>
       {storeCode && canCreateTicket ? (
         <CreateTicketDialog
@@ -1097,9 +1103,17 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
             const result = await dispatch(
               CreateSupportTicket({ storeCode, threadId, payload }),
             );
-            return CreateSupportTicket.fulfilled.match(result)
-              ? { ok: true }
-              : { ok: false, payload: result.payload };
+            if (!CreateSupportTicket.fulfilled.match(result)) {
+              return { ok: false, payload: result.payload };
+            }
+            await dispatch(
+              FetchFreshdeskTicketId({
+                threadId,
+                customerId: details?.customer?.id,
+                storeCode,
+              }),
+            );
+            return { ok: true };
           }}
         />
       ) : null}

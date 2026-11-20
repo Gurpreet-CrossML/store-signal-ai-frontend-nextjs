@@ -419,7 +419,7 @@ export default function SocialPostsFeed({
                     <div className="flex flex-col items-center justify-center gap-1 p-6 text-center">
                       <IconNews className="mb-1 size-6 text-muted-foreground opacity-40" />
                       <Typography variant="small" as="p">
-                        {isFiltered ? "No matches" : "No posts yet"}
+                        {isFiltered ? "No Matches" : "No Posts Yet"}
                       </Typography>
                       <Typography variant="muted">
                         {isFiltered
@@ -456,7 +456,7 @@ export default function SocialPostsFeed({
               <div className="flex h-full flex-col items-center justify-center gap-1 p-6 text-center">
                 <IconNews className="mb-1 size-6 text-muted-foreground opacity-40" />
                 <Typography variant="small" as="p">
-                  {postNotFound ? "Post not found" : "No post selected"}
+                  {postNotFound ? "Post Not Found" : "No Post Selected"}
                 </Typography>
                 <Typography variant="muted">
                   {postNotFound

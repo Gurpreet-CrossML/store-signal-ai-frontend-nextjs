@@ -14,6 +14,7 @@ import {
   IconCopy,
   IconMail,
   IconMapPin,
+  IconPencil,
   IconPhone,
   IconPlus,
   IconRefresh,
@@ -21,7 +22,6 @@ import {
   IconSparkles,
   IconTag,
   IconUserPlus,
-  IconWorld,
   IconX,
   type Icon,
 } from "@tabler/icons-react";
@@ -61,12 +61,15 @@ import {
   CHANNEL_META,
   DEFAULT_TICKET_LANGUAGE,
   DEFAULT_TICKET_SENTIMENT,
+  isTicketChange,
   SUPPORTED_LANGUAGES,
   TICKET_SENTIMENTS,
+  ticketChangeTitle,
   type TicketLanguage,
   type TicketSentiment,
 } from "@/lib/ticket-options";
 import { cn } from "@/lib/utils";
+import { LANGUAGE_DETECTED_NOTE } from "@/lib/config";
 import type {
   SlaTarget,
   SupportTicket,
@@ -77,6 +80,7 @@ import type {
   SupportTicketStatus,
   SupportTicketTagData,
 } from "@/redux/api-slice/support-ticket-slice";
+import { SUPPORT_TICKET_CHANGE_TYPES } from "@/redux/api-slice/support-ticket-slice";
 import type { StaffMember } from "@/redux/api-slice/tenancy-slice";
 import type {
   OrderData,
@@ -85,30 +89,30 @@ import type {
 
 // --- Shared look --------------------------------------------------------
 
-/** The four statuses an agent can move a ticket between, with their dots. */
+/** The statuses a ticket can be in, each with its colour. */
 export const STATUS_META: Record<
   SupportTicketStatus,
-  { label: string; dot: string; text: string }
+  { label: string; text: string }
 > = {
-  open: { label: "Open", dot: "bg-blue-600", text: "text-blue-600" },
-  reopen: { label: "Reopen", dot: "bg-pink-500", text: "text-pink-600" },
-  snoozed: { label: "Snoozed", dot: "bg-amber-500", text: "text-amber-600" },
-  resolved: {
-    label: "Resolved",
-    dot: "bg-emerald-600",
-    text: "text-emerald-600",
-  },
-  closed: { label: "Closed", dot: "bg-zinc-400", text: "text-zinc-500" },
+  open: { label: "Open", text: "text-blue-600" },
+  reopen: { label: "Reopen", text: "text-pink-600" },
+  snoozed: { label: "Snoozed", text: "text-amber-600" },
+  resolved: { label: "Resolved", text: "text-emerald-600" },
+  closed: { label: "Closed", text: "text-zinc-500" },
 };
 
-export const PRIORITY_META: Record<
-  SupportTicketPriority,
-  { label: string; dot: string }
-> = {
-  low: { label: "Low", dot: "bg-zinc-400" },
-  normal: { label: "Normal", dot: "bg-blue-600" },
-  high: { label: "High", dot: "bg-orange-500" },
-  urgent: { label: "Urgent", dot: "bg-red-600" },
+export const PRIORITY_META: Record<SupportTicketPriority, { label: string }> = {
+  low: { label: "Low" },
+  normal: { label: "Normal" },
+  high: { label: "High" },
+  urgent: { label: "Urgent" },
+};
+
+/** A sentiment's text colour, drawn like a status. */
+export const SENTIMENT_META: Record<TicketSentiment, { text: string }> = {
+  positive: { text: "text-emerald-600" },
+  neutral: { text: "text-zinc-500" },
+  negative: { text: "text-red-600" },
 };
 
 const STATUS_MENU: SupportTicketStatus[] = [
@@ -253,17 +257,32 @@ function FieldRow({
 
 const pillClass =
   "inline-flex h-8 max-w-full items-center gap-1.5 rounded-md border bg-background px-2.5 text-sm font-medium transition-colors hover:bg-muted disabled:cursor-default disabled:opacity-60 disabled:hover:bg-background";
+// The value sits at the left; MenuChevron pushes itself to the right edge.
+// Wide enough for the longest plain value ("28 Nov 2026, 12:45 PM").
+const ticketControlClass = cn(pillClass, "w-44");
+
+/**
+ * A plain value (Channel, SLA, Created by/at) in a box the size of a
+ * dropdown, with the same padding and an invisible border, so its text
+ * starts exactly where the dropdowns' text does.
+ */
+const ticketTextValueClass =
+  "block w-44 truncate border border-transparent px-2.5 text-left text-sm";
 
 /** A field's value on the phone page: plain text, no pill. */
 const phoneValueClass =
   "inline-flex max-w-full min-w-0 items-center gap-2 text-[15px] disabled:cursor-default disabled:opacity-60";
 
-/** What opens a field's menu: a right chevron on the phone page. */
-function MenuChevron() {
+/**
+ * What opens a field's menu: a right chevron on the phone page. Hidden, it
+ * still takes its space, so a locked field's value stays where it was.
+ */
+function MenuChevron({ hidden = false }: { hidden?: boolean }) {
+  const className = cn("shrink-0 text-muted-foreground", hidden && "invisible");
   return useContext(PhoneLayout) ? (
-    <IconChevronRight className="size-4 shrink-0 text-muted-foreground" />
+    <IconChevronRight className={cn("size-4", className)} />
   ) : (
-    <IconChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
+    <IconChevronDown className={cn("ml-auto size-3.5", className)} />
   );
 }
 
@@ -306,6 +325,7 @@ type SlaRow = {
   key: string;
   label: string;
   value: string;
+  eventAt: string | null;
   tone: "primary" | "warning" | "success" | "danger";
   fraction: number;
   caption: string;
@@ -313,8 +333,8 @@ type SlaRow = {
 
 const SLA_LABELS: Record<"first_reply" | "every_reply" | "resolution", string> =
   {
-    first_reply: "First response",
-    every_reply: "Next response",
+    first_reply: "First Response",
+    every_reply: "Next Response",
     resolution: "Resolution",
   };
 
@@ -338,8 +358,9 @@ function slaRows(sla: SupportTicketSla, now: number): SlaRow[] {
         return {
           key,
           label: SLA_LABELS[key],
+          eventAt: target.completed_at || target.breached_at,
           value: late
-            ? `Breached by ${formatSpan((done - due) / 60000, true)}`
+            ? `Overdue by ${formatSpan((done - due) / 60000, true)}`
             : `Met in ${formatSpan((done - start) / 60000, true)}`,
           tone: late ? "danger" : "success",
           fraction: late ? 1 : span ? Math.min(1, (done - start) / span) : 1,
@@ -354,6 +375,7 @@ function slaRows(sla: SupportTicketSla, now: number): SlaRow[] {
       return {
         key,
         label: SLA_LABELS[key],
+        eventAt: target.breached_at || (overdue ? target.due_at : null),
         value: overdue
           ? `Overdue by ${formatSpan(Math.abs(remaining) / 60000, true)}`
           : `Due in ${formatSpan(remaining / 60000, true)}`,
@@ -378,83 +400,17 @@ function slaRows(sla: SupportTicketSla, now: number): SlaRow[] {
     .filter((row): row is SlaRow => row !== null);
 }
 
-const SLA_TONE: Record<SlaRow["tone"], { text: string; bar: string }> = {
-  primary: { text: "text-foreground", bar: "bg-primary" },
-  warning: { text: "text-amber-600", bar: "bg-amber-500" },
-  success: { text: "text-emerald-600", bar: "bg-emerald-500" },
-  danger: { text: "text-red-600", bar: "bg-red-500" },
-};
-
-function SlaSection({
-  sla,
-  priority,
-}: {
-  sla: SupportTicketSla | null | undefined;
-  priority: SupportTicketPriority;
-}) {
-  const now = useNow();
-  const phone = useContext(PhoneLayout);
-  const rows = sla ? slaRows(sla, now) : [];
-  const badge = rows.some((row) => row.tone === "danger")
-    ? { label: "Breached", className: "bg-red-100 text-red-700" }
-    : rows.some((row) => row.tone === "warning")
-      ? { label: "Due soon", className: "bg-amber-100 text-amber-700" }
-      : rows.length > 0 && rows.every((row) => row.tone === "success")
-        ? { label: "Met", className: "bg-emerald-100 text-emerald-700" }
-        : { label: "On track", className: "bg-primary/10 text-primary" };
-
-  return (
-    <Section
-      icon={IconClockHour4}
-      title="SLA"
-      aside={
-        sla ? (
-          <span
-            className={cn(
-              "rounded-full px-2 py-0.5 text-xs font-medium",
-              badge.className,
-            )}
-          >
-            {badge.label}
-          </span>
-        ) : null
-      }
-    >
-      {!sla ? (
-        <p className="text-sm text-muted-foreground">
-          No SLA applies to this ticket.
-        </p>
-      ) : (
-        <div className="flex flex-col gap-4">
-          {rows.map((row) => (
-            <div key={row.key}>
-              <div className="flex items-baseline justify-between gap-2 text-sm">
-                <span>{row.label}</span>
-                <span className={cn("font-semibold", SLA_TONE[row.tone].text)}>
-                  {row.value}
-                </span>
-              </div>
-              <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
-                <div
-                  className={cn("h-full rounded-full", SLA_TONE[row.tone].bar)}
-                  style={{ width: `${Math.round(row.fraction * 100)}%` }}
-                />
-              </div>
-              {row.caption && !phone ? (
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {row.caption}
-                </p>
-              ) : null}
-            </div>
-          ))}
-          <p className="text-xs text-muted-foreground">
-            {phone ? "" : "Policy: "}
-            {sla.tag.name} · {PRIORITY_META[priority].label} priority
-          </p>
-        </div>
-      )}
-    </Section>
-  );
+function latestBreachedSlaRow(
+  sla: SupportTicketSla | null | undefined,
+  now: number,
+) {
+  return (sla ? slaRows(sla, now) : [])
+    .filter((row) => row.tone === "danger")
+    .sort((a, b) => {
+      const aTime = a.eventAt ? new Date(a.eventAt).getTime() : 0;
+      const bTime = b.eventAt ? new Date(b.eventAt).getTime() : 0;
+      return bTime - aTime;
+    })[0];
 }
 
 // --- Tags ---------------------------------------------------------------
@@ -606,7 +562,7 @@ function TagsSection({
                     disabled={isLoadingMoreTags}
                     onClick={onLoadMoreTags}
                   >
-                    {isLoadingMoreTags ? "Loading…" : "Load more"}
+                    {isLoadingMoreTags ? "Loading…" : "Load More"}
                   </Button>
                 ) : null}
               </>
@@ -627,7 +583,7 @@ function fulfillmentBadge(status: string | null) {
   }
   if (value.includes("partial")) {
     return {
-      label: "Partially fulfilled",
+      label: "Partially Fulfilled",
       className: "bg-amber-100 text-amber-700",
     };
   }
@@ -640,7 +596,7 @@ function fulfillmentBadge(status: string | null) {
 function itemCount(order: OrderData) {
   const count =
     order.items?.reduce((sum, item) => sum + (item.quantity || 0), 0) ?? 0;
-  return `${count} item${count === 1 ? "" : "s"}`;
+  return `${count} Item${count === 1 ? "" : "s"}`;
 }
 
 function OrderCard({
@@ -771,7 +727,7 @@ function OrderCard({
               <dd className="truncate">{order.gateway || "—"}</dd>
             </div>
             <div className="flex items-center justify-between">
-              <dt className="text-muted-foreground">Payment status</dt>
+              <dt className="text-muted-foreground">Payment Status</dt>
               <dd>
                 <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[11px] font-medium text-emerald-700">
                   {capitalizeText(
@@ -781,7 +737,7 @@ function OrderCard({
               </dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-muted-foreground">Shipping method</dt>
+              <dt className="text-muted-foreground">Shipping Method</dt>
               <dd className="truncate">{order.shipping_method || "—"}</dd>
             </div>
           </dl>
@@ -809,7 +765,7 @@ function LinkedOrderSection({
 
   return (
     <Section
-      title="Linked order"
+      title="Linked Order"
       aside={
         order?.admin_url ? (
           <a
@@ -818,7 +774,7 @@ function LinkedOrderSection({
             rel="noreferrer"
             className="flex items-center gap-0.5 text-sm text-primary hover:underline"
           >
-            {phone ? "Store admin" : "Open in store admin"}
+            {phone ? "Store Admin" : "Open In Store Admin"}
             <IconArrowUpRight className="size-3.5" />
           </a>
         ) : null
@@ -892,6 +848,8 @@ export type TicketDetailsProps = TagProps & {
   staff: StaffMember[];
   canAssign: boolean;
   onAssign: (staffId: number | null) => void;
+  /** Set for a support agent: takes an unassigned ticket for themselves. */
+  onTake?: () => void;
   onLanguageSentimentChange: (payload: {
     language?: TicketLanguage;
     sentiment?: TicketSentiment;
@@ -916,18 +874,34 @@ function AssigneePicker({
   canAssign,
   isClosed,
   onAssign,
+  onTake,
 }: Pick<
   TicketDetailsProps,
-  "ticket" | "staff" | "canAssign" | "isClosed" | "onAssign"
+  "ticket" | "staff" | "canAssign" | "isClosed" | "onAssign" | "onTake"
 >) {
   const assignee = ticket.internal_assignee;
+  // A support agent may only take an unassigned ticket, for themselves.
+  if (!canAssign && onTake && !assignee && !isClosed) {
+    return (
+      <Button size="sm" variant="outline" className="h-8" onClick={onTake}>
+        Take Ticket
+      </Button>
+    );
+  }
   return (
     <AssigneeSelect
       noun="ticket"
       hideLabel
+      compact
+      // Value at the left, like the other fields; the chevron or lock (its
+      // last icon) at the right. Same gap and chevron colour as the others.
+      // The name (the last span) may shrink here, so a long one truncates
+      // with "…" instead of pushing the chevron out of the box.
+      triggerClassName="h-8 w-44 gap-1.5 rounded-md justify-start [&>span:last-of-type]:flex-1 [&>svg:last-child]:ml-auto [&>svg:last-child]:text-muted-foreground"
       agents={staff.map((member) => ({
         email: member.email,
         name: `${member.first_name} ${member.last_name}`.trim() || member.email,
+        role: member.role,
       }))}
       currentAgent={assignee?.email ?? null}
       currentAgentName={assignee?.name}
@@ -942,10 +916,13 @@ function AssigneePicker({
 function LanguagePicker({
   language,
   disabled,
+  note,
   onChange,
 }: {
   language: TicketLanguage;
   disabled: boolean;
+  /** The footer: who last changed the language, or that the AI detected it. */
+  note: string;
   onChange: (language: TicketLanguage) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -970,14 +947,12 @@ function LanguagePicker({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className={phone ? phoneValueClass : pillClass}
+          className={phone ? phoneValueClass : ticketControlClass}
           disabled={disabled}
         >
-          {!phone ? (
-            <IconWorld className="size-4 text-muted-foreground" />
-          ) : null}
-          {name}
-          {!disabled ? <MenuChevron /> : null}
+          {/* A long name truncates instead of pushing the chevron out. */}
+          <span className="min-w-0 truncate">{name}</span>
+          <MenuChevron hidden={disabled} />
         </button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-64 p-0">
@@ -1013,8 +988,7 @@ function LanguagePicker({
           ))}
         </div>
         <p className="border-t px-3 py-2 text-xs text-muted-foreground">
-          Detected by AI from the customer&apos;s messages. &ldquo;Send in
-          customer&apos;s language&rdquo; uses this.
+          {note}
         </p>
       </PopoverContent>
     </Popover>
@@ -1035,7 +1009,7 @@ function TicketTab(props: TicketDetailsProps) {
   const sentiment = ticket.sentiment ?? DEFAULT_TICKET_SENTIMENT;
   const channel =
     ticket.channel === "web"
-      ? "Web chat"
+      ? "Web Chat"
       : (CHANNEL_META[ticket.channel]?.label ?? capitalizeText(ticket.channel));
   const creator =
     ticket.created_by?.name ||
@@ -1046,7 +1020,8 @@ function TicketTab(props: TicketDetailsProps) {
         ? capitalizeText(ticket.created_by_type)
         : null);
   const phone = useContext(PhoneLayout);
-  const valueClass = phone ? phoneValueClass : pillClass;
+  const now = useNow();
+  const valueClass = phone ? phoneValueClass : ticketControlClass;
 
   const statusRow = (
     <FieldRow label="Status">
@@ -1056,7 +1031,6 @@ function TicketTab(props: TicketDetailsProps) {
             type="button"
             className={cn(valueClass, status.text, phone && "font-medium")}
           >
-            <span className={cn("size-2 rounded-full", status.dot)} />
             {status.label}
             {ticket.status === "reopen" && (ticket.reopen_count ?? 0) > 0
               ? ` (${ticket.reopen_count})`
@@ -1075,7 +1049,6 @@ function TicketTab(props: TicketDetailsProps) {
                 onSelect={() => !current && onRequestStatus(option)}
                 className="gap-2.5 py-2"
               >
-                <span className={cn("size-2 rounded-full", meta.dot)} />
                 <span className="flex-1">{meta.label}</span>
                 {current ? <IconCheck className="size-4 text-primary" /> : null}
               </DropdownMenuItem>
@@ -1091,14 +1064,8 @@ function TicketTab(props: TicketDetailsProps) {
       <DropdownMenu>
         <DropdownMenuTrigger asChild disabled={isClosed}>
           <button type="button" className={valueClass} disabled={isClosed}>
-            <span
-              className={cn(
-                "size-2 rounded-full",
-                PRIORITY_META[ticket.priority].dot,
-              )}
-            />
             {PRIORITY_META[ticket.priority].label}
-            {!isClosed ? <MenuChevron /> : null}
+            <MenuChevron hidden={isClosed} />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
@@ -1110,9 +1077,6 @@ function TicketTab(props: TicketDetailsProps) {
               }
               className="gap-2.5 py-2"
             >
-              <span
-                className={cn("size-2 rounded-full", PRIORITY_META[option].dot)}
-              />
               <span className="flex-1">{PRIORITY_META[option].label}</span>
               {option === ticket.priority ? (
                 <IconCheck className="size-4 text-primary" />
@@ -1130,11 +1094,22 @@ function TicketTab(props: TicketDetailsProps) {
     </FieldRow>
   );
 
+  // The newest language change in the activity (newest first), if an agent
+  // made one: then the note says who, instead of the AI having detected it.
+  const languageChange = props.activity.find(
+    (item) => item.type === SUPPORT_TICKET_CHANGE_TYPES.LANGUAGE_CHANGED,
+  );
+  const languageNote =
+    languageChange && isTicketChange(languageChange)
+      ? `${ticketChangeTitle(languageChange)}${languageChange.actor ? ` by ${languageChange.actor}` : ""}.`
+      : LANGUAGE_DETECTED_NOTE;
+
   const languageRow = (
     <FieldRow label="Language">
       <LanguagePicker
         language={language}
         disabled={isClosed}
+        note={languageNote}
         onChange={(next) => onLanguageSentimentChange({ language: next })}
       />
     </FieldRow>
@@ -1143,10 +1118,28 @@ function TicketTab(props: TicketDetailsProps) {
   // On the phone page these three sit on a card with inset dividers.
   const insetRow = phone ? "px-0" : undefined;
   const textClass = phone ? "text-[15px]" : "text-sm";
+  // Desktop: left-aligned under the dropdowns' text; phone: as before.
+  const plainValueClass = phone
+    ? cn("truncate", textClass)
+    : ticketTextValueClass;
 
   const channelRow = (
     <FieldRow label="Channel" className={insetRow}>
-      <span className={textClass}>{channel}</span>
+      <span className={plainValueClass}>{channel}</span>
+    </FieldRow>
+  );
+
+  const latestBreach = latestBreachedSlaRow(ticket.sla, now);
+  const slaRow = (
+    <FieldRow label="SLA" className={insetRow}>
+      <span
+        className={cn(
+          plainValueClass,
+          latestBreach ? "font-medium text-red-600" : "text-muted-foreground",
+        )}
+      >
+        {latestBreach ? `${latestBreach.value}` : "—"}
+      </span>
     </FieldRow>
   );
 
@@ -1156,19 +1149,14 @@ function TicketTab(props: TicketDetailsProps) {
         <DropdownMenuTrigger asChild disabled={isClosed}>
           <button
             type="button"
+            className={cn(valueClass, SENTIMENT_META[sentiment].text)}
             disabled={isClosed}
-            className={cn(
-              "group/sentiment inline-flex items-center gap-1 rounded-md px-1 hover:bg-muted disabled:hover:bg-transparent",
-              textClass,
-            )}
           >
             {capitalizeText(sentiment)}
-            {!isClosed ? (
-              <IconChevronDown className="size-3.5 text-muted-foreground opacity-0 transition-opacity group-hover/sentiment:opacity-100" />
-            ) : null}
+            <MenuChevron hidden={isClosed} />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
+        <DropdownMenuContent align="end" className="w-56">
           {TICKET_SENTIMENTS.map((option) => (
             <DropdownMenuItem
               key={option.value}
@@ -1176,9 +1164,9 @@ function TicketTab(props: TicketDetailsProps) {
                 option.value !== sentiment &&
                 onLanguageSentimentChange({ sentiment: option.value })
               }
-              className="justify-between"
+              className="gap-2.5 py-2"
             >
-              {option.label}
+              <span className="flex-1">{option.label}</span>
               {option.value === sentiment ? (
                 <IconCheck className="size-4 text-primary" />
               ) : null}
@@ -1190,17 +1178,22 @@ function TicketTab(props: TicketDetailsProps) {
   );
 
   const createdRow = (
-    <FieldRow label="Created" className={insetRow}>
-      <span className={cn("truncate", textClass)}>
-        {phone
-          ? `${formatShortDate(ticket.created_at)}, ${formatTicketTime(ticket.created_at)}`
-          : formatTicketDateTime(ticket.created_at)}
-        {creator ? ` by ${creator}` : ""}
-      </span>
-    </FieldRow>
+    <>
+      {creator ? (
+        <FieldRow label="Created By" className={insetRow}>
+          <span className={plainValueClass}>{creator}</span>
+        </FieldRow>
+      ) : null}
+      <FieldRow label="Created At" className={insetRow}>
+        <span className={plainValueClass}>
+          {phone
+            ? `${formatShortDate(ticket.created_at)}, ${formatTicketTime(ticket.created_at)}`
+            : formatTicketDateTime(ticket.created_at)}
+        </span>
+      </FieldRow>
+    </>
   );
 
-  const sla = <SlaSection sla={ticket.sla} priority={ticket.priority} />;
   const tags = <TagsSection {...props} />;
   const linkedOrder = (
     <LinkedOrderSection
@@ -1223,11 +1216,11 @@ function TicketTab(props: TicketDetailsProps) {
           {assigneeRow}
           {languageRow}
         </div>
-        {sla}
         {tags}
         <div className={cn(PHONE_CARD, "divide-y px-4")}>
-          {channelRow}
           {sentimentRow}
+          {channelRow}
+          {slaRow}
           {createdRow}
         </div>
         {linkedOrder}
@@ -1240,13 +1233,13 @@ function TicketTab(props: TicketDetailsProps) {
       <div className="flex flex-col gap-1.5 px-4 py-4">
         {statusRow}
         {priorityRow}
+        {sentimentRow}
         {assigneeRow}
         {languageRow}
         {channelRow}
-        {sentimentRow}
+        {slaRow}
         {createdRow}
       </div>
-      {sla}
       {tags}
       {linkedOrder}
     </>
@@ -1278,10 +1271,7 @@ function CustomerTab({
   otherTickets,
   otherTicketsLoading,
   onLinkCustomer,
-  onOpenTicket,
 }: TicketDetailsProps) {
-  const [allOrders, setAllOrders] = useState(false);
-  const [allTickets, setAllTickets] = useState(false);
   const orders = useMemo(() => customer?.orders ?? [], [customer?.orders]);
   const linked = findLinkedOrder(ticket.order_id, orders);
 
@@ -1297,7 +1287,7 @@ function CustomerTab({
         </div>
         <Button variant="outline" size="sm" onClick={onLinkCustomer}>
           <IconUserPlus data-icon="inline-start" />
-          Link customer
+          Link Customer
         </Button>
       </div>
     );
@@ -1322,24 +1312,16 @@ function CustomerTab({
     (sum, order) => sum + (Number(order.total_price) || 0),
     0,
   );
-  const allCustomerTickets = [{ status: ticket.status }, ...otherTickets];
-  const openTickets = allCustomerTickets.filter(
-    (item) => item.status === "open" || item.status === "reopen",
-  ).length;
   const otherOpen = otherTickets.filter(
     (item) => item.status === "open" || item.status === "reopen",
   ).length;
   const others = orders.filter((order) => order.id !== linked?.id);
-  const shownOrders = allOrders
-    ? others
-    : others.slice(0, VISIBLE_OTHER_ORDERS);
-  const shownTickets = allTickets
-    ? otherTickets
-    : otherTickets.slice(0, VISIBLE_OTHER_TICKETS);
+  const shownOrders = others.slice(0, VISIBLE_OTHER_ORDERS);
+  const shownTickets = otherTickets.slice(0, VISIBLE_OTHER_TICKETS);
   const isShopify = customer.admin_url?.startsWith(
     "https://admin.shopify.com/",
   );
-  const platform = isShopify ? "Shopify customer" : "Customer";
+  const platform = isShopify ? "Shopify Customer" : "Customer";
   const firstName = customerName.split(" ")[0];
 
   return (
@@ -1348,33 +1330,29 @@ function CustomerTab({
         <div className="flex items-start gap-3">
           <CustomerAvatar name={customerName} size="size-11" />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-base font-semibold">{customerName}</p>
+            {/* The name stands in for the old Shopify/Profile button: store
+                admin when there is one, else our own customer page, either
+                way in a new tab so the ticket stays open here. */}
+            <Link
+              href={customer.admin_url || `/crm/customers/${customer.id}`}
+              target="_blank"
+              rel="noreferrer"
+              className="flex max-w-full items-center gap-1 text-base font-semibold hover:underline"
+            >
+              <span className="truncate">{customerName}</span>
+              <IconArrowUpRight className="size-4 shrink-0 text-muted-foreground" />
+            </Link>
             <p className="text-xs text-muted-foreground">
-              {platform} · {orders.length} order{orders.length === 1 ? "" : "s"}
+              {platform} · {orders.length} Order{orders.length === 1 ? "" : "s"}
             </p>
           </div>
-          <Button variant="outline" size="sm" asChild>
-            {customer.admin_url ? (
-              <a href={customer.admin_url} target="_blank" rel="noreferrer">
-                {isShopify ? "Shopify" : "Store admin"}
-                <IconArrowUpRight data-icon="inline-end" />
-              </a>
-            ) : (
-              <Link href={`/crm/customers/${customer.id}`}>
-                Profile
-                <IconArrowUpRight data-icon="inline-end" />
-              </Link>
-            )}
-          </Button>
         </div>
 
         <div className="mt-4 divide-y rounded-lg border text-sm">
-          <div className="flex items-center gap-3 px-3 py-2.5">
-            <IconMail className="size-4 shrink-0 text-muted-foreground" />
-            <span className="min-w-0 flex-1 truncate">
-              {customer.email || "No email on file"}
-            </span>
-            {customer.email ? (
+          {customer.email ? (
+            <div className="flex items-center gap-3 px-3 py-2.5">
+              <IconMail className="size-4 shrink-0 text-muted-foreground" />
+              <span className="min-w-0 flex-1 truncate">{customer.email}</span>
               <Button
                 variant="ghost"
                 size="icon-xs"
@@ -1386,20 +1364,20 @@ function CustomerTab({
               >
                 <IconCopy className="size-3.5" />
               </Button>
-            ) : null}
-          </div>
-          <div className="flex items-center gap-3 px-3 py-2.5">
-            <IconPhone className="size-4 shrink-0 text-muted-foreground" />
-            <span className={cn("truncate", !phone && "text-muted-foreground")}>
-              {phone || "No phone on file"}
-            </span>
-          </div>
-          <div className="flex items-center gap-3 px-3 py-2.5">
-            <IconMapPin className="size-4 shrink-0 text-muted-foreground" />
-            <span className={cn("truncate", !place && "text-muted-foreground")}>
-              {place || "No address on file"}
-            </span>
-          </div>
+            </div>
+          ) : null}
+          {phone ? (
+            <div className="flex items-center gap-3 px-3 py-2.5">
+              <IconPhone className="size-4 shrink-0 text-muted-foreground" />
+              <span className="truncate">{phone}</span>
+            </div>
+          ) : null}
+          {place ? (
+            <div className="flex items-center gap-3 px-3 py-2.5">
+              <IconMapPin className="size-4 shrink-0 text-muted-foreground" />
+              <span className="truncate">{place}</span>
+            </div>
+          ) : null}
           <div className="flex items-center gap-3 px-3 py-2.5">
             <IconClockHour4 className="size-4 shrink-0 text-muted-foreground" />
             <span className="truncate">
@@ -1419,19 +1397,13 @@ function CustomerTab({
       <Section title="Overview">
         <div className="grid grid-cols-2 gap-2">
           {[
-            { label: "Lifetime value", value: formatMoney(lifetime, currency) },
-            { label: "Orders", value: String(orders.length) },
+            { label: "Lifetime Value", value: formatMoney(lifetime, currency) },
             {
-              label: "Avg. order value",
+              label: "Avg. Order Value",
               value: formatMoney(
                 orders.length ? lifetime / orders.length : 0,
                 currency,
               ),
-            },
-            {
-              label: "Open tickets",
-              value: String(openTickets),
-              danger: openTickets > 0,
             },
           ].map((stat) => (
             <div
@@ -1441,12 +1413,7 @@ function CustomerTab({
               <p className="truncate text-xs text-muted-foreground">
                 {stat.label}
               </p>
-              <p
-                className={cn(
-                  "mt-0.5 truncate text-lg font-semibold",
-                  stat.danger && "text-red-600",
-                )}
-              >
+              <p className="mt-0.5 truncate text-lg font-semibold">
                 {stat.value}
               </p>
             </div>
@@ -1455,14 +1422,14 @@ function CustomerTab({
       </Section>
 
       <Section
-        title="Other orders"
+        title="Other Orders"
         aside={
           <div className="flex items-center gap-2">
             <Button
               variant="ghost"
               size="icon-xs"
               aria-label="Sync orders"
-              title="Sync orders"
+              title="Sync Orders"
               disabled={orderSyncLoading || ordersDisabled}
               onClick={onOrdersSync}
             >
@@ -1471,13 +1438,14 @@ function CustomerTab({
               />
             </Button>
             {others.length > VISIBLE_OTHER_ORDERS ? (
-              <button
-                type="button"
+              <Link
+                href={`/crm/orders?search=${encodeURIComponent(customer.email)}`}
+                target="_blank"
+                rel="noreferrer"
                 className="text-sm font-medium text-primary hover:underline"
-                onClick={() => setAllOrders((shown) => !shown)}
               >
-                {allOrders ? "Show less" : `View all ${orders.length}`}
-              </button>
+                View All {orders.length}
+              </Link>
             ) : null}
           </div>
         }
@@ -1496,11 +1464,11 @@ function CustomerTab({
       </Section>
 
       <Section
-        title="Other tickets"
+        title="Other Tickets"
         aside={
           otherOpen > 0 ? (
             <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
-              {otherOpen} open
+              {otherOpen} Open
             </span>
           ) : null
         }
@@ -1512,11 +1480,12 @@ function CustomerTab({
         ) : (
           <div className="flex flex-col gap-2">
             {shownTickets.map((item) => (
-              <button
+              <Link
                 key={item.id}
-                type="button"
+                href={`/helpdesk?ticket=${item.id}&status=${item.status}`}
+                target="_blank"
+                rel="noreferrer"
                 className="flex items-center gap-2 rounded-lg border px-3 py-2.5 text-left hover:bg-muted/50"
-                onClick={() => onOpenTicket(item.id)}
               >
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-semibold">
@@ -1529,18 +1498,17 @@ function CustomerTab({
                   </span>
                 </span>
                 <IconChevronRight className="size-4 shrink-0 text-muted-foreground" />
-              </button>
+              </Link>
             ))}
             {otherTickets.length > VISIBLE_OTHER_TICKETS ? (
-              <button
-                type="button"
+              <Link
+                href={`/helpdesk?search=${encodeURIComponent(customer.email)}`}
+                target="_blank"
+                rel="noreferrer"
                 className="self-start text-sm font-medium text-primary hover:underline"
-                onClick={() => setAllTickets((shown) => !shown)}
               >
-                {allTickets
-                  ? "Show fewer tickets"
-                  : `View all tickets from ${firstName}`}
-              </button>
+                View All Tickets From {firstName}
+              </Link>
             ) : null}
           </div>
         )}
@@ -1575,7 +1543,7 @@ function ActivityPill({ status }: { status: string }) {
 const CREATED_BY_LABEL: Record<string, string> = {
   ai: "AI",
   agent: "Agent",
-  rule: "Rule",
+  email: "Email",
 };
 
 function ActivityTab({
@@ -1604,6 +1572,11 @@ function ActivityTab({
         const icon =
           item.type === "created" ? (
             <IconPlus className="size-3.5 text-primary" />
+          ) : item.type === SUPPORT_TICKET_CHANGE_TYPES.TAG_ADDED ||
+            item.type === SUPPORT_TICKET_CHANGE_TYPES.TAG_REMOVED ? (
+            <IconTag className="size-3.5 text-violet-600" />
+          ) : isTicketChange(item) ? (
+            <IconPencil className="size-3.5 text-amber-600" />
           ) : item.type === "assigned" ? (
             <IconArrowUpRight className="size-3.5 text-blue-600" />
           ) : (
@@ -1612,6 +1585,8 @@ function ActivityTab({
         const title =
           item.type === "created" ? (
             "Ticket created"
+          ) : isTicketChange(item) ? (
+            ticketChangeTitle(item)
           ) : item.type === "status_changed" ? (
             <span className="flex flex-wrap items-center gap-1.5">
               Status changed

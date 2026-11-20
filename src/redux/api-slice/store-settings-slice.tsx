@@ -128,22 +128,84 @@ export type PolicyFlow = {
   held: string[];
 };
 
-/** Something code found about how the merchant's sentences work together. */
-export type PolicyFinding = {
-  key: string;
-  kind: "impossible" | "overridden" | "conflict" | "redundant" | "gap";
-  severity: "error" | "warning" | "info";
+/**
+ * What a suggestion is: two rules disagree, a rule (or built-in step) never
+ * applies, a sentence is too vague to use, or some requests aren't covered.
+ */
+export type PolicySuggestionKind =
+  | "contradiction"
+  | "never_applies"
+  | "unclear"
+  | "missing";
+
+/**
+ * A line of the saved policy text, numbered as "Rule N" counts. Its place
+ * is in JavaScript string units, so `text.slice(start_index, end_index)`
+ * is the line's words in the saved Markdown.
+ */
+export type PolicySuggestionLine = {
+  rule: number;
+  start_index: number;
+  end_index: number;
+  /** The line's words, without Markdown marks. */
   text: string;
-  /** The merchant's sentence it is about; empty for a gap. */
-  sentence: string;
-  /** The other sentences, or built-in checks, involved. */
-  others: { text: string; platform: boolean }[];
-  /** The AI's read on an overlap, made when the policy was saved. */
-  note: { verdict: "exception" | "contradiction"; text: string } | null;
 };
 
-/** A sentence the AI suggests adding to the policy. */
-export type PolicyIdea = { sentence: string; why: string };
+/**
+ * A fix the AI is known to understand: `insert` goes in place of the saved
+ * text between `start_index` and `end_index` (the same place for an add).
+ */
+export type PolicySuggestionFix = {
+  action: "replace" | "add";
+  /** The rule it changes, or the number it is added as. */
+  rule: number;
+  /** The sentence, to show. */
+  text: string;
+  start_index: number;
+  end_index: number;
+  insert: string;
+};
+
+/** One thing the policy check found when the policy was saved, with where it is. */
+export type PolicySuggestion = {
+  key: string;
+  type: PolicySuggestionKind;
+  /** flow: found by checking the policy; knowledge: by comparing it with the store's Knowledge. */
+  source: "flow" | "knowledge";
+  name: string;
+  /** What is wrong. */
+  description: string;
+  /** What the merchant can do about it. */
+  explanation: string;
+  /** The merchant's lines it is about. */
+  lines: PolicySuggestionLine[];
+  /** The steps of "What the AI will do" it is about. */
+  steps: { step: number; text: string; effect: PolicyEffect }[];
+  /** The store's Knowledge it is based on. */
+  quote: { source: string; text: string } | null;
+  fix: PolicySuggestionFix | null;
+};
+
+/** One change to the workflow, for the Activity tab. */
+export type PolicyActivity = {
+  id: number;
+  kind:
+    | "status_changed"
+    | "policy_added"
+    | "policy_updated"
+    | "policy_removed"
+    | "policy_restored"
+    | "version_deleted";
+  /** `on` / `off`, a version as `v<n>`, or `default` for the default rules. */
+  from_value: string;
+  /** The same way; empty for a deleted version. */
+  to_value: string;
+  /** Empty when the system did it. */
+  done_by: string;
+  /** `with`: the workflow whose switch changed this one too. */
+  metadata: { with?: string };
+  created_at: string;
+};
 
 /** One time a version was made live again. */
 export type PolicyRollback = {
@@ -175,10 +237,19 @@ export type WorkflowPolicy = {
   policy_published_at: string | null;
   /** Who published the live version; empty before the first save. */
   policy_published_by: string;
+  /** The number the next save gets (numbers are never reused). */
+  next_version: number;
   /** The saved policy as a flowchart. */
   flow: PolicyFlow;
-  /** What could be better in the saved policy. */
-  suggestions: { findings: PolicyFinding[]; ideas: PolicyIdea[] };
+  /**
+   * The live policy's check, made when it was saved, less what was
+   * dismissed; `checked_at` is null when that check didn't finish.
+   */
+  suggestions: {
+    checked_at: string | null;
+    items: PolicySuggestion[];
+    dismissed: number;
+  };
   /** What the merchant should check about the current version. */
   review: {
     warnings: string[];
@@ -192,9 +263,57 @@ export type WorkflowPolicy = {
     }[];
     unsupported: { source_text: string; why: string; limits?: boolean }[];
   };
-  /** Published versions, newest first. */
-  history: PolicyHistoryEntry[];
 };
+
+/** One page of a list endpoint. */
+type Page<T> = {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+};
+
+/**
+ * The pages of a list loaded so far, for the store and workflow they
+ * belong to (`owner`, "store:workflow"), so another one's never shows.
+ */
+export type PagedList<T> = {
+  owner: string;
+  items: T[];
+  count: number;
+  page: number;
+  hasMore: boolean;
+};
+
+const EMPTY_LIST = { owner: "", items: [], count: 0, page: 0, hasMore: false };
+
+type PageArg = { storeCode: string; workflow: string; page: number };
+
+/**
+ * Put a fetched page into its list: page 1 starts the list again, a later
+ * page adds what isn't there yet (a refresh may have moved items along),
+ * and a page for a list no longer shown is dropped.
+ */
+function takePage<T>(
+  list: PagedList<T>,
+  arg: PageArg,
+  data: Page<T>,
+  key: (item: T) => number,
+): PagedList<T> {
+  const owner = `${arg.storeCode}:${arg.workflow}`;
+  if (arg.page > 1 && owner !== list.owner) return list;
+  const known = new Set(arg.page > 1 ? list.items.map(key) : []);
+  return {
+    owner,
+    items: [
+      ...(arg.page > 1 ? list.items : []),
+      ...data.results.filter((item) => !known.has(key(item))),
+    ],
+    count: data.count,
+    page: arg.page,
+    hasMore: data.next !== null,
+  };
+}
 
 export const FetchStoreWorkflows = createAsyncThunk(
   "FetchStoreWorkflows",
@@ -372,6 +491,101 @@ export const DeleteWorkflowPolicyVersion = createAsyncThunk(
   },
 );
 
+export const CheckWorkflowPolicy = createAsyncThunk(
+  "CheckWorkflowPolicy",
+  async (
+    { storeCode, workflow }: { storeCode: string; workflow: string },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.post(
+        `${ENDPOINTS.workflowPolicyCheck()}?store_code=${storeCode}&workflow=${workflow}`,
+        {},
+        { useBackend: true },
+      );
+      return response.data.data as WorkflowPolicy;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Uh oh! Something went wrong.", {
+        description: data?.message || "Unable to check this policy.",
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+export const DismissPolicySuggestion = createAsyncThunk(
+  "DismissPolicySuggestion",
+  async (
+    {
+      storeCode,
+      workflow,
+      key,
+    }: { storeCode: string; workflow: string; key: string },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.post(
+        `${ENDPOINTS.workflowPolicyDismiss()}?store_code=${storeCode}&workflow=${workflow}`,
+        { key },
+        { useBackend: true },
+      );
+      return response.data.data as WorkflowPolicy;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Uh oh! Something went wrong.", {
+        description:
+          Object.values(serverFieldErrors(data))[0] ||
+          data?.message ||
+          "Unable to dismiss this suggestion.",
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+export const FetchPolicyVersions = createAsyncThunk(
+  "FetchPolicyVersions",
+  async ({ storeCode, workflow, page }: PageArg, thunkAPI) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.workflowPolicyVersions()}?store_code=${storeCode}&workflow=${workflow}&page=${page}`,
+        { useBackend: true },
+      );
+      return response.data.data as Page<PolicyHistoryEntry>;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Uh oh! Something went wrong.", {
+        description: data?.message || "Unable to load the versions.",
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
+export const FetchWorkflowActivity = createAsyncThunk(
+  "FetchWorkflowActivity",
+  async ({ storeCode, workflow, page }: PageArg, thunkAPI) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.workflowActivity()}?store_code=${storeCode}&workflow=${workflow}&page=${page}`,
+        { useBackend: true },
+      );
+      return response.data.data as Page<PolicyActivity>;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Uh oh! Something went wrong.", {
+        description: data?.message || "Unable to load the activity.",
+      });
+      return thunkAPI.rejectWithValue(data || "Something went wrong");
+    }
+  },
+);
+
 const StoreSettingsSlice = createSlice({
   name: "StoreSettings",
   initialState: {
@@ -416,6 +630,25 @@ const StoreSettingsSlice = createSlice({
       // Version being deleted, so only its button waits.
       DeleteWorkflowPolicyVersionPendingVersion: null as null | number,
       DeleteWorkflowPolicyVersionIsError: null as null | string | object,
+    },
+    CheckWorkflowPolicyState: {
+      // Workflow being checked, so a check of another one never shows here.
+      CheckWorkflowPolicyPendingWorkflow: null as null | string,
+      CheckWorkflowPolicyIsError: null as null | string | object,
+    },
+    DismissPolicySuggestionState: {
+      // Suggestion being dismissed, so only its button waits.
+      DismissPolicySuggestionPendingKey: null as null | string,
+    },
+    FetchPolicyVersionsState: {
+      FetchPolicyVersionsIsLoading: false,
+      FetchPolicyVersionsIsError: null as null | string | object,
+      FetchPolicyVersionsData: EMPTY_LIST as PagedList<PolicyHistoryEntry>,
+    },
+    FetchWorkflowActivityState: {
+      FetchWorkflowActivityIsLoading: false,
+      FetchWorkflowActivityIsError: null as null | string | object,
+      FetchWorkflowActivityData: EMPTY_LIST as PagedList<PolicyActivity>,
     },
   },
   reducers: {},
@@ -554,7 +787,7 @@ const StoreSettingsSlice = createSlice({
       .addCase(DeleteWorkflowPolicyVersion.fulfilled, (state, action) => {
         state.DeleteWorkflowPolicyVersionState.DeleteWorkflowPolicyVersionPendingVersion =
           null;
-        // The same policy, one version fewer in its history.
+        // The same policy; the page refetches its versions.
         state.FetchWorkflowPolicyState.FetchWorkflowPolicyData = action.payload;
       })
       .addCase(DeleteWorkflowPolicyVersion.rejected, (state, action) => {
@@ -563,6 +796,83 @@ const StoreSettingsSlice = createSlice({
         state.DeleteWorkflowPolicyVersionState.DeleteWorkflowPolicyVersionIsError =
           action.payload as string | object;
       })
+      .addCase(CheckWorkflowPolicy.pending, (state, action) => {
+        state.CheckWorkflowPolicyState.CheckWorkflowPolicyPendingWorkflow =
+          action.meta.arg.workflow;
+        state.CheckWorkflowPolicyState.CheckWorkflowPolicyIsError = null;
+      })
+      .addCase(CheckWorkflowPolicy.fulfilled, (state) => {
+        state.CheckWorkflowPolicyState.CheckWorkflowPolicyPendingWorkflow =
+          null;
+      })
+      .addCase(CheckWorkflowPolicy.rejected, (state, action) => {
+        state.CheckWorkflowPolicyState.CheckWorkflowPolicyPendingWorkflow =
+          null;
+        state.CheckWorkflowPolicyState.CheckWorkflowPolicyIsError =
+          action.payload as string | object;
+      })
+      .addCase(DismissPolicySuggestion.pending, (state, action) => {
+        state.DismissPolicySuggestionState.DismissPolicySuggestionPendingKey =
+          action.meta.arg.key;
+      })
+      .addCase(DismissPolicySuggestion.fulfilled, (state) => {
+        state.DismissPolicySuggestionState.DismissPolicySuggestionPendingKey =
+          null;
+      })
+      .addCase(DismissPolicySuggestion.rejected, (state) => {
+        state.DismissPolicySuggestionState.DismissPolicySuggestionPendingKey =
+          null;
+      })
+      .addCase(FetchPolicyVersions.pending, (state) => {
+        state.FetchPolicyVersionsState.FetchPolicyVersionsIsLoading = true;
+        state.FetchPolicyVersionsState.FetchPolicyVersionsIsError = null;
+      })
+      .addCase(FetchPolicyVersions.fulfilled, (state, action) => {
+        state.FetchPolicyVersionsState.FetchPolicyVersionsIsLoading = false;
+        state.FetchPolicyVersionsState.FetchPolicyVersionsData = takePage(
+          state.FetchPolicyVersionsState.FetchPolicyVersionsData,
+          action.meta.arg,
+          action.payload,
+          (entry) => entry.version,
+        );
+      })
+      .addCase(FetchPolicyVersions.rejected, (state, action) => {
+        state.FetchPolicyVersionsState.FetchPolicyVersionsIsLoading = false;
+        state.FetchPolicyVersionsState.FetchPolicyVersionsIsError =
+          action.payload as string | object;
+      })
+      .addCase(FetchWorkflowActivity.pending, (state) => {
+        state.FetchWorkflowActivityState.FetchWorkflowActivityIsLoading = true;
+        state.FetchWorkflowActivityState.FetchWorkflowActivityIsError = null;
+      })
+      .addCase(FetchWorkflowActivity.fulfilled, (state, action) => {
+        state.FetchWorkflowActivityState.FetchWorkflowActivityIsLoading = false;
+        state.FetchWorkflowActivityState.FetchWorkflowActivityData = takePage(
+          state.FetchWorkflowActivityState.FetchWorkflowActivityData,
+          action.meta.arg,
+          action.payload,
+          (entry) => entry.id,
+        );
+      })
+      .addCase(FetchWorkflowActivity.rejected, (state, action) => {
+        state.FetchWorkflowActivityState.FetchWorkflowActivityIsLoading = false;
+        state.FetchWorkflowActivityState.FetchWorkflowActivityIsError =
+          action.payload as string | object;
+      })
+      // A check or a dismissal comes back with the policy; show it unless
+      // the page has moved on to another workflow meanwhile.
+      .addMatcher(
+        isAnyOf(
+          CheckWorkflowPolicy.fulfilled,
+          DismissPolicySuggestion.fulfilled,
+        ),
+        (state, action) => {
+          const shown = state.FetchWorkflowPolicyState.FetchWorkflowPolicyData;
+          if (shown?.workflow === action.payload.workflow)
+            state.FetchWorkflowPolicyState.FetchWorkflowPolicyData =
+              action.payload;
+        },
+      )
       // Save and rollback both change the live version: show it, and keep the
       // card's version badge in step without a refetch.
       .addMatcher(

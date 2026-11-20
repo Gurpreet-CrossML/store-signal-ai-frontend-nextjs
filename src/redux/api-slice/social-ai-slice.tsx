@@ -695,6 +695,41 @@ export const updateWhatsAppTemplate = createAsyncThunk(
   },
 );
 
+// The on/off switch: a PATCH of only `is_active` is saved locally, never
+// sent to Meta. A template that is off is never sent to customers.
+export const updateWhatsAppTemplateActive = createAsyncThunk(
+  "updateWhatsAppTemplateActive",
+  async (
+    {
+      storeCode,
+      accountId,
+      templateId,
+      isActive,
+    }: {
+      storeCode: string;
+      accountId: string;
+      templateId: number;
+      isActive: boolean;
+    },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.patch(
+        `${ENDPOINTS.whatsAppTemplateDetail({ accountId, templateId })}?store_code=${storeCode}`,
+        { is_active: isActive },
+        { useBackend: true },
+      );
+      return response.data.data as WhatsAppTemplate;
+    } catch (error) {
+      const data = errorEnvelope(error);
+      toast.error("Couldn't update the template", {
+        description: bestErrorMessage(data, "Please try again later."),
+      });
+      return thunkAPI.rejectWithValue(data || "Couldn't update the template");
+    }
+  },
+);
+
 export const deleteWhatsAppTemplate = createAsyncThunk(
   "deleteWhatsAppTemplate",
   async (
@@ -1942,6 +1977,11 @@ const SocialAISlice = createSlice({
       FetchWhatsAppTemplatesIsError: null as null | string | object,
       FetchWhatsAppTemplatesData: [] as WhatsAppTemplatesResponse,
     },
+    UpdateWhatsAppTemplateActiveState: {
+      UpdateWhatsAppTemplateActiveIsLoading: false,
+      UpdateWhatsAppTemplateActiveIsSuccess: false,
+      UpdateWhatsAppTemplateActiveIsError: null as null | string | object,
+    },
     FetchWhatsAppTemplateLibraryState: {
       FetchWhatsAppTemplateLibraryIsLoading: false,
       FetchWhatsAppTemplateLibraryIsSuccess: false,
@@ -2200,6 +2240,26 @@ const SocialAISlice = createSlice({
         state.FetchWhatsAppTemplatesState.FetchWhatsAppTemplatesIsLoading = false;
         state.FetchWhatsAppTemplatesState.FetchWhatsAppTemplatesIsSuccess = false;
         state.FetchWhatsAppTemplatesState.FetchWhatsAppTemplatesIsError =
+          action.payload as string | object;
+      })
+      .addCase(updateWhatsAppTemplateActive.pending, (state) => {
+        state.UpdateWhatsAppTemplateActiveState.UpdateWhatsAppTemplateActiveIsLoading = true;
+        state.UpdateWhatsAppTemplateActiveState.UpdateWhatsAppTemplateActiveIsSuccess = false;
+        state.UpdateWhatsAppTemplateActiveState.UpdateWhatsAppTemplateActiveIsError =
+          null;
+      })
+      .addCase(updateWhatsAppTemplateActive.fulfilled, (state, action) => {
+        state.UpdateWhatsAppTemplateActiveState.UpdateWhatsAppTemplateActiveIsLoading = false;
+        state.UpdateWhatsAppTemplateActiveState.UpdateWhatsAppTemplateActiveIsSuccess = true;
+        const rows =
+          state.FetchWhatsAppTemplatesState.FetchWhatsAppTemplatesData;
+        const index = rows.findIndex((row) => row.id === action.payload.id);
+        if (index !== -1) rows[index] = action.payload;
+      })
+      .addCase(updateWhatsAppTemplateActive.rejected, (state, action) => {
+        state.UpdateWhatsAppTemplateActiveState.UpdateWhatsAppTemplateActiveIsLoading = false;
+        state.UpdateWhatsAppTemplateActiveState.UpdateWhatsAppTemplateActiveIsSuccess = false;
+        state.UpdateWhatsAppTemplateActiveState.UpdateWhatsAppTemplateActiveIsError =
           action.payload as string | object;
       })
       .addCase(fetchWhatsAppTemplateLibrary.pending, (state) => {

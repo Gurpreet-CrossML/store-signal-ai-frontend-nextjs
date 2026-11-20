@@ -19,6 +19,10 @@ export type Store = {
   id: string;
   name: string;
   code: string;
+  /** The storefront's address. */
+  url?: string;
+  /** ISO 4217 code the store's prices are in (e.g. INR). */
+  currency?: string;
 };
 
 export const SELECTED_STORE_KEY = "selectedStore";

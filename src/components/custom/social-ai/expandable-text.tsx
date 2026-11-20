@@ -80,7 +80,7 @@ export function ExpandableText({
             "mt-1 text-muted-foreground hover:underline",
           )}
         >
-          {expanded ? "See less" : "See more"}
+          {expanded ? "See Less" : "See More"}
         </button>
       )}
     </div>

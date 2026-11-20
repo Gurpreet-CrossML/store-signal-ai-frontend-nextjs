@@ -44,13 +44,13 @@ function ConsentMarks({ customer }: { customer: CustomerRecord }) {
       key: "email",
       icon: IconMail,
       granted: customer.accepts_email_marketing,
-      label: "Email marketing",
+      label: "Email Marketing",
     },
     {
       key: "sms",
       icon: IconMessage,
       granted: customer.accepts_sms_marketing,
-      label: "SMS marketing",
+      label: "SMS Marketing",
     },
   ];
 
@@ -71,7 +71,7 @@ function ConsentMarks({ customer }: { customer: CustomerRecord }) {
             </span>
           </TooltipTrigger>
           <TooltipContent>
-            {channel.label}: {channel.granted ? "opted in" : "not opted in"}
+            {channel.label}: {channel.granted ? "Opted In" : "Not Opted In"}
           </TooltipContent>
         </Tooltip>
       ))}

@@ -189,7 +189,7 @@ export function AttachProductsDialog({
               onClick={() => setCurrentSelected([])}
               className="text-primary hover:underline"
             >
-              Clear selection
+              Clear Selection
             </button>
           )}
         </div>
@@ -258,7 +258,7 @@ export function AttachProductsDialog({
         {FetchProductsData?.next || FetchProductsData?.previous ? (
           <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
             <span>
-              {FetchProductsData.count} products · Page {page}
+              {FetchProductsData.count} Products · Page {page}
             </span>
             <div className="flex gap-2">
               <Button

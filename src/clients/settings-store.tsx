@@ -162,7 +162,7 @@ export default function SettingsStore() {
         onPaginationChange={handlePaginationChange}
         isLoading={FetchStoresListIsLoading}
         noun="store"
-        emptyTitle={hasQuery ? "No matching stores" : "No stores yet"}
+        emptyTitle={hasQuery ? "No Matching Stores" : "No Stores Yet"}
         emptyDescription={
           hasQuery
             ? "Try a different search."
@@ -173,7 +173,7 @@ export default function SettingsStore() {
       <Dialog open={connectOpen} onOpenChange={setConnectOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Connect a Store</DialogTitle>
+            <DialogTitle>Connect A Store</DialogTitle>
             <DialogDescription>
               Choose your platform and point us at your store. You&apos;ll be
               sent to it to authorize access, then land back here.

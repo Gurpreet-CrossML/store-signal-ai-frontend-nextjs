@@ -1,10 +1,14 @@
-import { AreaLanding } from "@/components/custom/area-landing";
-import { NAV_AREAS } from "@/lib/nav-areas";
+import KnowledgeOverview from "@/components/custom/knowledge/knowledge-overview";
 
 export const metadata = {
-  title: NAV_AREAS.knowledge.title,
+  title: "Knowledge",
 };
 
+// Knowledge is a single area, so the main sidebar's "Knowledge" entry opens
+// it directly — no area menu or sub-sidebar in between. It shows the storage
+// used and the knowledge categories; each category opens its own list under
+// /knowledge/categories/[slug]. The screen renders its own heading, because
+// its actions depend on what it has loaded.
 export default function Page() {
-  return <AreaLanding area="knowledge" />;
+  return <KnowledgeOverview />;
 }

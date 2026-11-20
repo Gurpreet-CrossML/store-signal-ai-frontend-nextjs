@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Typography } from "@/components/ui/typography";
+import { ACTIVE_FILTER_STYLE } from "@/lib/config";
 import { cn } from "@/lib/utils";
 
 /**
@@ -31,8 +32,8 @@ export const FINANCIAL_STATUSES = [
   { value: "paid", label: "Paid" },
   { value: "pending", label: "Pending" },
   { value: "authorized", label: "Authorized" },
-  { value: "partially_paid", label: "Partially paid" },
-  { value: "partially_refunded", label: "Partially refunded" },
+  { value: "partially_paid", label: "Partially Paid" },
+  { value: "partially_refunded", label: "Partially Refunded" },
   { value: "refunded", label: "Refunded" },
   { value: "voided", label: "Voided" },
   { value: "unpaid", label: "Unpaid" },
@@ -44,7 +45,7 @@ export const FINANCIAL_STATUSES = [
  */
 export const FULFILLMENT_STATUSES = [
   { value: "fulfilled", label: "Fulfilled" },
-  { value: "partial", label: "Partially fulfilled" },
+  { value: "partial", label: "Partially Fulfilled" },
   { value: "unfulfilled", label: "Unfulfilled" },
   { value: "restocked", label: "Restocked" },
 ] as const;
@@ -160,6 +161,7 @@ function RangeRow({
         inputMode="decimal"
         value={min}
         placeholder="Min"
+        className={cn(min && ACTIVE_FILTER_STYLE)}
         aria-label={`${label} minimum`}
         onChange={(event) => onChange({ min: event.target.value, max })}
       />
@@ -170,6 +172,7 @@ function RangeRow({
         inputMode="decimal"
         value={max}
         placeholder="Max"
+        className={cn(max && ACTIVE_FILTER_STYLE)}
         aria-label={`${label} maximum`}
         onChange={(event) => onChange({ min, max: event.target.value })}
       />
@@ -206,7 +209,11 @@ export function OrderFilterPopover({
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>
-        <Button variant="outline" aria-label="Filter Orders">
+        <Button
+          variant="outline"
+          aria-label="Filter Orders"
+          className={cn(activeCount > 0 && ACTIVE_FILTER_STYLE)}
+        >
           <IconFilter className="size-4" />
           Filters
           {activeCount > 0 ? (
@@ -248,13 +255,16 @@ export function OrderFilterPopover({
                 })
               }
             >
-              <SelectTrigger aria-label="Outstanding or refunded">
+              <SelectTrigger
+                aria-label="Outstanding or refunded"
+                className={cn(filters.money !== "any" && ACTIVE_FILTER_STYLE)}
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="any">Any</SelectItem>
-                <SelectItem value="outstanding">Has amount owing</SelectItem>
-                <SelectItem value="refunded">Has a refund</SelectItem>
+                <SelectItem value="outstanding">Has Amount Owing</SelectItem>
+                <SelectItem value="refunded">Has A Refund</SelectItem>
               </SelectContent>
             </Select>
           </FilterGroup>
@@ -269,13 +279,18 @@ export function OrderFilterPopover({
                 })
               }
             >
-              <SelectTrigger aria-label="Cancelled orders">
+              <SelectTrigger
+                aria-label="Cancelled orders"
+                className={cn(
+                  filters.cancelled !== "any" && ACTIVE_FILTER_STYLE,
+                )}
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="any">Any</SelectItem>
-                <SelectItem value="no">Hide cancelled</SelectItem>
-                <SelectItem value="yes">Only cancelled</SelectItem>
+                <SelectItem value="no">Hide Cancelled</SelectItem>
+                <SelectItem value="yes">Only Cancelled</SelectItem>
               </SelectContent>
             </Select>
           </FilterGroup>

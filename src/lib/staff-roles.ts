@@ -1,37 +1,34 @@
 import type { StaffRole } from "@/lib/tenant-types";
 
-/** Display name of every role, the company admin's included. */
+/** Display name of every role, the store owner's included. */
 export const ROLE_LABELS: Record<StaffRole, string> = {
-  admin: "Admin",
-  supervisor: "Supervisor",
-  agent: "Agent",
-  content_manager: "Content manager",
-  viewer: "Viewer",
+  admin: "Store Owner",
+  manager: "Store Manager",
+  agent: "Support Agent",
+  content_manager: "Content Manager",
 };
 
 /**
- * The roles a company admin can give a staff user, with what each allows.
- * There is one admin per company, so `admin` is not offered.
+ * The roles a staff user can be given, with what each allows. There is one
+ * owner per company, so `admin` is not offered. Who may give which comes
+ * from Django (`managed_roles` on the session, see useManagedRoles).
  */
 export const ASSIGNABLE_ROLES: {
   value: Exclude<StaffRole, "admin">;
   description: string;
 }[] = [
   {
-    value: "supervisor",
+    value: "manager",
     description:
-      "Team metrics, live chats, help desk, ticket assignment and knowledge base.",
+      "Everything except billing, AI usage and the company profile; manages agents and content managers.",
   },
   {
     value: "agent",
-    description: "Live chats, threads, help desk and copilot.",
+    description:
+      "Live chats and help desk tickets assigned to them or not assigned yet, plus copilot.",
   },
   {
     value: "content_manager",
     description: "Knowledge base content only.",
-  },
-  {
-    value: "viewer",
-    description: "Read-only access to what the other roles can see.",
   },
 ];

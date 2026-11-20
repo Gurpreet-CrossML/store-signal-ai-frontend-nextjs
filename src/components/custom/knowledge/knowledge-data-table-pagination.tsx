@@ -68,6 +68,7 @@ export function KnowledgeDataTablePagination({
       table={table}
       totalCount={totalCount}
       noun="knowledge item"
+      compactOnMobile
     />
   );
 }

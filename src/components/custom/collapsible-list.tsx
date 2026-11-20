@@ -68,7 +68,7 @@ export function ShowMoreToggle({
       {expanded ? (
         <>
           {!collapsedLabel && <IconChevronUp className="size-4" />}
-          {collapsedLabel ? "Show less" : "Show Less"}
+          Show Less
         </>
       ) : (
         <>

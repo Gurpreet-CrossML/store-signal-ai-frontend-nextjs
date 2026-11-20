@@ -221,7 +221,7 @@ function TagChipFilter({
           aria-expanded={expanded}
           onClick={() => setExpanded((current) => !current)}
         >
-          {expanded ? "Show less" : `Show more (${hiddenCount})`}
+          {expanded ? "Show Less" : `Show More (${hiddenCount})`}
         </Button>
       ) : null}
     </div>
@@ -270,9 +270,6 @@ export default function ThreadFilteration({
           to={filters.to}
           onRangeChange={(from, to) => onChange({ ...filters, from, to })}
           disabled={{ after: new Date() }}
-          className={
-            filters.from || filters.to ? ACTIVE_FILTER_STYLE : undefined
-          }
         />
 
         <FilterSelect

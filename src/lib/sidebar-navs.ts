@@ -3,6 +3,7 @@ import {
   IconMessage2,
   IconMessageUser,
   IconDashboard,
+  IconBooks,
   type Icon,
 } from "@tabler/icons-react";
 
@@ -24,6 +25,8 @@ export type SideBarMenuItem = {
   count?: number;
   /** Colours the row's icon, e.g. a tag's own colour. */
   color?: string;
+  /** Only the store owner sees it (see AreaSection.ownerOnly). */
+  ownerOnly?: boolean;
 };
 
 export type SubSidebarMenuItem = {
@@ -187,8 +190,8 @@ export function resolveSubSidebarKey(pathname: string | null): string | null {
     }
   }
 
-  // An area's menu page, which none of the above covers when the section's
-  // icon points at a screen rather than the menu (Settings, Brand Voice).
+  // An area's own address (it redirects to the area's first screen), which
+  // none of the above covers since no section uses it (Settings, Brand Voice).
   const area = Object.entries(NAV_AREAS).find(
     ([, item]) => pathname === item.href,
   );
@@ -272,6 +275,7 @@ function toMenuItem(section: AreaSection): SideBarMenuItem {
     url: section.href,
     icon: section.icon,
     ...(section.items?.length ? { items: section.items.map(toMenuItem) } : {}),
+    ...(section.ownerOnly ? { ownerOnly: true } : {}),
   };
 }
 
@@ -314,10 +318,16 @@ export const sidebarMenus: SideBarMenus = {
     // Social AI is admin-only until its roles are decided.
     // areaMenuItem("socialAI", { adminOnly: true }),
     areaMenuItem("crm", { permission: "conversations" }),
-    areaMenuItem("campaign", { adminOnly: true }),
-    areaMenuItem("brandVoice", { adminOnly: true }),
-    areaMenuItem("settings", { adminOnly: true }),
-    areaMenuItem("knowledge", { permission: "knowledge" }),
+    areaMenuItem("campaign", { permission: "marketing" }),
+    areaMenuItem("brandVoice", { permission: "setup" }),
+    // Lands on the first screen the user may open (see visibleNavItems).
+    areaMenuItem("settings", { permission: "setup" }),
+    {
+      title: "Knowledge",
+      url: "/knowledge",
+      icon: IconBooks,
+      permission: "knowledge",
+    },
   ],
 
   navSubSidebar: {
@@ -348,16 +358,80 @@ export function isNavItemVisible(
   item: MainSidebarMenuItem,
   user: SessionIdentity | null | undefined,
 ): boolean {
-  if (item.adminOnly) return Boolean(user?.is_staff);
+  // No permission on an admin-only entry means owner-only, as in `can`.
+  if (item.adminOnly) return can(user, undefined);
   if (item.permission) return can(user, item.permission);
   return true;
+}
+
+/**
+ * May this user open the area whose sub-sidebar is `key`? Uses the area's
+ * main-nav entry, so the side menu never shows beside an area's lock screen.
+ * An area with no main-nav entry is left to its own page gate.
+ */
+export function isAreaVisible(
+  key: string,
+  user: SessionIdentity | null | undefined,
+): boolean {
+  const item = sidebarMenus.nav.find((entry) => entry.subSidebarKey === key);
+  return !item || isNavItemVisible(item, user);
+}
+
+/**
+ * The sub-sidebar entries this user may see: owner-only screens are dropped
+ * for everyone but the store owner.
+ */
+export function visibleMenuItems(
+  items: SideBarMenuItem[],
+  user: SessionIdentity | null | undefined,
+): SideBarMenuItem[] {
+  if (can(user, undefined)) return items;
+  return items
+    .filter((item) => !item.ownerOnly)
+    .map((item) =>
+      item.items
+        ? { ...item, items: visibleMenuItems(item.items, user) }
+        : item,
+    );
 }
 
 /** Where to send a user whose role cannot open the page they landed on. */
 export function firstVisibleNavUrl(
   user: SessionIdentity | null | undefined,
 ): string | null {
+  return visibleNavItems(user)[0]?.url ?? null;
+}
+
+/**
+ * The first screen of an area this user may open: owner-only screens are
+ * skipped for everyone but the store owner (a manager's Settings opens on
+ * Staff Management, not General).
+ */
+export function firstAreaUrl(
+  key: string,
+  user: SessionIdentity | null | undefined,
+): string | null {
+  const area = NAV_AREAS[key as NavAreaKey];
+  if (!area) return null;
+  const isOwner = can(user, undefined);
+  const sections: readonly AreaSection[] = area.sections;
   return (
-    sidebarMenus.nav.find((item) => isNavItemVisible(item, user))?.url ?? null
+    sections.find((section) => isOwner || !section.ownerOnly)?.href ?? null
   );
+}
+
+/**
+ * The main-nav entries this user may see, each area landing on the first
+ * screen they may open, so an icon never opens an area's menu page or a
+ * screen the user is locked out of.
+ */
+export function visibleNavItems(
+  user: SessionIdentity | null | undefined,
+): MainSidebarMenuItem[] {
+  return sidebarMenus.nav
+    .filter((item) => isNavItemVisible(item, user))
+    .map((item) => {
+      const url = item.subSidebarKey && firstAreaUrl(item.subSidebarKey, user);
+      return url && url !== item.url ? { ...item, url } : item;
+    });
 }
