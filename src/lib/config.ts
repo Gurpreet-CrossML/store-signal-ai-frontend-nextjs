@@ -1024,3 +1024,9 @@ export const KNOWLEDGE_SCAN_POLL_MS = 5000;
 // the language. Once one has, it says who changed it instead.
 export const LANGUAGE_DETECTED_NOTE =
   "Detected by AI from the customer's messages. “Send in customer's language” uses this.";
+
+// The longest chat message, the same as the customer widget's
+// MAX_MESSAGE_LENGTH: Live Chat stops typing at it and turns Send off.
+export const MAX_MESSAGE_LENGTH = 1000;
+export const MESSAGE_TOO_LONG_TEXT =
+  "Your message is too long. Please shorten it and try again.";
