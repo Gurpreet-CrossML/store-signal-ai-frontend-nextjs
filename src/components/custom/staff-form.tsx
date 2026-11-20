@@ -102,6 +102,9 @@ export default function StaffForm({
     },
   });
 
+  // Create Staff stays off until every field is valid.
+  const isComplete = validationSchema.safeParse(formik.values).success;
+
   useEffect(() => {
     if (open) formik.resetForm();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -212,7 +215,7 @@ export default function StaffForm({
           </FieldGroup>
 
           <SheetFooter>
-            <Button type="submit" disabled={staffSaving || !formik.dirty}>
+            <Button type="submit" disabled={staffSaving || !isComplete}>
               {staffSaving ? (
                 <>
                   <Spinner data-icon="inline-start" />

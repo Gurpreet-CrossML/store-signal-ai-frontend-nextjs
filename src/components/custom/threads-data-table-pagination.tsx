@@ -33,6 +33,9 @@ interface DataTablePaginationProps<TData> {
    * indicator and next. Other screens keep the stacked layout.
    */
   compactOnMobile?: boolean;
+  /** The count before search and filters. When the list is narrowed, the
+   * total reads "Showing 3 Of 26 Members" instead of "3 Members Total". */
+  outOf?: number;
 }
 
 export function DataTablePagination<TData>({
@@ -41,6 +44,7 @@ export function DataTablePagination<TData>({
   noun = "thread",
   nounPlural = `${noun}s`,
   compactOnMobile = false,
+  outOf,
 }: DataTablePaginationProps<TData>) {
   // TanStack hands back the same `table` object on every render and changes
   // its state in place, so the React Compiler would cache what is read from
@@ -80,8 +84,9 @@ export function DataTablePagination<TData>({
           compactOnMobile && "max-sm:whitespace-normal",
         )}
       >
-        {totalCount} {capitalizeText(totalCount === 1 ? noun : nounPlural)}{" "}
-        Total
+        {outOf !== undefined && outOf !== totalCount
+          ? `Showing ${totalCount} Of ${outOf} ${capitalizeText(outOf === 1 ? noun : nounPlural)}`
+          : `${totalCount} ${capitalizeText(totalCount === 1 ? noun : nounPlural)} Total`}
       </div>
 
       {/* In the compact layout this wrapper (and the nav one below) vanish,
