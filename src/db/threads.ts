@@ -1055,7 +1055,13 @@ export async function get_ai_insights(
       next_actionable_items: aiInsights.nextActionableItems,
     })
     .from(aiInsights)
-    .where(scopedThreadFilter(aiInsights.threadId, thread_id))
+    .where(
+      and(
+        scopedThreadFilter(aiInsights.threadId, thread_id),
+        // A row with no summary holds only the auto-generated tags: not insights yet.
+        isNotNull(aiInsights.conversationSummary),
+      ),
+    )
     .limit(1);
 
   if (rows.length === 0) return null;
