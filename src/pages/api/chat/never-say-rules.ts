@@ -12,7 +12,8 @@ import type { NextApiRequest, NextApiResponse } from "next";
  * This configuration is store-scoped and read-only here; modifications
  * are handled by the Django backend.
  */
-export default withTenantRoute(handler);
+// Store setup: owner and manager (Django tags these views roles.SETUP).
+export default withTenantRoute(handler, "setup");
 
 async function handler(req: NextApiRequest, res: NextApiResponse<APIResponse>) {
   if (req.method !== "GET") {

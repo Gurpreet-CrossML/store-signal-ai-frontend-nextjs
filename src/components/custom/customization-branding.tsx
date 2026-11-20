@@ -127,13 +127,13 @@ export default function CustomizationBranding({
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onSelect={onRemoveLogo}>
                       <IconTrash />
-                      Remove logo
+                      Remove Logo
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onSelect={() => logoInputRef.current?.click()}
                     >
                       <IconPhoto />
-                      Upload image
+                      Upload Image
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>

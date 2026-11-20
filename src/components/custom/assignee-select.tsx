@@ -5,7 +5,7 @@ import {
   IconChevronDown,
   IconChevronUp,
   IconLock,
-  IconShieldCheck,
+  IconUser,
   IconX,
 } from "@tabler/icons-react";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +35,8 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { StaffRoleBadge } from "@/components/custom/staff-columns";
+import type { StaffRole } from "@/lib/tenant-types";
 import { cn } from "@/lib/utils";
 
 export type AgentOption = {
@@ -42,15 +44,16 @@ export type AgentOption = {
   name: string;
   /** Company admin — shown with an "Admin" label. */
   isAdmin?: boolean;
-  /** Can't be picked by this user (a supervisor can't assign to an admin). */
+  /** Their staff role, shown as a pill beside the name. */
+  role?: StaffRole;
+  /** Can't be picked by this user (a manager can't assign to the owner). */
   disabled?: boolean;
 };
 
 /** Small "Admin" tag shown beside an admin's name. */
 export function AdminBadge() {
   return (
-    <Badge variant="outline" className="gap-1 px-1.5 py-0 text-[10px]">
-      <IconShieldCheck className="size-3" />
+    <Badge variant="outline" className="px-1.5 py-0 text-[10px]">
       Admin
     </Badge>
   );
@@ -65,6 +68,8 @@ export function AssigneeSelect({
   onReassign,
   noun = "chat",
   hideLabel = false,
+  triggerClassName,
+  compact = false,
 }: {
   agents: AgentOption[];
   currentAgent: string | null;
@@ -74,6 +79,10 @@ export function AssigneeSelect({
   noun?: "chat" | "ticket";
   /** Leave out the "Assignee" label when the caller already shows one. */
   hideLabel?: boolean;
+  /** Optional styling for the trigger when it is embedded in a field row. */
+  triggerClassName?: string;
+  /** Use the smaller icon scale used by ticket detail controls. */
+  compact?: boolean;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [desktopOpen, setDesktopOpen] = useState(false);
@@ -88,12 +97,6 @@ export function AssigneeSelect({
     currentAgentName ||
     currentAgent ||
     "Unassigned";
-  const currentAgentInitials = currentAgentDisplayName
-    .split(" ")
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
 
   const selectAgent = (email: string) => {
     if (email !== currentAgent) onReassign(email);
@@ -103,26 +106,19 @@ export function AssigneeSelect({
 
   const renderTriggerContent = (open: boolean) => (
     <>
-      {currentAgent ? (
-        <span
-          className={cn(
-            "flex size-5 shrink-0 items-center justify-center rounded-full bg-primary text-[9px] font-semibold text-primary-foreground sm:size-6 sm:text-[10px]",
-          )}
-        >
-          {currentAgentInitials}
-        </span>
-      ) : (
-        <span className="size-5 shrink-0 rounded-full border-2 border-dashed border-muted-foreground/40 sm:size-6" />
-      )}
       <span className="min-w-0 flex-1 truncate text-left sm:max-w-45 sm:flex-none">
         {currentAgentDisplayName}
       </span>
       {disabled ? (
-        <IconLock className="size-4 shrink-0" />
+        <IconLock className={cn("shrink-0", compact ? "size-3.5" : "size-4")} />
       ) : open ? (
-        <IconChevronUp className="size-4 shrink-0" />
+        <IconChevronUp
+          className={cn("shrink-0", compact ? "size-3.5" : "size-4")}
+        />
       ) : (
-        <IconChevronDown className="size-4 shrink-0" />
+        <IconChevronDown
+          className={cn("shrink-0", compact ? "size-3.5" : "size-4")}
+        />
       )}
     </>
   );
@@ -135,9 +131,11 @@ export function AssigneeSelect({
           forceMount
           value="Unassigned"
           onSelect={() => selectAgent("")}
-          className="items-start gap-3 py-2"
+          className="items-center gap-3 py-2"
         >
-          <span className="size-8 shrink-0 rounded-full border-2 border-dashed border-muted-foreground/40" />
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted-foreground/50 text-background">
+            <IconUser className="size-4" />
+          </span>
           <span className="flex-1">Unassigned</span>
           {!currentAgent && <span className="text-primary">✓</span>}
         </CommandItem>
@@ -151,11 +149,7 @@ export function AssigneeSelect({
             onSelect={() => selectAgent(agent.email)}
             className="items-start gap-3 py-2"
           >
-            <span
-              className={cn(
-                "flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground",
-              )}
-            >
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
               {agent.name
                 .split(" ")
                 .map((part) => part[0])
@@ -164,7 +158,10 @@ export function AssigneeSelect({
                 .toUpperCase()}
             </span>
             <span className="flex min-w-0 flex-1 flex-col items-start leading-tight">
-              <span className="max-w-full truncate">{agent.name}</span>
+              <span className="flex max-w-full min-w-0 items-center gap-1.5">
+                <span className="truncate">{agent.name}</span>
+                {agent.role && <StaffRoleBadge role={agent.role} />}
+              </span>
               <span className="max-w-full truncate text-xs text-muted-foreground">
                 {agent.email}
               </span>
@@ -197,6 +194,7 @@ export function AssigneeSelect({
             className={cn(
               "h-9 min-w-0 flex-1 rounded-full border-border px-2 text-xs sm:hidden",
               mobileOpen && "border-primary ring-2 ring-primary/15",
+              triggerClassName,
             )}
           >
             {renderTriggerContent(mobileOpen)}
@@ -208,7 +206,9 @@ export function AssigneeSelect({
         >
           <div className="mx-auto mt-3 h-1 w-9 shrink-0 rounded-full bg-muted-foreground/30" />
           <SheetHeader className="border-b px-4 pb-3 pt-4 text-left">
-            <SheetTitle className="text-lg">Assign {noun}</SheetTitle>
+            <SheetTitle className="text-lg">
+              Assign {noun === "chat" ? "Chat" : "Ticket"}
+            </SheetTitle>
             <SheetDescription className="sr-only">
               Search for a teammate and assign this{" "}
               {noun === "chat" ? "conversation" : "ticket"}.
@@ -236,6 +236,7 @@ export function AssigneeSelect({
             className={cn(
               "hidden h-10 min-w-0 rounded-full border-border px-2.5 text-sm sm:flex sm:flex-none",
               desktopOpen && "border-primary ring-2 ring-primary/15",
+              triggerClassName,
             )}
           >
             {renderTriggerContent(desktopOpen)}

@@ -10,6 +10,8 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
 import { Typography } from "@/components/ui/typography";
+import { ACTIVE_FILTER_STYLE } from "@/lib/config";
+import { cn } from "@/lib/utils";
 import { IconFilter } from "@tabler/icons-react";
 
 import { DateRangePicker } from "@/components/custom/date-range-picker";
@@ -127,7 +129,11 @@ export function PostFiltersPopover({
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="shrink-0">
+        <Button
+          variant="outline"
+          size="sm"
+          className={cn("shrink-0", activeCount > 0 && ACTIVE_FILTER_STYLE)}
+        >
           <IconFilter className="size-4" />
           Filters
           {activeCount > 0 && <Badge variant="secondary">{activeCount}</Badge>}
@@ -138,8 +144,8 @@ export function PostFiltersPopover({
             row of controls. */}
         <Typography variant="muted">
           {isFiltered
-            ? `Showing ${matchCount} of ${totalCount} posts`
-            : `${totalCount} ${totalCount === 1 ? "post" : "posts"}`}
+            ? `Showing ${matchCount} Of ${totalCount} Posts`
+            : `${totalCount} ${totalCount === 1 ? "Post" : "Posts"}`}
         </Typography>
         <Separator />
         <RangeField
@@ -156,7 +162,7 @@ export function PostFiltersPopover({
         <Separator />
         <div className="flex flex-col gap-2">
           <Typography variant="muted" className="font-medium">
-            Posted between
+            Posted Between
           </Typography>
           <DateRangePicker
             from={filters.from}

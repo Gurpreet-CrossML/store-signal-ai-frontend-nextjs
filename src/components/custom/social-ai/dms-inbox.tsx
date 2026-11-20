@@ -1321,7 +1321,7 @@ export default function DmsInbox({
                     <div className="flex flex-col items-center justify-center gap-1 p-6 text-center">
                       <IconSearch className="mb-1 size-6 text-muted-foreground opacity-40" />
                       <Typography variant="small" as="p">
-                        No matches
+                        No Matches
                       </Typography>
                       <Typography variant="muted">
                         No conversations match &quot;{debouncedSearchQuery}
@@ -1332,7 +1332,7 @@ export default function DmsInbox({
                     <div className="flex flex-col items-center justify-center gap-1 p-6 text-center">
                       <IconMessage2 className="mb-1 size-6 text-muted-foreground opacity-40" />
                       <Typography variant="small" as="p">
-                        No conversations yet
+                        No Conversations Yet
                       </Typography>
                       <Typography variant="muted">
                         Direct messages for this account will show up here.
@@ -1474,7 +1474,7 @@ export default function DmsInbox({
                         <div className="flex h-full flex-col items-center justify-center gap-1 p-6 text-center">
                           <IconMessage2 className="mb-1 size-6 text-muted-foreground opacity-40" />
                           <Typography variant="small" as="p">
-                            Nothing here yet
+                            Nothing Here Yet
                           </Typography>
                           <Typography variant="muted">
                             Messages in this conversation will show up here.
@@ -1629,8 +1629,8 @@ export default function DmsInbox({
                 <IconMessage2 className="mb-1 size-6 text-muted-foreground opacity-40" />
                 <Typography variant="small" as="p">
                   {conversationNotFound
-                    ? "Conversation not found"
-                    : "No conversation selected"}
+                    ? "Conversation Not Found"
+                    : "No Conversation Selected"}
                 </Typography>
                 <Typography variant="muted">
                   {conversationNotFound

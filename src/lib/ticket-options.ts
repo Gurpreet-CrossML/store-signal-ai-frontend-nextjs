@@ -7,7 +7,13 @@ import {
   type Icon,
 } from "@tabler/icons-react";
 
-import type { SupportTicketChannel } from "@/redux/api-slice/support-ticket-slice";
+import { capitalizeText } from "@/lib/helpers";
+import type {
+  SupportTicketActivityItem,
+  SupportTicketChangeType,
+  SupportTicketChannel,
+} from "@/redux/api-slice/support-ticket-slice";
+import { SUPPORT_TICKET_CHANGE_TYPES } from "@/redux/api-slice/support-ticket-slice";
 
 /**
  * The one list of languages the help desk offers, for a ticket's language
@@ -70,3 +76,44 @@ export const CHANNEL_META: Record<
   facebook: { label: "Facebook", icon: IconBrandFacebook },
   instagram: { label: "Instagram", icon: IconBrandInstagram },
 };
+
+const CHANGE_FIELD: Record<SupportTicketChangeType, string> = {
+  [SUPPORT_TICKET_CHANGE_TYPES.PRIORITY_CHANGED]: "Priority",
+  [SUPPORT_TICKET_CHANGE_TYPES.LANGUAGE_CHANGED]: "Language",
+  [SUPPORT_TICKET_CHANGE_TYPES.SENTIMENT_CHANGED]: "Sentiment",
+  [SUPPORT_TICKET_CHANGE_TYPES.TAG_ADDED]: "Tag",
+  [SUPPORT_TICKET_CHANGE_TYPES.TAG_REMOVED]: "Tag",
+};
+
+/** Whether an activity entry is a priority, language, sentiment or tag change. */
+export function isTicketChange(
+  item: SupportTicketActivityItem,
+): item is SupportTicketActivityItem & { type: SupportTicketChangeType } {
+  return item.type in CHANGE_FIELD;
+}
+
+/**
+ * The sentence for a priority, language, sentiment or tag change in a
+ * ticket's activity, e.g. "Priority changed from Normal to High" or
+ * "Tag added: Refund". Shared by the details panel and the activity drawer
+ * so both read the same.
+ */
+export function ticketChangeTitle(
+  item: SupportTicketActivityItem & { type: SupportTicketChangeType },
+): string {
+  const field = CHANGE_FIELD[item.type];
+  if (item.type === SUPPORT_TICKET_CHANGE_TYPES.TAG_ADDED)
+    return `${field} added: ${item.to_value}`;
+  if (item.type === SUPPORT_TICKET_CHANGE_TYPES.TAG_REMOVED)
+    return `${field} removed: ${item.from_value}`;
+
+  const label = (value: string) =>
+    item.type === SUPPORT_TICKET_CHANGE_TYPES.LANGUAGE_CHANGED
+      ? (SUPPORTED_LANGUAGES.find((language) => language.code === value)
+          ?.name ?? value)
+      : capitalizeText(value);
+  const to = item.to_value ? label(item.to_value) : "none";
+  return item.from_value
+    ? `${field} changed from ${label(item.from_value)} to ${to}`
+    : `${field} set to ${to}`;
+}

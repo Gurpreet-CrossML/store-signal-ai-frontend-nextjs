@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   IconAlertTriangle,
@@ -13,6 +13,10 @@ import { toast } from "sonner";
 
 import { InfoIcon } from "@/components/custom/info-icon";
 import { LoadingState } from "@/components/custom/loading-state";
+import {
+  UnsavedChangesDialog,
+  type UnsavedChangesDialogHandle,
+} from "@/components/custom/unsaved-changes-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -251,6 +255,7 @@ export default function SocialCommentHandling() {
   const [intents, setIntents] = useState<CommentIntentRule[]>([]);
   const [topicRules, setTopicRules] = useState<CommentTopicRule[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const unsavedChanges = useRef<UnsavedChangesDialogHandle>(null);
 
   useEffect(() => {
     if (storeCode) dispatch(fetchSocialAccountsSubscriptions({ storeCode }));
@@ -303,10 +308,16 @@ export default function SocialCommentHandling() {
   const removedTopicRules = (config?.topic_rules ?? []).filter(
     (saved) => !topicRules.some((rule) => rule.topic === saved.topic),
   );
+  // No config while an account loads: every rule would compare as changed.
   const isDirty =
-    dirtyIntents.length > 0 ||
-    dirtyTopicRules.length > 0 ||
-    removedTopicRules.length > 0;
+    config !== null &&
+    (dirtyIntents.length > 0 ||
+      dirtyTopicRules.length > 0 ||
+      removedTopicRules.length > 0);
+
+  /** Switching account reloads the rules, so unsaved edits ask first. */
+  const pickAccount = (accountId: string) =>
+    unsavedChanges.current?.confirmLeave(() => setSelectedAccountId(accountId));
 
   const ruleableTopics = (config?.topics ?? []).filter(
     (topic) => topic.value !== UNRULEABLE_TOPIC,
@@ -323,9 +334,10 @@ export default function SocialCommentHandling() {
    * against the loaded config and issues only the calls that change
    * something. Fulfilled saves patch the redux config, which is what
    * clears the dirty state per rule — a partial failure stays dirty.
+   * Resolves true only when every change saved.
    */
   const handleSave = async () => {
-    if (!config) return;
+    if (!config) return false;
     setIsSaving(true);
     const accountId = selectedAccountId;
     const results = await Promise.allSettled([
@@ -358,11 +370,13 @@ export default function SocialCommentHandling() {
       ),
     ]);
     setIsSaving(false);
-    if (results.every((result) => result.status === "fulfilled")) {
+    const saved = results.every((result) => result.status === "fulfilled");
+    if (saved) {
       toast.success("Comment handling saved", {
         description: "The AI follows these rules on new comments from now on.",
       });
     }
+    return saved;
   };
 
   const patchIntent = (id: string, patch: Partial<CommentIntentRule>) =>
@@ -419,7 +433,7 @@ export default function SocialCommentHandling() {
         <Typography variant="caption" as="p">
           Every connected account has its own rules — pick the one to configure.
         </Typography>
-        <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
+        <Select value={selectedAccountId} onValueChange={pickAccount}>
           <SelectTrigger
             className={cn("w-64", ACTIVE_FILTER_STYLE)}
             aria-label="Connected account"
@@ -444,7 +458,7 @@ export default function SocialCommentHandling() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <IconAlertTriangle className="size-4" />
-              AI responses are off for this account
+              AI Responses Are Off For This Account
             </CardTitle>
             <CardDescription>
               While the account&apos;s AI toggle is off, comments are only
@@ -469,7 +483,7 @@ export default function SocialCommentHandling() {
               as="h3"
               className="flex items-center gap-2"
             >
-              Actions per Intent
+              Actions Per Intent
               <InfoIcon text={SECTION_INFO} />
             </Typography>
             <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300">
@@ -616,7 +630,7 @@ export default function SocialCommentHandling() {
                     <CardTitle className="flex items-center gap-2">
                       <IconTags className="size-4" />
                       {topicLabel(rule.topic)}
-                      <Badge variant="secondary">Overrides intent</Badge>
+                      <Badge variant="secondary">Overrides Intent</Badge>
                     </CardTitle>
                     <CardDescription>
                       Used instead of the intent card whenever a comment is
@@ -729,6 +743,13 @@ export default function SocialCommentHandling() {
           </div>
         </>
       )}
+
+      <UnsavedChangesDialog
+        ref={unsavedChanges}
+        isDirty={isDirty}
+        isSaving={isSaving}
+        onSave={handleSave}
+      />
     </div>
   );
 }

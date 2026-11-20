@@ -112,7 +112,7 @@ export default function OrderDetail({ orderId }: { orderId: number }) {
         <Button variant="outline" asChild>
           <Link href="/crm/orders">
             <IconArrowLeft />
-            Back to Orders
+            Back To Orders
           </Link>
         </Button>
       </Empty>

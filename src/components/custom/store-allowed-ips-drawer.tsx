@@ -216,13 +216,13 @@ export function StoreAllowedIpsDrawer({
       <AlertDialog open={discardDialogOpen} onOpenChange={setDiscardDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Discard unsaved changes?</AlertDialogTitle>
+            <AlertDialogTitle>Discard Unsaved Changes?</AlertDialogTitle>
             <AlertDialogDescription>
               Your changes to the allowed IPs have not been saved.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Keep editing</AlertDialogCancel>
+            <AlertDialogCancel>Keep Editing</AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
               onClick={() => {
@@ -230,7 +230,7 @@ export function StoreAllowedIpsDrawer({
                 onOpenChange(false);
               }}
             >
-              Discard changes
+              Discard Changes
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

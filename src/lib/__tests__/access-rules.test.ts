@@ -47,16 +47,29 @@ describe("buildAccess — role → store scope", () => {
   it("gives a staff user with no stores an empty set (sees nothing)", () => {
     expect(buildAccess({ is_staff: false }).storeCodes).toEqual([]);
   });
+
+  it("limits a queue-only agent to their own id, everyone else to nothing", () => {
+    expect(
+      buildAccess({ is_staff: false, queue_only: true, user_id: 7 })
+        .queueUserId,
+    ).toBe(7);
+    expect(buildAccess({ is_staff: false, queue_only: true }).queueUserId).toBe(
+      -1,
+    );
+    expect(buildAccess({ is_staff: true }).queueUserId).toBeNull();
+  });
 });
 
 describe("resolveStoreScope — store_code is validated, never trusted", () => {
   const admin: RequestAccess = {
     isStaff: true,
     storeCodes: null,
+    queueUserId: null,
   };
   const staff: RequestAccess = {
     isStaff: false,
     storeCodes: ["x"],
+    queueUserId: null,
   };
 
   it("admin: unrestricted (null) without a code, that one store with a code", () => {

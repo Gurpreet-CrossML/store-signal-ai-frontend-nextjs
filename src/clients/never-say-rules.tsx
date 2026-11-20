@@ -29,6 +29,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { LoadingState } from "@/components/custom/loading-state";
+import { UnsavedChangesDialog } from "@/components/custom/unsaved-changes-dialog";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Typography } from "@/components/ui/typography";
@@ -192,6 +193,7 @@ export default function NeverSayRules() {
       if (createNeverSayRules.rejected.match(result)) {
         applyServerFieldErrors(formik, result.payload);
       }
+      return createNeverSayRules.fulfilled.match(result);
     },
   });
 
@@ -318,7 +320,7 @@ export default function NeverSayRules() {
               <CardContent className="flex flex-col gap-4">
                 <ToggleRow
                   labelIcon={<IconMoodSad className="size-4" />}
-                  label="No hollow apologies"
+                  label="No Hollow Apologies"
                   info="Skips filler like 'We're so sorry for any inconvenience' and moves straight to fixing the problem. A sincere apology still appears when something genuinely went wrong."
                   description={
                     'Avoid over-apologising or empty "so sorry" filler'
@@ -331,7 +333,7 @@ export default function NeverSayRules() {
                 <Separator />
                 <ToggleRow
                   labelIcon={<IconBrain className="size-4" />}
-                  label="Never reveal it's an AI unprompted"
+                  label="Never Reveal It's An AI Unprompted"
                   info="The assistant stays in persona and doesn't volunteer that it's an AI. If a customer asks directly, it answers honestly."
                   description="Stay in persona unless the customer asks directly"
                   checked={formik.values.never_reveal_ai_unprompted ?? false}
@@ -368,14 +370,14 @@ export default function NeverSayRules() {
                         as="span"
                         className="text-xs font-medium"
                       >
-                        When the conversation is about
+                        When The Conversation Is About
                       </Typography>
                       <Typography
                         variant="muted"
                         as="span"
                         className="text-xs font-medium"
                       >
-                        Include this wording
+                        Include This Wording
                       </Typography>
                       <span aria-hidden className="w-8" />
                     </div>
@@ -465,6 +467,12 @@ export default function NeverSayRules() {
           </div>
         </form>
       )}
+
+      <UnsavedChangesDialog
+        isDirty={formik.dirty}
+        isSaving={CreateNeverSayRulesIsLoading}
+        onSave={async () => (await formik.submitForm()) === true}
+      />
     </div>
   );
 }

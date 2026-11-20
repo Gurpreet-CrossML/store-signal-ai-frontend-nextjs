@@ -1,12 +1,25 @@
 import type { NextApiResponse } from "next";
+import { parse } from "date-fns";
 
 import {
+  API_DATE_FORMAT,
   APIResponse,
   ErrorResponse,
   PaginationResponse,
   WIDGET_API_BASE,
   WIDGET_SCRIPT_SRC,
 } from "@/lib/config";
+
+/**
+ * Where a conversation opens: an active one in Support, where it can be
+ * answered, and a closed one in Threads, where it is only read.
+ */
+export const getThreadHref = (threadId: string, isActive: boolean) =>
+  isActive ? `/support/?chat=${threadId}` : `/threads/${threadId}`;
+
+/** A knowledge item's own page (an article is sent on to its editor from there). */
+export const getKnowledgeItemHref = (itemId: number | string) =>
+  `/knowledge/items/${itemId}`;
 
 export const formatDateTime = (dateInput: string | null) => {
   if (!dateInput || dateInput === "-") return "-";
@@ -246,9 +259,9 @@ export function formatDate(value: string): string {
   });
 }
 
-/** Midnight at the start of `value`'s day, as an ISO instant. */
+/** Midnight at the start of `value`'s day (API_DATE_FORMAT), as an ISO instant. */
 export function startOfDay(value: string) {
-  const date = new Date(value);
+  const date = parse(value, API_DATE_FORMAT, new Date());
   date.setHours(0, 0, 0, 0);
   return date.toISOString();
 }
@@ -259,7 +272,7 @@ export function startOfDay(value: string) {
  * happened today.
  */
 export function endOfDay(value: string) {
-  const date = new Date(value);
+  const date = parse(value, API_DATE_FORMAT, new Date());
   date.setHours(23, 59, 59, 999);
   return date.toISOString();
 }

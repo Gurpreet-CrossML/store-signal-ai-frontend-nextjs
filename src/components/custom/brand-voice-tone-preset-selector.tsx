@@ -41,7 +41,7 @@ export default function BrandVoiceTonePresetSelector({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <IconMoodSmile className="size-4" />
-          Quick-start preset
+          Quick-Start Preset
           <InfoIcon text="One-click starting points for the five tone dials. Adjust any dial afterwards and the preset becomes Custom; writing preferences are set separately." />
         </CardTitle>
         <CardDescription>

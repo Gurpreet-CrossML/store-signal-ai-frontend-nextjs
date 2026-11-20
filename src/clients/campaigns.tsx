@@ -89,8 +89,8 @@ function getColumns(
             </div>
             <div className="text-xs text-muted-foreground">
               {row.original.continuous_entry
-                ? "Continuous entry"
-                : "One-time snapshot"}
+                ? "Continuous Entry"
+                : "One-Time Snapshot"}
             </div>
           </div>
         </div>
@@ -113,7 +113,7 @@ function getColumns(
       header: "Steps",
       cell: ({ row }) => (
         <span className="tabular-nums text-sm text-muted-foreground">
-          {row.original.sequence_steps.length} step
+          {row.original.sequence_steps.length} Step
           {row.original.sequence_steps.length === 1 ? "" : "s"}
         </span>
       ),
@@ -484,7 +484,7 @@ export default function Campaigns() {
         emptyTitle={
           debouncedSearch
             ? `No campaigns matching "${debouncedSearch}".`
-            : "No campaigns yet."
+            : "No Campaigns Yet."
         }
       />
 
@@ -509,7 +509,7 @@ export default function Campaigns() {
             <AlertDialogMedia className="rounded-full bg-destructive/10 text-destructive">
               <IconTrash />
             </AlertDialogMedia>
-            <AlertDialogTitle>Delete campaign?</AlertDialogTitle>
+            <AlertDialogTitle>Delete Campaign?</AlertDialogTitle>
             <AlertDialogDescription>
               This will permanently delete{" "}
               <span className="font-semibold text-foreground">

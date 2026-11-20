@@ -94,8 +94,8 @@ export const SLA_TARGET_KEYS: SlaTargetKey[] = [
 ];
 
 export const SLA_TARGET_LABELS: Record<SlaTargetKey, string> = {
-  first_reply: "First reply",
-  every_reply: "Every reply",
+  first_reply: "First Reply",
+  every_reply: "Every Reply",
   resolution: "Resolution",
 };
 

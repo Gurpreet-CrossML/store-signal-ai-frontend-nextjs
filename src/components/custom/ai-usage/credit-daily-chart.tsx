@@ -91,10 +91,10 @@ function DayBreakdown({
       <div className="flex justify-between gap-4 font-medium">
         <span>
           {format(parseISO(day.date), "MMM d, yyyy")}
-          {day.projected && " (projected)"}
+          {day.projected && " (Projected)"}
         </span>
         <span className="tabular-nums">
-          {day.credits_charged.toLocaleString()} credits
+          {day.credits_charged.toLocaleString()} Credits
         </span>
       </div>
       {groups.map((group) => (
@@ -157,7 +157,7 @@ export default function CreditDailyChart({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-1.5">
-          Day by day
+          Day By Day
           <InfoIcon text="Credits charged on each day of the selected period, today so far included. The dashed bars project the coming days from the selected period only, with today scaled to a full day. Today uses that pace, Last 7 days blends each weekday with the average, and Last 30 days weights recent weeks and carries a fading weekly trend forward, up to 10% a week. Hover a day to see which capabilities used them." />
         </CardTitle>
         <CardDescription>

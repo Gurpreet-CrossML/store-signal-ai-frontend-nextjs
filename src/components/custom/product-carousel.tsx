@@ -17,9 +17,12 @@ import { ProductCard } from "@/components/custom/product-card";
 export function ProductCarousel({
   products,
   comparisonBlock,
+  alignStart = false,
 }: {
   products: ProductData[];
   comparisonBlock?: ProductComparisonBlock[] | null;
+  /** Keep a few cards at the left edge; chat bubbles push them to the right. */
+  alignStart?: boolean;
 }) {
   const [api, setApi] = useState<CarouselApi>();
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -66,7 +69,9 @@ export function ProductCarousel({
           inViewThreshold: 0.6,
         }}
       >
-        <CarouselContent className="-ml-2">
+        <CarouselContent
+          className={`-ml-2 ${products.length < 3 && !alignStart ? "justify-end" : ""}`}
+        >
           {products.map((product) => (
             <CarouselItem
               key={product.id}
@@ -84,7 +89,7 @@ export function ProductCarousel({
       </Carousel>
 
       {snapCount > 1 && (
-        <div className="mt-2 flex items-center gap-2">
+        <div className="mt-2 flex items-center gap-2 justify-end">
           <Button
             type="button"
             variant="outline"

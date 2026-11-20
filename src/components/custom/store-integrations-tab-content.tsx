@@ -151,7 +151,7 @@ export function IntegrationConnectionModal({
       <DialogTrigger>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-106.25 w-1/2! lg:max-w-1/2!">
         <DialogHeader>
-          <DialogTitle>Connect to {integration.name}</DialogTitle>
+          <DialogTitle>Connect To {integration.name}</DialogTitle>
         </DialogHeader>
 
         <form

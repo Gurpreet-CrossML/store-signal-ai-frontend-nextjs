@@ -2,7 +2,7 @@ import { AuthShell } from "@/components/custom/auth-shell";
 import { ResetPasswordForm } from "@/components/custom/reset-password-form";
 
 export const metadata = {
-  title: "Reset password",
+  title: "Reset Password",
 };
 
 // Only reads the link's parts. The link is opened (and used up) by the

@@ -226,7 +226,7 @@ export default function CampaignDetail({ campaignId }: { campaignId: number }) {
   if (!campaign) {
     return (
       <div className="flex flex-col items-center gap-3 py-24 text-center">
-        <Typography variant="h4">Campaign not found</Typography>
+        <Typography variant="h4">Campaign Not Found</Typography>
         <Typography variant="muted">
           It may have been deleted, or belong to a different store.
         </Typography>
@@ -234,7 +234,7 @@ export default function CampaignDetail({ campaignId }: { campaignId: number }) {
           variant="outline"
           onClick={() => router.push("/campaign/campaigns")}
         >
-          Back to campaigns
+          Back To Campaigns
         </Button>
       </div>
     );
@@ -260,9 +260,9 @@ export default function CampaignDetail({ campaignId }: { campaignId: number }) {
             </Typography>
             <Typography variant="muted">
               {campaign.continuous_entry
-                ? "Continuous entry"
-                : "One-time snapshot"}{" "}
-              · Start time {campaign.start_time.slice(0, 5)}
+                ? "Continuous Entry"
+                : "One-Time Snapshot"}{" "}
+              · Start Time {campaign.start_time.slice(0, 5)}
             </Typography>
           </div>
         </div>
@@ -335,7 +335,7 @@ export default function CampaignDetail({ campaignId }: { campaignId: number }) {
             <div>
               <div className="text-xs text-muted-foreground">Steps</div>
               <div className="text-sm font-medium">
-                {steps.length} step{steps.length === 1 ? "" : "s"}
+                {steps.length} Step{steps.length === 1 ? "" : "s"}
               </div>
             </div>
           </div>

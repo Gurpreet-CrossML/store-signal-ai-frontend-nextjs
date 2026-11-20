@@ -45,32 +45,32 @@ export const ACTIONS: {
 }[] = [
   {
     id: "reply",
-    label: "Reply publicly",
+    label: "Reply Publicly",
     description: "Answers underneath the comment, where everyone can see it.",
     tone: "accent",
   },
   {
     id: "like",
-    label: "Like the comment",
+    label: "Like The Comment",
     description: "A small acknowledgement that costs nothing.",
     tone: "accent",
   },
   {
     id: "offer_dm",
-    label: "Offer to DM",
+    label: "Offer To DM",
     description: "Replies in public inviting them to continue privately.",
     tone: "info",
   },
   {
     id: "move_dm",
-    label: "Move to DM",
+    label: "Move To DM",
     description:
       "Opens the conversation in the inbox, where order details belong.",
     tone: "info",
   },
   {
     id: "hide",
-    label: "Hide the comment",
+    label: "Hide The Comment",
     description: "Stays visible to its author, hidden from everyone else.",
     tone: "danger",
   },

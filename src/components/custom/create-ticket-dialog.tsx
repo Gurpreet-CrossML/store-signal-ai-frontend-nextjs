@@ -529,7 +529,7 @@ export function CreateTicketDialog({
             <div className="flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
                 <Typography variant="small" as="p">
-                  Draft from Conversation
+                  Draft From Conversation
                 </Typography>
                 <Typography variant="muted">
                   Reads the recent messages and fills in the subject,
@@ -552,7 +552,7 @@ export function CreateTicketDialog({
                 {drafting ? (
                   "Drafting…"
                 ) : (
-                  <CreditLabel>Draft with AI</CreditLabel>
+                  <CreditLabel>Draft With AI</CreditLabel>
                 )}
               </Button>
             </div>
@@ -643,7 +643,7 @@ export function CreateTicketDialog({
                 />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={NO_ORDER}>No order</SelectItem>
+                <SelectItem value={NO_ORDER}>No Order</SelectItem>
                 {orders.map((order) => (
                   <SelectItem key={order.id} value={String(order.id)}>
                     {order.name || `#${order.order_number}`} ·{" "}

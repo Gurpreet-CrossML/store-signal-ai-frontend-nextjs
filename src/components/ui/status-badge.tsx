@@ -35,10 +35,10 @@ function statusKey(status: string): string {
 const FINANCIAL_STATUS: Record<FinancialStatus, { tone: Tone; label: string }> =
   {
     paid: { tone: "success", label: "Paid" },
-    partially_paid: { tone: "warning", label: "Partially paid" },
+    partially_paid: { tone: "warning", label: "Partially Paid" },
     pending: { tone: "warning", label: "Pending" },
     authorized: { tone: "info", label: "Authorized" },
-    partially_refunded: { tone: "warning", label: "Partially refunded" },
+    partially_refunded: { tone: "warning", label: "Partially Refunded" },
     refunded: { tone: "danger", label: "Refunded" },
     voided: { tone: "danger", label: "Voided" },
     unpaid: { tone: "danger", label: "Unpaid" },
@@ -74,7 +74,7 @@ const FULFILLMENT_STATUS: Record<
   { tone: Tone; label: string }
 > = {
   fulfilled: { tone: "success", label: "Fulfilled" },
-  partial: { tone: "warning", label: "Partially fulfilled" },
+  partial: { tone: "warning", label: "Partially Fulfilled" },
   restocked: { tone: "neutral", label: "Restocked" },
 };
 
