@@ -263,11 +263,10 @@ export default function Dashboard() {
   };
 
   const liveChatHref = () => {
-    const params = new URLSearchParams({ filter: "all" });
-    params.set("from", exportRange.from);
-    params.set("to", exportRange.to);
+    const params = new URLSearchParams();
     if (channel) params.set("channel", channel);
-    return `/support?${params.toString()}`;
+    const query = params.toString();
+    return query ? `/support?${query}` : "/support";
   };
 
   const performanceSummaryMetrics: SummaryMetric[] = [
@@ -626,13 +625,13 @@ export default function Dashboard() {
                 {metric.value}
               </Typography>
             );
-            const statusBadge = metric.status ? (
+            const statusBadge = (
               <span
                 className={`inline-block px-3 py-1 text-xs font-semibold rounded-full ${statusColors[metric.statusVariant]}`}
               >
                 {metric.status}
               </span>
-            ) : null;
+            );
 
             // The value and the status pill link independently (e.g. Active
             // Now's count goes to all active chats, its "needs a human"
@@ -659,11 +658,12 @@ export default function Dashboard() {
                 </CardContent>
                 <CardFooter className="justify-between gap-1.5">
                   <div className="flex flex-wrap items-center gap-1.5">
-                    {metric.statusHref ? (
-                      <Link href={metric.statusHref}>{statusBadge}</Link>
-                    ) : (
-                      statusBadge
-                    )}
+                    {metric.status &&
+                      (metric.statusHref ? (
+                        <Link href={metric.statusHref}>{statusBadge}</Link>
+                      ) : (
+                        statusBadge
+                      ))}
                     {metric.breakdown?.map((chip) => (
                       <Link
                         key={chip.label}
