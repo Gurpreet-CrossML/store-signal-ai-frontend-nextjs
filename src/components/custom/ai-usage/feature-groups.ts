@@ -14,6 +14,10 @@ export const FEATURE_GROUPS: {
         name: "AI Chat Replies",
         description: "Answers your customers in the website chat widget",
       },
+      ai_insights: {
+        name: "AI Insights",
+        description: "Summarises and scores a closed chat on request",
+      },
     },
   },
   {

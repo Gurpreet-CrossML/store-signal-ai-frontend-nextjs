@@ -40,6 +40,7 @@ import {
 } from "@/components/custom/customer-header";
 import { TagsCell } from "@/components/custom/threads-columns";
 import { InfoIcon } from "@/components/custom/info-icon";
+import { CreditLabel } from "@/components/custom/credit-label";
 import { closedByLabel, closeReasonLabel } from "@/lib/thread-options";
 import { LinkCustomerDialog } from "@/components/custom/link-customer-dialog";
 import {
@@ -507,9 +508,8 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
     if (!threadId) return;
     const result = await dispatch(GenerateAIInsight(threadId));
     if (GenerateAIInsight.fulfilled.match(result)) {
-      // The summary and tags come from the same analysis.
+      // The summary comes from the same analysis; tags are set on thread close.
       dispatch(FetchConversationSummary(threadId));
-      dispatch(FetchTags(threadId));
     }
   };
 
@@ -676,15 +676,20 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
                 <EmptyMedia variant="icon" className="mb-1 size-8">
                   <IconSparkles className="size-4" />
                 </EmptyMedia>
-                <EmptyTitle className="text-sm">No AI Insights Yet</EmptyTitle>
-                <EmptyDescription className="text-xs">
+                <EmptyTitle className="text-base">
+                  No AI Insights Yet
+                </EmptyTitle>
+                <EmptyDescription className="text-sm">
                   Generate a summary, score and suggestions for this
                   conversation.
                 </EmptyDescription>
               </EmptyHeader>
               <EmptyContent>
                 <Button
+                  // Same look as "Draft With AI" (create-ticket-dialog).
+                  variant="outline"
                   size="sm"
+                  className="h-auto gap-2 px-4 py-1"
                   disabled={GenerateAIInsightIsLoading}
                   onClick={handleGenerateInsights}
                 >
@@ -693,9 +698,13 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
                   ) : (
                     <IconSparkles className="size-4" />
                   )}
-                  {GenerateAIInsightIsLoading
-                    ? "Generating Insights…"
-                    : "Generate AI Insights"}
+                  {GenerateAIInsightIsLoading ? (
+                    "Generating Insights…"
+                  ) : (
+                    <CreditLabel className="self-center text-xs">
+                      Generate AI Insights
+                    </CreditLabel>
+                  )}
                 </Button>
               </EmptyContent>
             </Empty>
