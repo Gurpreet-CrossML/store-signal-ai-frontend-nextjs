@@ -117,7 +117,12 @@ import { useSession } from "next-auth/react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { toast } from "sonner";
-import { ACTIVE_FILTER_STYLE, ENDPOINTS } from "@/lib/config";
+import {
+  ACTIVE_FILTER_STYLE,
+  ENDPOINTS,
+  MAX_MESSAGE_LENGTH,
+  MESSAGE_TOO_LONG_TEXT,
+} from "@/lib/config";
 import { can } from "@/lib/access-rules";
 import type { ThreadCloseReason } from "@/lib/thread-options";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
@@ -356,7 +361,15 @@ function ThreadChatControls({
   );
   const inputsDisabled = transitionState !== "idle" || isUploadingAttachments;
 
+  // The same limit as the customer's widget: typing stops at it, the box
+  // turns red, sending is off, and the reason shows under the box like a
+  // form field's error (no toast).
+  const tooLong = composerMessage.length >= MAX_MESSAGE_LENGTH;
+  const changeComposerMessage = (value: string) =>
+    setComposerMessage(value.slice(0, MAX_MESSAGE_LENGTH));
+
   const canSend =
+    !tooLong &&
     (composerMessage.trim().length > 0 ||
       attachments.length > 0 ||
       attachedProducts.length > 0) &&
@@ -365,7 +378,7 @@ function ThreadChatControls({
     !isUploadingAttachments &&
     !hasFailedAttachments;
   const canSaveInternalNote =
-    composerMessage.trim().length > 0 && transitionState === "idle";
+    !tooLong && composerMessage.trim().length > 0 && transitionState === "idle";
 
   const handleEmojiClick = (emojiData: EmojiClickData) => {
     onEmojiSelect(emojiData.emoji);
@@ -495,7 +508,12 @@ function ThreadChatControls({
             transition={{ duration: 0.2, ease: "easeOut" }}
             className="order-2 p-2 sm:p-2.5"
           >
-            <div className="overflow-hidden rounded-xl border border-amber-300/80 bg-amber-50 shadow-xs transition-shadow focus-within:border-amber-400 focus-within:shadow-sm dark:border-amber-700/70 dark:bg-amber-950/30">
+            <div
+              className={cn(
+                "overflow-hidden rounded-xl border border-amber-300/80 bg-amber-50 shadow-xs transition-shadow focus-within:border-amber-400 focus-within:shadow-sm dark:border-amber-700/70 dark:bg-amber-950/30",
+                tooLong && "border-red-600 focus-within:border-red-600",
+              )}
+            >
               <div className="flex items-start gap-2 bg-amber-50 px-3 py-1.5 text-xs leading-snug text-amber-800 sm:text-xsm dark:bg-amber-950/30 dark:text-amber-100">
                 <IconLock className="mt-0.5 size-3 shrink-0 text-amber-700 sm:size-3 dark:text-amber-300" />
                 <span>
@@ -509,11 +527,13 @@ function ThreadChatControls({
                   placeholder="Add a note for your team."
                   value={composerMessage}
                   disabled={isSavingInternalNote || transitionState !== "idle"}
-                  onChange={(event) => setComposerMessage(event.target.value)}
+                  onChange={(event) =>
+                    changeComposerMessage(event.target.value)
+                  }
                   onKeyDown={(event) => {
                     if (event.key === "Enter" && !event.shiftKey) {
                       event.preventDefault();
-                      onSendInternalNote();
+                      if (!tooLong) onSendInternalNote();
                     }
                   }}
                   className="min-h-12 max-h-20 w-full resize-none bg-transparent py-0.5 text-sm leading-6 outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60"
@@ -526,6 +546,7 @@ function ThreadChatControls({
                     size="sm"
                     onClick={onSendInternalNote}
                     disabled={
+                      tooLong ||
                       composerMessage.trim().length === 0 ||
                       isSavingInternalNote ||
                       transitionState !== "idle"
@@ -542,6 +563,11 @@ function ThreadChatControls({
                   </Button>
                 </div>
               </div>
+              {tooLong && (
+                <p className="px-3 pb-2 text-xs text-destructive">
+                  {MESSAGE_TOO_LONG_TEXT}
+                </p>
+              )}
             </div>
           </motion.div>
         )}
@@ -681,7 +707,10 @@ function ThreadChatControls({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="order-2 m-2 overflow-hidden rounded-lg border border-border/60 bg-background shadow-xs transition-shadow focus-within:border-primary/50 focus-within:shadow-sm sm:m-2.5"
+            className={cn(
+              "order-2 m-2 overflow-hidden rounded-lg border border-border/60 bg-background shadow-xs transition-shadow focus-within:border-primary/50 focus-within:shadow-sm sm:m-2.5",
+              tooLong && "border-red-600 focus-within:border-red-600",
+            )}
           >
             {isEmojiPickerOpen && (
               <div className="border-b border-border/50 p-2">
@@ -824,11 +853,11 @@ function ThreadChatControls({
                 }
                 value={composerMessage}
                 disabled={inputsDisabled}
-                onChange={(event) => setComposerMessage(event.target.value)}
+                onChange={(event) => changeComposerMessage(event.target.value)}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" && !event.shiftKey) {
                     event.preventDefault();
-                    onSendAgentMessage();
+                    if (!tooLong) onSendAgentMessage();
                   }
                 }}
                 className="min-h-12 max-h-24 w-full resize-none bg-transparent py-0.5 text-xs leading-5 outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm sm:leading-6"
@@ -958,6 +987,11 @@ function ThreadChatControls({
                 </Button>
               </div>
             </div>
+            {tooLong && (
+              <p className="px-3 pb-2 text-xs text-destructive">
+                {MESSAGE_TOO_LONG_TEXT}
+              </p>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -1899,7 +1933,10 @@ export default function Support() {
   );
 
   const handleEmojiSelect = useCallback((emoji: string) => {
-    setComposerMessage((prev) => `${prev}${emoji}`);
+    // Past the message limit the emoji is not added, as typing stops there.
+    setComposerMessage((prev) =>
+      `${prev}${emoji}`.length > MAX_MESSAGE_LENGTH ? prev : `${prev}${emoji}`,
+    );
     setIsEmojiPickerOpen(false);
   }, []);
 
