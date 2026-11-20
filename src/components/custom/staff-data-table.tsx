@@ -36,6 +36,8 @@ interface StaffDataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
   isLoading?: boolean;
+  /** Search or a filter is on, so an empty list means nothing matched. */
+  isFiltered?: boolean;
   /** One member as a card, for phones, where the table does not fit. */
   renderCard: (row: TData) => React.ReactNode;
 }
@@ -44,6 +46,7 @@ export function StaffDataTable<TData, TValue>({
   columns,
   data,
   isLoading = false,
+  isFiltered = false,
   renderCard,
 }: StaffDataTableProps<TData, TValue>) {
   // Name, A to Z until the header is clicked.
@@ -69,7 +72,9 @@ export function StaffDataTable<TData, TValue>({
     </div>
   ) : rows.length ? null : (
     <p className="text-center text-muted-foreground">
-      No staff yet. Add your first staff user above.
+      {isFiltered
+        ? "No Staff Found"
+        : "No staff yet. Add your first staff user above."}
     </p>
   );
 

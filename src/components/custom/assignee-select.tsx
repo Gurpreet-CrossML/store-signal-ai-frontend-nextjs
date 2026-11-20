@@ -36,6 +36,8 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { StaffRoleBadge } from "@/components/custom/staff-columns";
+import type { StaffRole } from "@/lib/tenant-types";
 import { cn } from "@/lib/utils";
 
 export type AgentOption = {
@@ -43,6 +45,8 @@ export type AgentOption = {
   name: string;
   /** Company admin — shown with an "Admin" label. */
   isAdmin?: boolean;
+  /** Their staff role, shown as a pill beside the name. */
+  role?: StaffRole;
   /** Can't be picked by this user (a manager can't assign to the owner). */
   disabled?: boolean;
 };
@@ -156,7 +160,10 @@ export function AssigneeSelect({
                 .toUpperCase()}
             </span>
             <span className="flex min-w-0 flex-1 flex-col items-start leading-tight">
-              <span className="max-w-full truncate">{agent.name}</span>
+              <span className="flex max-w-full min-w-0 items-center gap-1.5">
+                <span className="truncate">{agent.name}</span>
+                {agent.role && <StaffRoleBadge role={agent.role} />}
+              </span>
               <span className="max-w-full truncate text-xs text-muted-foreground">
                 {agent.email}
               </span>

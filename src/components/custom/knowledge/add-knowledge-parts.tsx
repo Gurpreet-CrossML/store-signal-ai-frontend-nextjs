@@ -103,7 +103,6 @@ const SOURCE_CARDS: {
   value: AddableSource;
   title: string;
   description: string;
-  tag?: string;
   icon: Icon;
   tone: string;
 }[] = [
@@ -120,7 +119,6 @@ const SOURCE_CARDS: {
     title: "Documents",
     description:
       "PDF or Word files, like size guides, care instructions or policy documents.",
-    tag: "PDF · Word",
     icon: IconFileText,
     tone: "bg-violet-50 text-violet-600 dark:bg-violet-950/40",
   },
@@ -129,7 +127,6 @@ const SOURCE_CARDS: {
     title: "Article",
     description:
       "Write a help article in the editor, with headings, lists and tables. Keep it as a draft until it's ready.",
-    tag: "Draft Or Publish",
     icon: IconArticle,
     tone: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40",
   },
@@ -158,7 +155,7 @@ export function SourceCards({
       className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
     >
       {SOURCE_CARDS.map(
-        ({ value: source, title, description, tag, icon: Icon, tone }) => {
+        ({ value: source, title, description, icon: Icon, tone }) => {
           const selected = value === source;
           return (
             <button
@@ -197,11 +194,6 @@ export function SourceCards({
               <span className="text-xs text-muted-foreground">
                 {description}
               </span>
-              {tag && (
-                <span className="mt-auto w-fit rounded-md bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
-                  {tag}
-                </span>
-              )}
             </button>
           );
         },
@@ -280,22 +272,6 @@ export function ContentLayout({
       </section>
       <div className="flex flex-col gap-4">{side}</div>
     </div>
-  );
-}
-
-/** The tinted tip under the scope panel. */
-export function TipCard({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <aside className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm">
-      <p className="font-semibold text-primary">{title}</p>
-      <p className="mt-1 text-xs text-primary/80">{children}</p>
-    </aside>
   );
 }
 

@@ -199,6 +199,7 @@ export default function StaffManagement({
           columns={columns}
           data={filteredStaff}
           isLoading={staffLoading}
+          isFiltered={hasActiveFilters}
           renderCard={(member) => (
             <div className="flex items-start gap-2">
               <div className="min-w-0 flex-1 space-y-1.5">
