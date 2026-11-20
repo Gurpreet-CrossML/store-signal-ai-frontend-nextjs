@@ -102,7 +102,11 @@ export default function Threads() {
   // (the `?page=` param keeps the list position).
   const handleSelectThread = useCallback(
     (threadId: string, isActive: boolean) => {
-      router.push(getThreadHref(threadId, isActive));
+      if (isActive) {
+        router.push(`/support/?chat=${threadId}`);
+      } else {
+        router.push(`/threads/${threadId}`);
+      }
     },
     [router],
   );

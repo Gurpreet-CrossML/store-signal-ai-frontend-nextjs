@@ -1156,7 +1156,12 @@ export default function Support() {
   const [hasManualTabSelection, setHasManualTabSelection] = useState(false);
   const [isThreadFilterOpen, setIsThreadFilterOpen] = useState(false);
   const [appliedThreadFilters, setAppliedThreadFilters] =
-    useState<SupportThreadFilters>(EMPTY_SUPPORT_THREAD_FILTERS);
+    useState<SupportThreadFilters>(() => ({
+      ...EMPTY_SUPPORT_THREAD_FILTERS,
+      channels: searchParams?.get("channel")
+        ? [searchParams.get("channel") as string]
+        : [],
+    }));
   const [draftThreadFilters, setDraftThreadFilters] =
     useState<SupportThreadFilters>(EMPTY_SUPPORT_THREAD_FILTERS);
   const [replyWithAILoadingId, setReplyWithAILoadingId] = useState<
@@ -1943,11 +1948,13 @@ export default function Support() {
       setPortraitView("conversation");
       setAttachments([]);
       setAppliedChatParam(threadId);
-      router.replace(`${pathname}?chat=${encodeURIComponent(threadId)}`, {
+      const params = new URLSearchParams(searchParams?.toString() ?? "");
+      params.set("chat", threadId);
+      router.replace(`${pathname}?${params.toString()}`, {
         scroll: false,
       });
     },
-    [router, pathname],
+    [router, pathname, searchParams],
   );
 
   // Closing is the customer's call: this only asks their widget for feedback.
