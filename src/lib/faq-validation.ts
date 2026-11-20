@@ -48,9 +48,12 @@ const REPEAT_MIN_WORDS = 6;
  * says the same thing over and over. */
 const QUESTION_MAX_REPEATED_SHARE = 0.5;
 /** A run of this many words repeated more than the max times is a pasted
- * phrase, in a question or an answer. */
+ * phrase, in a question or an answer, but only when the repeats are at least
+ * this share of all the words. A long answer that says "I would want to" a few
+ * times is normal; one that is mostly the same phrase is not. */
 const REPEATED_PHRASE_WORDS = 4;
 const REPEATED_PHRASE_MAX_COUNT = 2;
+const REPEATED_PHRASE_MIN_SHARE = 0.5;
 
 /** True when the words keep repeating (`maxRepeatedShare` null skips the
  * distinct-words check, which is for questions only). */
@@ -68,7 +71,10 @@ function isRepetitive(words: string[], maxRepeatedShare: number | null) {
     counts.set(phrase, (counts.get(phrase) ?? 0) + 1);
   }
   return [...counts.values()].some(
-    (count) => count > REPEATED_PHRASE_MAX_COUNT,
+    (count) =>
+      count > REPEATED_PHRASE_MAX_COUNT &&
+      (count * REPEATED_PHRASE_WORDS) / lower.length >=
+        REPEATED_PHRASE_MIN_SHARE,
   );
 }
 
