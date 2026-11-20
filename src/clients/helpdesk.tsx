@@ -1431,9 +1431,6 @@ function ConversationPanel({
               segment={ticket.customer_segment}
               className="h-4 rounded px-1.5 text-[11px] leading-4"
             />
-            <span className="shrink-0">
-             
-            </span>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
