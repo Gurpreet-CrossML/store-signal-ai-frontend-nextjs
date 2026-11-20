@@ -6,7 +6,6 @@ import {
   ENDPOINTS,
   KNOWLEDGE_TEST_SENDERS,
   type KnowledgeTestSender,
-  type KnowledgeUnansweredReason,
 } from "@/lib/config";
 import { toPaginatedList } from "@/lib/helpers";
 import { axiosInstance } from "@/redux/axios-config";
@@ -21,15 +20,21 @@ export type TestQuestion = {
   question: string;
 };
 
+/** A workflow that left customer questions unanswered. */
+export type UnansweredWorkflow = {
+  /** The workflow's code, used to list its questions. */
+  code: string;
+  name: string;
+  /** How many questions it left unanswered. */
+  count: number;
+};
+
 /** A customer question the AI couldn't answer. */
 export type UnansweredQuestion = {
   id: number;
   question: string;
-  /** The AI's reply; `null` when it never replied. */
-  answer: string | null;
-  reason: KnowledgeUnansweredReason;
-  /** The reply's confidence from 0 to 1; `null` when it has none. */
-  confidence: number | null;
+  /** Code of the workflow that couldn't answer it. */
+  workflow: string | null;
   threadId: string;
   /** Whether the conversation is still open (it is in Support) or closed (in Threads). */
   threadIsActive: boolean;
@@ -39,9 +44,7 @@ export type UnansweredQuestion = {
 type ApiUnansweredQuestion = {
   id: number;
   question: string;
-  answer: string | null;
-  reason: KnowledgeUnansweredReason;
-  confidence: number | null;
+  workflow: string | null;
   thread_id: string;
   thread_is_active: boolean;
   asked_at: string;
@@ -126,6 +129,42 @@ export const FetchTestQuestions = createAsyncThunk(
   },
 );
 
+export const FetchUnansweredWorkflows = createAsyncThunk(
+  "FetchUnansweredWorkflows",
+  async (
+    {
+      storeCode,
+      dateFrom,
+      dateTo,
+    }: {
+      storeCode: string;
+      /** Count only the questions asked on or after this day (yyyy-MM-dd). */
+      dateFrom?: string;
+      /** Count only the questions asked on or before this day (yyyy-MM-dd). */
+      dateTo?: string;
+    },
+    thunkAPI,
+  ) => {
+    try {
+      const params = new URLSearchParams({ store_code: storeCode });
+      if (dateFrom) params.set("date_from", dateFrom);
+      if (dateTo) params.set("date_to", dateTo);
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchUnansweredWorkflows()}?${params.toString()}`,
+        { useBackend: true },
+      );
+      return (response.data?.data ?? []) as UnansweredWorkflow[];
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Couldn't load the workflows.", {
+        description: data?.message || "Please try again later.",
+      });
+      return thunkAPI.rejectWithValue(data || "Couldn't load the workflows.");
+    }
+  },
+);
+
 export const FetchUnansweredQuestions = createAsyncThunk(
   "FetchUnansweredQuestions",
   async (
@@ -134,14 +173,20 @@ export const FetchUnansweredQuestions = createAsyncThunk(
       page = 1,
       pageSize,
       search = "",
-      reason,
+      workflow,
+      dateFrom,
+      dateTo,
     }: {
       storeCode: string;
       page?: number;
       pageSize: number;
       search?: string;
-      /** Only the questions flagged for this reason; every one when omitted. */
-      reason?: KnowledgeUnansweredReason;
+      /** Code of the workflow whose questions to list. */
+      workflow: string;
+      /** Only the questions asked on or after this day (yyyy-MM-dd). */
+      dateFrom?: string;
+      /** Only the questions asked on or before this day (yyyy-MM-dd). */
+      dateTo?: string;
     },
     thunkAPI,
   ) => {
@@ -152,7 +197,9 @@ export const FetchUnansweredQuestions = createAsyncThunk(
         page_size: String(pageSize),
       });
       if (search.trim()) params.set("search", search.trim());
-      if (reason) params.set("reason", reason);
+      params.set("workflow", workflow);
+      if (dateFrom) params.set("date_from", dateFrom);
+      if (dateTo) params.set("date_to", dateTo);
       const response = await axiosInstance.get(
         `${ENDPOINTS.fetchUnansweredQuestions()}?${params.toString()}`,
         { useBackend: true },
@@ -166,9 +213,7 @@ export const FetchUnansweredQuestions = createAsyncThunk(
           (item): UnansweredQuestion => ({
             id: item.id,
             question: item.question,
-            answer: item.answer,
-            reason: item.reason,
-            confidence: item.confidence,
+            workflow: item.workflow,
             threadId: item.thread_id,
             threadIsActive: item.thread_is_active,
             askedAt: item.asked_at,
@@ -236,6 +281,10 @@ const KnowledgeTestAiSlice = createSlice({
       FetchTestQuestionsIsError: null as null | string | object,
       FetchTestQuestionsData: null as TestQuestionList | null,
     },
+    FetchUnansweredWorkflowsState: {
+      FetchUnansweredWorkflowsIsLoading: false,
+      FetchUnansweredWorkflowsData: null as UnansweredWorkflow[] | null,
+    },
     FetchUnansweredQuestionsState: {
       FetchUnansweredQuestionsIsLoading: false,
       FetchUnansweredQuestionsIsError: null as null | string | object,
@@ -250,6 +299,11 @@ const KnowledgeTestAiSlice = createSlice({
     },
   },
   reducers: {
+    // Drops the listed unanswered questions, so another workflow's list never
+    // shows the previous one's while it loads.
+    ResetUnansweredQuestions: (state) => {
+      state.FetchUnansweredQuestionsState.FetchUnansweredQuestionsData = null;
+    },
     // Clears the Test AI chat: it is not saved, so leaving the page ends it.
     ResetTestChat: (state) => {
       state.TestChatState = {
@@ -291,6 +345,19 @@ const KnowledgeTestAiSlice = createSlice({
           (action.payload as string) ??
           "Couldn't get an answer. Please try again.";
       })
+      // FetchUnansweredWorkflows
+      .addCase(FetchUnansweredWorkflows.pending, (state) => {
+        state.FetchUnansweredWorkflowsState.FetchUnansweredWorkflowsIsLoading = true;
+      })
+      .addCase(FetchUnansweredWorkflows.fulfilled, (state, action) => {
+        state.FetchUnansweredWorkflowsState.FetchUnansweredWorkflowsIsLoading = false;
+        state.FetchUnansweredWorkflowsState.FetchUnansweredWorkflowsData =
+          action.payload;
+      })
+      .addCase(FetchUnansweredWorkflows.rejected, (state) => {
+        state.FetchUnansweredWorkflowsState.FetchUnansweredWorkflowsIsLoading = false;
+        state.FetchUnansweredWorkflowsState.FetchUnansweredWorkflowsData ??= [];
+      })
       // FetchUnansweredQuestions
       .addCase(FetchUnansweredQuestions.pending, (state) => {
         state.FetchUnansweredQuestionsState.FetchUnansweredQuestionsIsLoading = true;
@@ -311,6 +378,7 @@ const KnowledgeTestAiSlice = createSlice({
   },
 });
 
-export const { ResetTestChat } = KnowledgeTestAiSlice.actions;
+export const { ResetTestChat, ResetUnansweredQuestions } =
+  KnowledgeTestAiSlice.actions;
 
 export default KnowledgeTestAiSlice.reducer;
