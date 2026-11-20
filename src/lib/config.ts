@@ -220,9 +220,9 @@ export const ENDPOINTS = {
   // list for every store), and the questions the AI couldn't answer. Django.
   fetchTestQuestions: () => `/knowledge/test-questions/`,
   fetchUnansweredQuestions: () => `/chat/unanswered-questions/`,
-  // The Test AI chat: GET the user's earlier messages (each question and each answer), POST a
-  // question to have the AI answer it from the store's knowledge. Django.
-  testMessages: () => `/knowledge/test-messages/`,
+  // The Test AI chat: POST a question to have the AI answer it from the
+  // store's knowledge. Nothing is saved. Django.
+  testAnswer: () => `/knowledge/test-answer/`,
   // Website URL discovery: POST a site URL, get back the pages found on it
   // (url, title, word count) so the user can pick which to index. Django.
   discoverKnowledgeUrls: () => `/knowledge/knowledge-items/discover-urls/`,
@@ -954,7 +954,10 @@ export const KNOWLEDGE_TEST_QUESTION_MAX_LENGTH = 100;
 export const KNOWLEDGE_TEST_PRODUCT_SOURCE_LABEL = "Shopify products";
 // AI credits one Test AI answer costs when the AI model runs.
 export const KNOWLEDGE_TEST_ANSWER_CREDITS = 1;
-// Who wrote a Test AI chat message, as the messages API names it (`sender`).
+// Said under the Test AI chat: it is never saved.
+export const KNOWLEDGE_TEST_CHAT_NOTICE =
+  "This chat isn't saved. It will be cleared when you switch pages or reload.";
+// Who wrote a Test AI chat message.
 export const KNOWLEDGE_TEST_SENDERS = { user: "user", ai: "ai" } as const;
 export type KnowledgeTestSender =
   (typeof KNOWLEDGE_TEST_SENDERS)[keyof typeof KNOWLEDGE_TEST_SENDERS];
