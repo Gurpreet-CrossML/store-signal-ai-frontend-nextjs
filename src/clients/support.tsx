@@ -3076,7 +3076,10 @@ export default function Support() {
                 ) : (
                   <div className="flex min-h-0 flex-1 flex-col">
                     <div className="min-h-0 flex-1 overflow-y-auto p-1 sm:p-3">
-                      {threadMessages.length > 0 ? (
+                      {/* Assignments and take-overs show even before the first
+                          message; "No Messages Yet" is only for a chat with
+                          nothing in it at all. */}
+                      {threadMessages.length > 0 || handlerEvents.length > 0 ? (
                         <LiveMessagePan
                           messages={threadMessages}
                           handlerEvents={handlerEvents}
