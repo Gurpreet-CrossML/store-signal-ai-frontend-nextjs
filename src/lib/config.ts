@@ -74,6 +74,8 @@ export const ENDPOINTS = {
   fetchCompanyProfile: () => "/tenancy/company/",
   updateCompanyProfile: () => "/tenancy/company/",
   fetchStaff: () => "/tenancy/staff/",
+  // Active support agents and store managers: who chats and tickets go to.
+  fetchAssignableStaff: () => "/tenancy/staff/?assignable=true",
   createStaff: () => "/tenancy/staff/",
   updateStaff: (id: number) => `/tenancy/staff/${id}/`,
   resetStaffPassword: (id: number) => `/tenancy/staff/${id}/reset-password/`,

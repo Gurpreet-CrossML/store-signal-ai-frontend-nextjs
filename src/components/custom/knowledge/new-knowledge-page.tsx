@@ -45,7 +45,6 @@ import {
   SOURCE_META,
   SourceCards,
   StepFooter,
-  TipCard,
   type AddableSource,
   type AddStep,
 } from "@/components/custom/knowledge/add-knowledge-parts";
@@ -86,8 +85,6 @@ import {
   type DiscoveredPage,
 } from "@/redux/api-slice/knowledge-rag-slice";
 
-type ContentSource = Exclude<AddableSource, "article">;
-
 type FaqRow = { localId: string; question: string; answer: string };
 /** A chosen document with the knowledge categories it is filed under. */
 type DocumentRow = { localId: string; file: File; categories: number[] };
@@ -100,21 +97,6 @@ const emptyFaqRow = (): FaqRow => ({
   question: "",
   answer: "",
 });
-
-const TIPS: Record<ContentSource, { title: string; body: string }> = {
-  url: {
-    title: "Pick Pages That Answer Questions",
-    body: "Policies, FAQs, size guides and contact pages work best. Blog posts and job pages rarely help shoppers.",
-  },
-  file: {
-    title: "Scope It Tightly",
-    body: "A size guide set to Apparel is only used when shoppers ask about apparel. Store-wide documents are checked for every question.",
-  },
-  faq: {
-    title: "Write It Like A Reply",
-    body: "Your assistant uses your answer as written, so keep the tone you use with customers.",
-  },
-};
 
 /** The first message in whatever shape a server error came back as: a plain
  * string, an array of strings, or a nested object (DRF field-error style). */
@@ -387,7 +369,6 @@ export function NewKnowledgePage() {
 
   // --- Layout ---------------------------------------------------------------
   const meta = source && source !== "article" ? SOURCE_META[source] : null;
-  const tip = source && source !== "article" ? TIPS[source] : null;
 
   // With no storage left nothing can be added, so the button is off.
   const storage = stats?.vector_storage;
@@ -401,14 +382,14 @@ export function NewKnowledgePage() {
   const footerMessage = isStorageFull
     ? "Your storage is full. Free up space or upgrade your plan to add more."
     : source === "url"
-      ? `${plural(readyCount, "page")} selected${
-          alreadyAdded > 0 ? ` · ${alreadyAdded} already in your knowledge` : ""
+      ? `${plural(readyCount, "Page")} Selected${
+          alreadyAdded > 0 ? ` · ${alreadyAdded} Already In Your Knowledge` : ""
         }`
       : source === "file"
-        ? `${plural(documents.length, "file")} ready`
-        : `${plural(completeFaqs.length, "question")} ready${
+        ? `${plural(documents.length, "File")} Ready`
+        : `${plural(completeFaqs.length, "Question")} Ready${
             faqRows.length > completeFaqs.length && !hasIncompleteFaq
-              ? " · the empty one is skipped"
+              ? " · The Empty One Is Skipped"
               : ""
           }`;
 
@@ -427,11 +408,6 @@ export function NewKnowledgePage() {
         </Button>
         <Typography variant="h4" as="h1">
           Add Knowledge
-        </Typography>
-        <Typography variant="muted" className="max-w-2xl">
-          Choose what to add. Your assistant answers shoppers from your
-          knowledge, plus your Shopify products, which stay synced, and your
-          orders, which it reads live.
         </Typography>
       </div>
 
@@ -454,11 +430,7 @@ export function NewKnowledgePage() {
             <SourceCards value={source} onChange={setSource} />
             <ShopifySyncedNote />
           </div>
-          <StepFooter
-            message={
-              source ? "Ready when you are." : "Choose a source to continue."
-            }
-          >
+          <StepFooter>
             <Button type="button" variant="ghost" onClick={goToLibrary}>
               Cancel
             </Button>
@@ -481,14 +453,11 @@ export function NewKnowledgePage() {
               setStep("source");
             }}
             side={
-              <>
-                <KnowledgeScopePanel
-                  value={scope}
-                  onChange={setScope}
-                  showErrors={showErrors}
-                />
-                {tip && <TipCard title={tip.title}>{tip.body}</TipCard>}
-              </>
+              <KnowledgeScopePanel
+                value={scope}
+                onChange={setScope}
+                showErrors={showErrors}
+              />
             }
           >
             {source === "url" && (

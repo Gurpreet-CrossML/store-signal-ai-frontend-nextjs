@@ -35,12 +35,14 @@ import { useIsBelowLg } from "@/hooks/use-narrow-viewport";
 import { ConversationRow } from "@/components/custom/conversation-row";
 import { AnimatePresence, motion } from "framer-motion";
 
+import { CheckboxMultiSelect } from "@/components/custom/checkbox-multi-select";
 import { CustomerAvatar } from "@/components/custom/customer-avatar";
 import {
   AdminBadge,
   AssigneeSelect,
   type AgentOption,
 } from "@/components/custom/assignee-select";
+import { StaffRoleBadge } from "@/components/custom/staff-columns";
 import {
   CustomerDetailsButton,
   CustomerDetailsPanel,
@@ -91,7 +93,10 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { FetchStaff } from "@/redux/api-slice/tenancy-slice";
+import {
+  FetchAssignableStaff,
+  FetchStaff,
+} from "@/redux/api-slice/tenancy-slice";
 import { type StaffMember } from "@/redux/api-slice/tenancy-slice";
 import {
   IconAlertTriangle,
@@ -278,6 +283,7 @@ function ThreadChatControls({
   userRole,
   canReassign = false,
   agents = [],
+  assignees = [],
   chatSocketReady,
   transitionState,
   composerMessage,
@@ -308,7 +314,10 @@ function ThreadChatControls({
   user: string | null;
   userRole?: string | null;
   canReassign?: boolean;
+  /** Everyone who may hold a chat: names and admin badges. */
   agents?: AgentOption[];
+  /** Who the chat can be given to: active support agents and store managers. */
+  assignees?: AgentOption[];
   chatSocketReady: boolean;
   transitionState: "idle" | "taking_over" | "returning_to_ai";
   composerMessage: string;
@@ -458,7 +467,7 @@ function ThreadChatControls({
               >
                 {canReassign && (
                   <AssigneeSelect
-                    agents={agents}
+                    agents={assignees}
                     currentAgent={null}
                     disabled={transitionState !== "idle" || !chatSocketReady}
                     onReassign={onReassign}
@@ -605,7 +614,7 @@ function ThreadChatControls({
             <div className="flex w-full min-w-0 shrink-0 flex-nowrap items-center justify-end gap-1.5 sm:ml-auto sm:w-auto sm:gap-3">
               {(canReassign || Boolean(connectedAgent)) && (
                 <AssigneeSelect
-                  agents={agents}
+                  agents={assignees}
                   currentAgent={connectedAgent}
                   currentAgentName={connectedAgentName}
                   disabled={
@@ -670,7 +679,7 @@ function ThreadChatControls({
             <div className="flex w-full min-w-0 shrink-0 items-center justify-end gap-1.5 sm:w-auto sm:gap-3">
               {(canReassign || Boolean(connectedAgent)) && (
                 <AssigneeSelect
-                  agents={agents}
+                  agents={assignees}
                   currentAgent={connectedAgent}
                   currentAgentName={connectedAgentName}
                   disabled={
@@ -1259,6 +1268,24 @@ export default function Support() {
     session?.user?.role,
   ]);
 
+  // Who a chat can be given to; the backend sends only active support
+  // agents and store managers.
+  const assignableStaff: StaffMember[] = useAppSelector(
+    (state) => state.GetTenancyReducer.assignableStaff,
+  );
+  const assignees = useMemo<AgentOption[]>(() => {
+    const myEmail = session?.user?.email ?? "";
+    return assignableStaff.map((member) => {
+      const name =
+        `${member.first_name} ${member.last_name}`.trim() || member.email;
+      return {
+        email: member.email,
+        name: member.email === myEmail ? `${name} (you)` : name,
+        role: member.role,
+      };
+    });
+  }, [assignableStaff, session?.user?.email]);
+
   const connectedAgentName = useMemo(() => {
     if (!connectedAgent) return null;
     if (connectedAgentServerName) return connectedAgentServerName;
@@ -1287,6 +1314,7 @@ export default function Support() {
   useEffect(() => {
     if (!canReassign) return;
     void dispatch(FetchStaff());
+    void dispatch(FetchAssignableStaff());
   }, [canReassign, dispatch]);
 
   const wsRef = useRef<WebSocket | null>(null);
@@ -2706,28 +2734,37 @@ export default function Support() {
                       />
                     </fieldset>
 
-                    <fieldset>
-                      <legend className="mb-2">
-                        <Typography variant="small" as="span">
-                          Assignee
-                        </Typography>
-                      </legend>
-                      <MultiSelectCombobox
-                        options={agents.map((agent) => ({
-                          value: agent.email,
-                          label: agent.name,
-                        }))}
-                        value={draftThreadFilters.assignees}
-                        onValueChange={(assignees) =>
-                          setDraftThreadFilters((current) => ({
-                            ...current,
-                            assignees,
-                          }))
-                        }
-                        placeholder="Search assignees…"
-                        emptyMessage="No assignees found."
-                      />
-                    </fieldset>
+                    {/* Store owners and managers only: they hand chats out.
+                        The list is active support agents and store managers. */}
+                    {canReassign && (
+                      <fieldset>
+                        <legend className="mb-2">
+                          <Typography variant="small" as="span">
+                            Assignee
+                          </Typography>
+                        </legend>
+                        <CheckboxMultiSelect
+                          options={assignees.map((agent) => ({
+                            value: agent.email,
+                            label: agent.name,
+                            hint: agent.email,
+                            badge: agent.role && (
+                              <StaffRoleBadge role={agent.role} />
+                            ),
+                          }))}
+                          value={draftThreadFilters.assignees}
+                          onChange={(next) =>
+                            setDraftThreadFilters((current) => ({
+                              ...current,
+                              assignees: next,
+                            }))
+                          }
+                          placeholder="Choose assignees"
+                          searchPlaceholder="Search name or email"
+                          emptyMessage="No assignees found."
+                        />
+                      </fieldset>
+                    )}
                   </div>
                   <div className="flex justify-between border-t p-3">
                     {appliedThreadFilters.channels.length +
@@ -3208,6 +3245,7 @@ export default function Support() {
                         userRole={session?.user?.role}
                         canReassign={canReassign}
                         agents={agents}
+                        assignees={assignees}
                         chatSocketReady={chatSocketReady}
                         onReassign={handleReassign}
                         transitionState={transitionState}
