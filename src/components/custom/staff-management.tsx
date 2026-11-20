@@ -34,7 +34,6 @@ import {
 } from "@/components/custom/staff-columns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -68,11 +67,12 @@ export default function StaffManagement({
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  // The role tabs are not a filter to clear; search and status are.
-  const hasActiveFilters = search !== "" || statusFilter !== "all";
+  const hasActiveFilters =
+    search !== "" || roleFilter !== "all" || statusFilter !== "all";
 
   const clearFilters = () => {
     setSearch("");
+    setRoleFilter("all");
     setStatusFilter("all");
   };
 
@@ -81,15 +81,6 @@ export default function StaffManagement({
     () => (staff ?? []).filter((member) => !member.is_staff),
     [staff],
   );
-  const roleTabs = [
-    { value: "all", label: "All Members", count: members.length },
-    ...ASSIGNABLE_ROLES.map((role) => ({
-      value: role.value,
-      label: `${ROLE_LABELS[role.value]}s`,
-      count: members.filter((member) => member.role === role.value).length,
-    })),
-  ];
-
   // Staff lists are small (one company), so filtering client-side is fine.
   const filteredStaff = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -135,27 +126,6 @@ export default function StaffManagement({
 
   return (
     <div className={cn("flex w-full flex-col gap-4", className)}>
-      {/* One tab per role, with how many hold it. Scrolls sideways on a
-          phone rather than wrapping. */}
-      <Tabs value={roleFilter} onValueChange={setRoleFilter}>
-        <div className="scrollbar-hidden overflow-x-auto border-b pb-1.5">
-          <TabsList variant="line" className="h-10 w-max justify-start">
-            {roleTabs.map((tab) => (
-              <TabsTrigger
-                key={tab.value}
-                value={tab.value}
-                className="group/tab flex-none px-3 data-active:font-semibold data-active:text-primary data-active:after:bg-primary dark:data-active:text-primary"
-              >
-                {tab.label}
-                <span className="rounded-full bg-muted px-1.5 text-xs font-medium text-muted-foreground group-data-active/tab:bg-primary/10 group-data-active/tab:text-primary">
-                  {tab.count}
-                </span>
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </div>
-      </Tabs>
-
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative w-full sm:w-80">
           <IconSearch className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -182,6 +152,26 @@ export default function StaffManagement({
             <SelectItem value="all">All Statuses</SelectItem>
             <SelectItem value="active">Active</SelectItem>
             <SelectItem value="inactive">Inactive</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={roleFilter} onValueChange={setRoleFilter}>
+          <SelectTrigger
+            aria-label="Filter by role"
+            className={cn(
+              "w-fit",
+              roleFilter !== ALL_FILTER_VALUE && ACTIVE_FILTER_STYLE,
+            )}
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Roles</SelectItem>
+            {ASSIGNABLE_ROLES.map((role) => (
+              <SelectItem key={role.value} value={role.value}>
+                {ROLE_LABELS[role.value]}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
 
