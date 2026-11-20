@@ -676,7 +676,9 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
                 <EmptyMedia variant="icon" className="mb-1 size-8">
                   <IconSparkles className="size-4" />
                 </EmptyMedia>
-                <EmptyTitle className="text-base">No AI Insights Yet</EmptyTitle>
+                <EmptyTitle className="text-base">
+                  No AI Insights Yet
+                </EmptyTitle>
                 <EmptyDescription className="text-sm">
                   Generate a summary, score and suggestions for this
                   conversation.
