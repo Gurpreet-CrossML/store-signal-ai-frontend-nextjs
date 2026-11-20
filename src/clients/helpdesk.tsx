@@ -85,6 +85,7 @@ import {
   CustomerAvatar,
   getInitials,
 } from "@/components/custom/customer-avatar";
+import { CustomerSegmentBadge } from "@/components/custom/customer-segment-badge";
 import { MessageAttachments } from "@/components/custom/helpdesk/message-attachments";
 import { HiddenTagsBadge, tint } from "@/components/custom/helpdesk/tag-badge";
 import { TicketSlaIndicator } from "@/components/custom/helpdesk/ticket-sla";
@@ -388,6 +389,11 @@ function TicketRow({
           </span>
           <span aria-hidden>·</span>
           <span className="shrink-0">{channelLabel(ticket.channel)}</span>
+          <CustomerSegmentBadge
+            segment={ticket.customer_segment}
+            // The row's own chip size (RowChip), not the default badge's.
+            className="h-4 rounded px-1.5 text-[11px] leading-4"
+          />
           {priorityChip ? (
             <RowChip className={priorityChip}>
               {capitalizeText(ticket.priority)}
@@ -1417,11 +1423,15 @@ function ConversationPanel({
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-base font-semibold">{ticket.subject}</h2>
           {/* The ticket's number first, then who raised it. */}
-          <p className="truncate text-xs text-muted-foreground">
+          <div className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
             <span className="font-mono">{ticketRef(ticket.ticket_id)}</span>
             {" · "}
-            {customerName}
-          </p>
+            <span className="truncate">{customerName}</span>
+            <CustomerSegmentBadge
+              segment={ticket.customer_segment}
+              className="h-4 rounded px-1.5 text-[11px] leading-4"
+            />
+          </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <Button

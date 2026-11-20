@@ -28,6 +28,24 @@ export type CustomerAddress = {
   updated_at: string;
 };
 
+/**
+ * The segment the VIP segmentation pipeline gives a customer every day;
+ * empty until they have a qualifying order. Mirrors the backend's
+ * `chat.constants.CustomerSegment`.
+ */
+export type CustomerSegment =
+  | "top_vip"
+  | "vip"
+  | "at_risk_vip"
+  | "new"
+  | "high_potential"
+  | "loyal"
+  | "at_risk_loyal"
+  | "lapsed"
+  | "regular"
+  | "inactive"
+  | "";
+
 export type CustomerRecord = {
   id: number;
   first_name: string;
@@ -47,6 +65,8 @@ export type CustomerRecord = {
   accepts_email_marketing: boolean;
   accepts_sms_marketing: boolean;
   is_email_verified: boolean;
+  /** The customer's current segment. */
+  segment?: CustomerSegment;
   metadata: Record<string, unknown>;
   created_at: string;
   updated_at: string;

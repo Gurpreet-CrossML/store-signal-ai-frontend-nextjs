@@ -7,6 +7,7 @@ import type {
   ThreadCloseReason,
   ThreadClosedByType,
 } from "@/lib/thread-options";
+import type { CustomerSegment } from "@/redux/api-slice/customer-slice";
 
 type ThreadFilters = {
   from?: string;
@@ -85,6 +86,8 @@ export type Thread = {
   id: string;
   name: string | null;
   customer: Customer | null;
+  /** The customer's segment when they were linked to this chat; kept after. */
+  customer_segment?: CustomerSegment;
   source?: "native" | "webhook" | "whatsapp" | null;
   chat_handler?: "ai" | "human";
   chat_handler_user?: ThreadHandlerUser | null;

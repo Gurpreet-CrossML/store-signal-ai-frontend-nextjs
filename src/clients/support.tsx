@@ -36,6 +36,7 @@ import { ConversationRow } from "@/components/custom/conversation-row";
 import { AnimatePresence, motion } from "framer-motion";
 
 import { CustomerAvatar } from "@/components/custom/customer-avatar";
+import { CustomerSegmentBadge } from "@/components/custom/customer-segment-badge";
 import {
   AdminBadge,
   AssigneeSelect,
@@ -2877,6 +2878,10 @@ export default function Support() {
                             )}
                             {handlerLabel}
                           </Badge>
+                          <CustomerSegmentBadge
+                            segment={thread.customer_segment}
+                            className="rounded-md px-1.5"
+                          />
                           {waitingLabel && (
                             <Badge
                               variant="secondary"
@@ -2982,14 +2987,21 @@ export default function Support() {
                           talking to is what an agent needs from a header,
                           and who is handling the thread is already said by
                           the take-over banner above the composer. */}
-                      <CustomerContact
-                        email={selectedThread?.customer?.email}
-                        phone={selectedThread?.customer?.phone}
-                        // Orders keep the last thread's rows until the new
-                        // ones land; reading them sooner would show the
-                        // previous customer's phone.
-                        orders={FetchOrderDataIsLoading ? null : FetchOrderData}
-                      />
+                      <div className="flex min-w-0 items-center gap-2">
+                        <CustomerContact
+                          email={selectedThread?.customer?.email}
+                          phone={selectedThread?.customer?.phone}
+                          // Orders keep the last thread's rows until the new
+                          // ones land; reading them sooner would show the
+                          // previous customer's phone.
+                          orders={
+                            FetchOrderDataIsLoading ? null : FetchOrderData
+                          }
+                        />
+                        <CustomerSegmentBadge
+                          segment={selectedThread?.customer_segment}
+                        />
+                      </div>
                     </div>
                   </div>
 

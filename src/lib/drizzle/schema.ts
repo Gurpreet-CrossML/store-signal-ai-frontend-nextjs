@@ -2332,6 +2332,7 @@ export const chatThread = pgTable(
     }).notNull(),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
     customerId: bigint("customer_id", { mode: "number" }),
+    customerSegment: varchar("customer_segment", { length: 20 }).notNull(),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
     storeId: bigint("store_id", { mode: "number" }).notNull(),
     externalId: varchar("external_id", { length: 255 }),
@@ -3099,6 +3100,7 @@ export const storeCredentials = pgTable(
       withTimezone: true,
       mode: "string",
     }).notNull(),
+    customerSegment: varchar("customer_segment", { length: 20 }).notNull(),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
     storeId: bigint("store_id", { mode: "number" }).notNull(),
     adminTokenExpiresAt: timestamp("admin_token_expires_at", {
@@ -4245,6 +4247,7 @@ export const chatCustomer = pgTable(
       mode: "string",
     }),
     totalSpent: numeric("total_spent", { precision: 12, scale: 4 }).notNull(),
+    segment: varchar({ length: 20 }).notNull(),
   },
   (table) => [
     index("chat_customer_phone_aa304e3d").using(

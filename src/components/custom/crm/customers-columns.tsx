@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Typography } from "@/components/ui/typography";
 import { CustomerAvatar } from "@/components/custom/customer-avatar";
+import { CustomerSegmentBadge } from "@/components/custom/customer-segment-badge";
 import { BADGE_TONE_STYLES } from "@/lib/badge-tones";
 import {
   customerLocation,
@@ -115,6 +116,16 @@ export function getCustomerColumns(): ColumnDef<CustomerRecord>[] {
           </div>
         );
       },
+    },
+    {
+      accessorKey: "segment",
+      header: "Tag",
+      cell: ({ row }) => (
+        <CustomerSegmentBadge
+          segment={row.original.segment}
+          fallback={<Typography variant="muted">—</Typography>}
+        />
+      ),
     },
     {
       accessorKey: "phone",
