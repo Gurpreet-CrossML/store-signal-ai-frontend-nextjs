@@ -4,6 +4,7 @@ import { toast } from "sonner";
 
 import {
   ENDPOINTS,
+  KNOWLEDGE_TEST_SENDERS,
   type KnowledgeTestSender,
   type KnowledgeUnansweredReason,
 } from "@/lib/config";
@@ -48,10 +49,12 @@ type ApiUnansweredQuestion = {
 
 /**
  * One message of the Test AI chat: a question the user tried, or the answer
- * the AI gave. They are saved as separate messages, like the helpdesk Copilot.
+ * the AI gave. The chat is not saved anywhere: it lives only in this page's
+ * state and is cleared when the user leaves the page or reloads.
  */
 export type TestMessage = {
-  id: number;
+  /** Made here, only to tell the messages apart. */
+  id: string;
   sender: KnowledgeTestSender;
   /** The question, or the answer that was shown. */
   message: string;
@@ -64,31 +67,14 @@ export type TestMessage = {
   }[];
   /** AI messages only: the catalogue products the answer was based on, as the chat shows them. */
   products: ProductData[];
-  createdAt: string;
 };
 
-type ApiTestMessage = {
-  id: number;
-  sender: KnowledgeTestSender;
-  message: string;
-  citations: {
-    /** The knowledge item the passage came from. */
-    id: number | null;
-    title: string | null;
-    url: string | null;
-  }[];
+/** What the answer endpoint returns for one question. */
+type ApiTestAnswer = {
+  answer: string;
+  citations: TestMessage["citations"];
   products: ProductData[];
-  created_at: string;
 };
-
-const mapApiTestMessage = (item: ApiTestMessage): TestMessage => ({
-  id: item.id,
-  sender: item.sender,
-  message: item.message,
-  citations: item.citations ?? [],
-  products: item.products ?? [],
-  createdAt: item.created_at,
-});
 
 export type UnansweredQuestionList = {
   count: number;
@@ -202,31 +188,6 @@ export const FetchUnansweredQuestions = createAsyncThunk(
   },
 );
 
-export const FetchTestMessages = createAsyncThunk(
-  "FetchTestMessages",
-  async ({ storeCode }: { storeCode: string }, thunkAPI) => {
-    try {
-      const params = new URLSearchParams({ store_code: storeCode });
-      const response = await axiosInstance.get(
-        `${ENDPOINTS.testMessages()}?${params.toString()}`,
-        { useBackend: true },
-      );
-      return ((response.data?.data ?? []) as ApiTestMessage[]).map(
-        mapApiTestMessage,
-      );
-    } catch (error) {
-      const response = isAxiosError(error) ? error.response : undefined;
-      const data = response?.data;
-      toast.error("Couldn't load your earlier test questions.", {
-        description: data?.message || "Please try again later.",
-      });
-      return thunkAPI.rejectWithValue(
-        data || "Couldn't load your earlier test questions.",
-      );
-    }
-  },
-);
-
 export const AskTestQuestion = createAsyncThunk(
   "AskTestQuestion",
   async (
@@ -236,13 +197,27 @@ export const AskTestQuestion = createAsyncThunk(
     try {
       const params = new URLSearchParams({ store_code: storeCode });
       const response = await axiosInstance.post(
-        `${ENDPOINTS.testMessages()}?${params.toString()}`,
+        `${ENDPOINTS.testAnswer()}?${params.toString()}`,
         { question },
       );
-      // The saved question and answer, as two messages.
-      return ((response.data?.data ?? []) as ApiTestMessage[]).map(
-        mapApiTestMessage,
-      );
+      const answer = response.data?.data as ApiTestAnswer;
+      // The question and the answer, as two chat messages.
+      return [
+        {
+          id: crypto.randomUUID(),
+          sender: KNOWLEDGE_TEST_SENDERS.user,
+          message: question,
+          citations: [],
+          products: [],
+        },
+        {
+          id: crypto.randomUUID(),
+          sender: KNOWLEDGE_TEST_SENDERS.ai,
+          message: answer.answer,
+          citations: answer.citations ?? [],
+          products: answer.products ?? [],
+        },
+      ] satisfies TestMessage[];
     } catch (error) {
       // No toast: the chat shows the failure under the question, with a retry.
       const response = isAxiosError(error) ? error.response : undefined;
@@ -266,16 +241,24 @@ const KnowledgeTestAiSlice = createSlice({
       FetchUnansweredQuestionsIsError: null as null | string | object,
       FetchUnansweredQuestionsData: null as UnansweredQuestionList | null,
     },
-    // The Test AI chat: the user's earlier messages, the question being
-    // answered now, and why the last one failed.
+    // The Test AI chat, kept only while the page is open: the messages so far,
+    // the question being answered now, and why the last one failed.
     TestChatState: {
-      TestChatIsLoading: false,
-      TestChatItems: null as TestMessage[] | null,
+      TestChatItems: [] as TestMessage[],
       TestChatPendingQuestion: null as string | null,
       TestChatError: null as string | null,
     },
   },
-  reducers: {},
+  reducers: {
+    // Clears the Test AI chat: it is not saved, so leaving the page ends it.
+    ResetTestChat: (state) => {
+      state.TestChatState = {
+        TestChatItems: [],
+        TestChatPendingQuestion: null,
+        TestChatError: null,
+      };
+    },
+  },
   extraReducers: (builder) => {
     builder
       // FetchTestQuestions
@@ -293,34 +276,13 @@ const KnowledgeTestAiSlice = createSlice({
           (action.payload as string | object) ??
           "Couldn't load the test questions.";
       })
-      // FetchTestMessages
-      .addCase(FetchTestMessages.pending, (state) => {
-        // A fresh load (first open, or another store): drop the old chat.
-        state.TestChatState = {
-          TestChatIsLoading: true,
-          TestChatItems: null,
-          TestChatPendingQuestion: null,
-          TestChatError: null,
-        };
-      })
-      .addCase(FetchTestMessages.fulfilled, (state, action) => {
-        state.TestChatState.TestChatIsLoading = false;
-        state.TestChatState.TestChatItems = action.payload;
-      })
-      .addCase(FetchTestMessages.rejected, (state) => {
-        state.TestChatState.TestChatIsLoading = false;
-        state.TestChatState.TestChatItems ??= [];
-      })
       // AskTestQuestion
       .addCase(AskTestQuestion.pending, (state, action) => {
         state.TestChatState.TestChatPendingQuestion = action.meta.arg.question;
         state.TestChatState.TestChatError = null;
       })
       .addCase(AskTestQuestion.fulfilled, (state, action) => {
-        state.TestChatState.TestChatItems = [
-          ...(state.TestChatState.TestChatItems ?? []),
-          ...action.payload,
-        ];
+        state.TestChatState.TestChatItems.push(...action.payload);
         state.TestChatState.TestChatPendingQuestion = null;
       })
       .addCase(AskTestQuestion.rejected, (state, action) => {
@@ -348,5 +310,7 @@ const KnowledgeTestAiSlice = createSlice({
       });
   },
 });
+
+export const { ResetTestChat } = KnowledgeTestAiSlice.actions;
 
 export default KnowledgeTestAiSlice.reducer;
