@@ -676,8 +676,8 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
                 <EmptyMedia variant="icon" className="mb-1 size-8">
                   <IconSparkles className="size-4" />
                 </EmptyMedia>
-                <EmptyTitle className="text-sm">No AI Insights Yet</EmptyTitle>
-                <EmptyDescription className="text-xs">
+                <EmptyTitle className="text-base">No AI Insights Yet</EmptyTitle>
+                <EmptyDescription className="text-sm">
                   Generate a summary, score and suggestions for this
                   conversation.
                 </EmptyDescription>
@@ -687,6 +687,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
                   // Same look as "Draft With AI" (create-ticket-dialog).
                   variant="outline"
                   size="sm"
+                  className="h-auto gap-2 px-4 py-1"
                   disabled={GenerateAIInsightIsLoading}
                   onClick={handleGenerateInsights}
                 >
@@ -698,7 +699,9 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
                   {GenerateAIInsightIsLoading ? (
                     "Generating Insights…"
                   ) : (
-                    <CreditLabel>Generate AI Insights</CreditLabel>
+                    <CreditLabel className="self-center text-xs">
+                      Generate AI Insights
+                    </CreditLabel>
                   )}
                 </Button>
               </EmptyContent>
