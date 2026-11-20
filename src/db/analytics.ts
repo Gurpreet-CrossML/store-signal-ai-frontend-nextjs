@@ -1048,11 +1048,10 @@ export async function get_operational_efficiency(params: {
     .where(threadWhere);
   const totalThreads = Number(total);
 
-  // Escalation is over closed chats only, so the count matches the closed-only
-  // list the dashboard card links to (/threads always shows closed threads).
+  // Escalation is over every chat the AI started — all in-range threads, not
+  // only closed ones (every Thread defaults to AI-handled at creation).
   const allThreadWhere = and(
     localDateRange(sql`${chatThread.createdAt}`, startDate, endDate),
-    eq(chatThread.isActive, false),
     storeIdScope(chatThread.storeId, params.store_code) ?? undefined,
     threadChannelScope(params.channel),
   )!;
