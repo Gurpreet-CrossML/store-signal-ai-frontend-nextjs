@@ -52,7 +52,12 @@ export function LocationSelect({
         key={loading ? "loading" : "ready"}
         // An empty value makes Radix show the placeholder (and its spinner).
         value={loading ? "" : (value?.toString() ?? "")}
-        onValueChange={onChange}
+        // Every real option has an id. An empty value only comes from the
+        // browser restoring the hidden form field on reload, and taking it
+        // would clear a saved country (and its state and city) on its own.
+        onValueChange={(next) => {
+          if (next) onChange(next);
+        }}
         disabled={loading || disabled}
       >
         <SelectTrigger id={id} className="w-full">

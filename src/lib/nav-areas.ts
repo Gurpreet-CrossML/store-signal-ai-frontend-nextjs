@@ -171,8 +171,7 @@ export const NAV_AREAS = {
         href: "/settings/general",
         title: "General",
         description: "Company profile — name, logo, and identity details.",
-        pageDescription:
-          "Your company's contact details, logo, and address. The name and code are managed by the platform operator.",
+        pageDescription: "Your company's contact details, logo, and address.",
         icon: IconBuildingSkyscraper,
         ownerOnly: true,
       },
