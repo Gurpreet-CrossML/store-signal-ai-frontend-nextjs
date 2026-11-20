@@ -38,6 +38,8 @@ interface StaffDataTableProps<TData, TValue> {
   isLoading?: boolean;
   /** Search or a filter is on, so an empty list means nothing matched. */
   isFiltered?: boolean;
+  /** How many members the company has, before search and filters. */
+  totalMembers?: number;
   /** One member as a card, for phones, where the table does not fit. */
   renderCard: (row: TData) => React.ReactNode;
 }
@@ -47,6 +49,7 @@ export function StaffDataTable<TData, TValue>({
   data,
   isLoading = false,
   isFiltered = false,
+  totalMembers,
   renderCard,
 }: StaffDataTableProps<TData, TValue>) {
   // Name, A to Z until the header is clicked.
@@ -140,6 +143,7 @@ export function StaffDataTable<TData, TValue>({
           <DataTablePagination
             table={table}
             totalCount={data.length}
+            outOf={isFiltered ? totalMembers : undefined}
             noun="member"
             compactOnMobile
           />
