@@ -220,6 +220,8 @@ export const ENDPOINTS = {
   // list for every store), and the questions the AI couldn't answer. Django.
   fetchTestQuestions: () => `/knowledge/test-questions/`,
   fetchUnansweredQuestions: () => `/chat/unanswered-questions/`,
+  // The workflows that left customer questions unanswered, with how many each left.
+  fetchUnansweredWorkflows: () => `/chat/unanswered-questions/workflows/`,
   // The Test AI chat: POST a question to have the AI answer it from the
   // store's knowledge. Nothing is saved. Django.
   testAnswer: () => `/knowledge/test-answer/`,
@@ -961,16 +963,6 @@ export const KNOWLEDGE_TEST_CHAT_NOTICE =
 export const KNOWLEDGE_TEST_SENDERS = { user: "user", ai: "ai" } as const;
 export type KnowledgeTestSender =
   (typeof KNOWLEDGE_TEST_SENDERS)[keyof typeof KNOWLEDGE_TEST_SENDERS];
-// Why a customer question counts as one the AI couldn't answer, as the
-// unanswered questions API names it (`reason`), with its label and badge tone.
-export const KNOWLEDGE_UNANSWERED_REASONS = {
-  escalated: { label: "Escalated to a human", tone: "danger" },
-  low_confidence: { label: "Low confidence", tone: "warning" },
-} as const;
-export type KnowledgeUnansweredReason =
-  keyof typeof KNOWLEDGE_UNANSWERED_REASONS;
-// The unanswered-questions reason filter's "no filter" value.
-export const KNOWLEDGE_UNANSWERED_ALL_REASONS = "all";
 export const KNOWLEDGE_UNANSWERED_PAGE_SIZE = 25;
 export const KNOWLEDGE_TEST_QUESTIONS_PAGE_SIZE = 25;
 // How many items of each kind a category holds, as the knowledge API's

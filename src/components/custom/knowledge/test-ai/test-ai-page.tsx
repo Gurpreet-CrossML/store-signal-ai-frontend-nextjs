@@ -116,7 +116,7 @@ export function TestAiPage() {
       </div>
 
       <Sheet open={isBelowLg && drawerOpen} onOpenChange={setDrawerOpen}>
-        <SheetContent className="w-full gap-0 sm:max-w-md">
+        <SheetContent className="gap-0 data-[side=right]:w-full data-[side=right]:sm:max-w-xl">
           <SheetHeader className="border-b pr-14">
             <SheetTitle>Questions</SheetTitle>
             <SheetDescription>
