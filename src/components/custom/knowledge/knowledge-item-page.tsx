@@ -26,6 +26,12 @@ import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { useCan } from "@/hooks/use-can";
 import { useIsBelowLg } from "@/hooks/use-narrow-viewport";
+import { limitAttemptHandlers, limitReachedMessage } from "@/lib/input-limit";
+import {
+  FAQ_QUESTION_MAX_LENGTH,
+  faqAnswerProblem,
+  faqQuestionProblem,
+} from "@/lib/faq-validation";
 import { isValidUrl, normalizeUrl } from "@/lib/url";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
@@ -167,6 +173,13 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
   const [answer, setAnswer] = useState("");
   const [url, setUrl] = useState("");
   const [showErrors, setShowErrors] = useState(false);
+  // A field's problem shows once it was left, or once saving was tried.
+  const [questionTouched, setQuestionTouched] = useState(false);
+  const [answerTouched, setAnswerTouched] = useState(false);
+  // Set when someone tries to type past a limit; shown until they edit or
+  // leave the field.
+  const [questionLimitHit, setQuestionLimitHit] = useState(false);
+  const [answerLimitHit, setAnswerLimitHit] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   const [publishOpen, setPublishOpen] = useState(false);
@@ -226,6 +239,8 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
     setAnswer(item.answer ?? "");
     setUrl(item.url ?? "");
     setShowErrors(false);
+    setQuestionTouched(false);
+    setAnswerTouched(false);
     setEditing(false);
   };
 
@@ -253,7 +268,8 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
 
     setShowErrors(true);
     const faqInvalid =
-      item.source === "faq" && (!question.trim() || !answer.trim());
+      item.source === "faq" &&
+      Boolean(faqQuestionProblem(question) || faqAnswerProblem(answer));
     const urlInvalid =
       item.source === "url" && (!url.trim() || !isValidUrl(url));
     const scopeErrors = validateScope(scope);
@@ -332,6 +348,16 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
 
   const extension = (fileExtension(item) ?? "").toUpperCase();
   const scopeErrors = showErrors ? validateScope(scope) : {};
+  const questionProblem = questionLimitHit
+    ? limitReachedMessage(FAQ_QUESTION_MAX_LENGTH)
+    : showErrors || questionTouched
+      ? faqQuestionProblem(question)
+      : undefined;
+  const answerProblem = answerLimitHit
+    ? limitReachedMessage(FAQ_ANSWER_MAX_LENGTH)
+    : showErrors || answerTouched
+      ? faqAnswerProblem(answer)
+      : undefined;
 
   const settingsPanel = (
     <>
@@ -535,16 +561,41 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
                     <Input
                       id="faq-question"
                       value={question}
-                      maxLength={500}
+                      maxLength={FAQ_QUESTION_MAX_LENGTH}
                       autoComplete="off"
-                      onChange={(event) => setQuestion(event.target.value)}
-                      aria-invalid={showErrors && !question.trim()}
+                      onChange={(event) => {
+                        setQuestion(event.target.value);
+                        setQuestionLimitHit(false);
+                      }}
+                      {...limitAttemptHandlers<HTMLInputElement>(
+                        FAQ_QUESTION_MAX_LENGTH,
+                        () => setQuestionLimitHit(true),
+                      )}
+                      onBlur={() => {
+                        setQuestionTouched(true);
+                        setQuestionLimitHit(false);
+                      }}
+                      aria-invalid={Boolean(questionProblem)}
                     />
-                    {showErrors && !question.trim() && (
-                      <p className="text-xs text-destructive">
-                        Question is required
-                      </p>
-                    )}
+                    <div className="flex items-center justify-between gap-2">
+                      {questionProblem ? (
+                        <p className="text-xs text-destructive">
+                          {questionProblem}
+                        </p>
+                      ) : (
+                        <span />
+                      )}
+                      <span
+                        className={cn(
+                          "text-xs text-muted-foreground",
+                          question.length >= FAQ_QUESTION_MAX_LENGTH &&
+                            "text-destructive",
+                        )}
+                      >
+                        {question.length.toLocaleString()} /{" "}
+                        {FAQ_QUESTION_MAX_LENGTH.toLocaleString()}
+                      </span>
+                    </div>
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label htmlFor="faq-answer" className="text-xs font-medium">
@@ -555,18 +606,35 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
                       className="max-h-96 min-h-28 resize-y"
                       value={answer}
                       maxLength={FAQ_ANSWER_MAX_LENGTH}
-                      onChange={(event) => setAnswer(event.target.value)}
-                      aria-invalid={showErrors && !answer.trim()}
+                      onChange={(event) => {
+                        setAnswer(event.target.value);
+                        setAnswerLimitHit(false);
+                      }}
+                      {...limitAttemptHandlers<HTMLTextAreaElement>(
+                        FAQ_ANSWER_MAX_LENGTH,
+                        () => setAnswerLimitHit(true),
+                      )}
+                      onBlur={() => {
+                        setAnswerTouched(true);
+                        setAnswerLimitHit(false);
+                      }}
+                      aria-invalid={Boolean(answerProblem)}
                     />
                     <div className="flex items-center justify-between gap-2">
-                      {showErrors && !answer.trim() ? (
+                      {answerProblem ? (
                         <p className="text-xs text-destructive">
-                          Answer is required
+                          {answerProblem}
                         </p>
                       ) : (
                         <span />
                       )}
-                      <span className="text-xs text-muted-foreground">
+                      <span
+                        className={cn(
+                          "text-xs text-muted-foreground",
+                          answer.length >= FAQ_ANSWER_MAX_LENGTH &&
+                            "text-destructive",
+                        )}
+                      >
                         {answer.length.toLocaleString()} /{" "}
                         {FAQ_ANSWER_MAX_LENGTH.toLocaleString()}
                       </span>

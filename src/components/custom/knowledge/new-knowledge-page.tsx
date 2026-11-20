@@ -35,7 +35,7 @@ import {
   stripUrlSpaces,
   urlListProblem,
 } from "@/lib/url";
-import { randomId } from "@/lib/utils";
+import { cn, randomId } from "@/lib/utils";
 
 import {
   AddKnowledgeStepper,
@@ -67,6 +67,12 @@ import {
   type KnowledgeScope,
 } from "@/components/custom/knowledge/knowledge-scope";
 import { FAQ_ANSWER_MAX_LENGTH } from "@/components/custom/knowledge/knowledge-meta";
+import { limitAttemptHandlers, limitReachedMessage } from "@/lib/input-limit";
+import {
+  FAQ_QUESTION_MAX_LENGTH,
+  faqAnswerProblem,
+  faqQuestionProblem,
+} from "@/lib/faq-validation";
 import { WebsiteUrlDiscovery } from "@/components/custom/knowledge/website-url-discovery";
 import {
   UnsavedChangesDialog,
@@ -229,8 +235,12 @@ export function NewKnowledgePage() {
 
   const scopeErrors = validateScope(scope);
   const hasScopeError = Boolean(scopeErrors.aiScope || scopeErrors.selection);
+  // A question or answer that is missing or fails its checks stops the add.
   const hasIncompleteFaq =
-    source === "faq" && filledFaqs.length > completeFaqs.length;
+    source === "faq" &&
+    filledFaqs.some(
+      (row) => faqQuestionProblem(row.question) || faqAnswerProblem(row.answer),
+    );
   // A scanned page brings its own title when it could be read; without one the
   // backend titles the page by its address.
   const scannedTitle = (url: string) => {
@@ -778,9 +788,11 @@ function WebsiteContent({
         />
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="min-w-0 flex-1 basis-60 text-xs text-muted-foreground">
-            A website&apos;s own address (https://store.com) is scanned and you
-            pick from the pages found. Links to specific pages (up to {pageCap})
-            are checked when you press Next, then listed for you to pick from.
+            <span className="font-medium text-foreground">Find Pages</span>{" "}
+            reads a website (https://store.com) and lists its help and policy
+            pages, such as shipping, returns, payment, privacy, terms, FAQ,
+            contact and about. To add any other page, paste its link instead (up
+            to {pageCap}, one per line); each is checked when you press Next.
           </p>
           <div className="flex items-center gap-1">
             {storeUrl && !text.trim() && (
@@ -938,6 +950,22 @@ function FaqContent({
   onServerErrorsChange: (next: ServerErrors) => void;
   error?: string;
 }) {
+  // Rows whose field was left, so their problems show before "Add" is pressed.
+  const [touched, setTouched] = useState<Set<string>>(new Set());
+  const markTouched = (localId: string) =>
+    setTouched((current) => new Set(current).add(localId));
+  // Fields (`<row>:question` / `<row>:answer`) someone tried to type past the
+  // limit in; shown as an error until they edit or leave the field.
+  const [limitHits, setLimitHits] = useState<Set<string>>(new Set());
+  const setLimitHit = (key: string, hit: boolean) =>
+    setLimitHits((current) => {
+      if (current.has(key) === hit) return current;
+      const next = new Set(current);
+      if (hit) next.add(key);
+      else next.delete(key);
+      return next;
+    });
+
   const update = (localId: string, patch: Partial<FaqRow>) => {
     onRowsChange(
       rows.map((row) => (row.localId === localId ? { ...row, ...patch } : row)),
@@ -964,17 +992,23 @@ function FaqContent({
       {rows.map((row, index) => {
         const isFilled = Boolean(row.question.trim() || row.answer.trim());
         const serverError = serverErrors[row.localId] ?? null;
+        const showRowErrors =
+          isFilled && (showErrors || touched.has(row.localId));
+        const questionLimitHit = limitHits.has(`${row.localId}:question`);
+        const answerLimitHit = limitHits.has(`${row.localId}:answer`);
         const questionError =
-          (showErrors && isFilled && !row.question.trim()
-            ? "Question is required"
+          (questionLimitHit
+            ? limitReachedMessage(FAQ_QUESTION_MAX_LENGTH)
             : undefined) ??
+          (showRowErrors ? faqQuestionProblem(row.question) : undefined) ??
           firstErrorMessage(
             (serverError as Record<string, unknown> | null)?.question,
           );
         const answerError =
-          (showErrors && isFilled && !row.answer.trim()
-            ? "Answer is required"
+          (answerLimitHit
+            ? limitReachedMessage(FAQ_ANSWER_MAX_LENGTH)
             : undefined) ??
+          (showRowErrors ? faqAnswerProblem(row.answer) : undefined) ??
           firstErrorMessage(
             (serverError as Record<string, unknown> | null)?.answer,
           );
@@ -1015,14 +1049,38 @@ function FaqContent({
                 placeholder="e.g. Can I exchange a size after delivery?"
                 autoComplete="off"
                 value={row.question}
-                onChange={(event) =>
-                  update(row.localId, { question: event.target.value })
-                }
+                onChange={(event) => {
+                  update(row.localId, { question: event.target.value });
+                  setLimitHit(`${row.localId}:question`, false);
+                }}
+                maxLength={FAQ_QUESTION_MAX_LENGTH}
+                {...limitAttemptHandlers<HTMLInputElement>(
+                  FAQ_QUESTION_MAX_LENGTH,
+                  () => setLimitHit(`${row.localId}:question`, true),
+                )}
+                onBlur={() => {
+                  markTouched(row.localId);
+                  setLimitHit(`${row.localId}:question`, false);
+                }}
                 aria-invalid={Boolean(questionError)}
               />
-              {questionError && (
-                <p className="text-xs text-destructive">{questionError}</p>
-              )}
+              <div className="flex items-center justify-between gap-2">
+                {questionError ? (
+                  <p className="text-xs text-destructive">{questionError}</p>
+                ) : (
+                  <span />
+                )}
+                <span
+                  className={cn(
+                    "text-xs text-muted-foreground",
+                    row.question.length >= FAQ_QUESTION_MAX_LENGTH &&
+                      "text-destructive",
+                  )}
+                >
+                  {row.question.length.toLocaleString()} /{" "}
+                  {FAQ_QUESTION_MAX_LENGTH.toLocaleString()}
+                </span>
+              </div>
             </div>
             <div className="flex flex-col gap-1.5">
               <label
@@ -1037,9 +1095,18 @@ function FaqContent({
                 placeholder="Write it the way you'd reply to a customer."
                 maxLength={FAQ_ANSWER_MAX_LENGTH}
                 value={row.answer}
-                onChange={(event) =>
-                  update(row.localId, { answer: event.target.value })
-                }
+                onChange={(event) => {
+                  update(row.localId, { answer: event.target.value });
+                  setLimitHit(`${row.localId}:answer`, false);
+                }}
+                {...limitAttemptHandlers<HTMLTextAreaElement>(
+                  FAQ_ANSWER_MAX_LENGTH,
+                  () => setLimitHit(`${row.localId}:answer`, true),
+                )}
+                onBlur={() => {
+                  markTouched(row.localId);
+                  setLimitHit(`${row.localId}:answer`, false);
+                }}
                 aria-invalid={Boolean(answerError)}
               />
               <div className="flex items-center justify-between gap-2">
@@ -1048,7 +1115,13 @@ function FaqContent({
                 ) : (
                   <span />
                 )}
-                <span className="text-xs text-muted-foreground">
+                <span
+                  className={cn(
+                    "text-xs text-muted-foreground",
+                    row.answer.length >= FAQ_ANSWER_MAX_LENGTH &&
+                      "text-destructive",
+                  )}
+                >
                   {row.answer.length.toLocaleString()} /{" "}
                   {FAQ_ANSWER_MAX_LENGTH.toLocaleString()}
                 </span>
