@@ -1523,7 +1523,7 @@ export default function Support() {
         },
       }),
     );
-  }, [appliedThreadFilters, debouncedThreadSearch, dispatch, storeCode]);
+  }, [appliedThreadFilters, dispatch, storeCode, debouncedThreadSearch]);
 
   useEffect(() => {
     const timeout = setTimeout(
