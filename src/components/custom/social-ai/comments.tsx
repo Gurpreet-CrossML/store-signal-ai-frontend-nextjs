@@ -27,6 +27,7 @@ import {
 import { Typography } from "@/components/ui/typography";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 
 import { InfoIcon } from "@/components/custom/info-icon";
@@ -389,6 +390,16 @@ function CommentItem({
               />
             )}
             {name}
+            {author?.customer && (
+              <Link
+                href={`/crm/customers/${author.customer.id}`}
+                className="hover:opacity-80"
+              >
+                <Badge variant="outline">
+                  Customer: {author.customer.name || author.customer.email}
+                </Badge>
+              </Link>
+            )}
             {isSelf && <Badge variant="secondary">Author</Badge>}
             {/* An auto-sent reply is posted under the page's own name, so
                 say which of the two wrote it. */}
