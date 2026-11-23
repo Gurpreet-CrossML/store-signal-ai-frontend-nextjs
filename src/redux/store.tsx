@@ -5,6 +5,7 @@ import StoresSlice from "@/redux/api-slice/stores-slice";
 import DashboardSlice from "@/redux/api-slice/dashboard-slice";
 import ThreadSlice from "@/redux/api-slice/thread-slice";
 import KnowledgeRagSlice from "@/redux/api-slice/knowledge-rag-slice";
+import KnowledgeTestAiSlice from "@/redux/api-slice/knowledge-test-ai-slice";
 import CustomizationSlice from "@/redux/api-slice/customization-slice";
 import TenancySlice from "@/redux/api-slice/tenancy-slice";
 import BrandVoiceSlice from "@/redux/api-slice/brand-voice-slice";
@@ -34,6 +35,7 @@ const store = configureStore({
     GetDashboardReducer: DashboardSlice,
     GetThreadReducer: ThreadSlice,
     GetKnowledgeRagReducer: KnowledgeRagSlice,
+    GetKnowledgeTestAiReducer: KnowledgeTestAiSlice,
     GetCustomizationReducer: CustomizationSlice,
     GetTenancyReducer: TenancySlice,
     GetBrandVoiceReducer: BrandVoiceSlice,

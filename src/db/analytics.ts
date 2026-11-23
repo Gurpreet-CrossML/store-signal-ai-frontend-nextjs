@@ -4,7 +4,7 @@ import {
   currentCompany,
   resolveStoreScope,
 } from "@/lib/tenant-context";
-import { storeIdScope, threadIdScope } from "@/db/access";
+import { storeIdScope, threadIdScope, threadQueueScope } from "@/db/access";
 import { threadChannelScope } from "@/db/threads";
 import { getCached, setCached } from "@/lib/dashboard-cache";
 import {
@@ -998,6 +998,8 @@ export async function get_engagements(params: {
 
   return {
     total_threads: totalThreads,
+    active_threads: resolvedSessions,
+    closed_threads: abandonedSessions,
     avg_interaction_depth: avgInteractionDepth,
     avg_response_time_seconds: avgResponseTimeSeconds,
     new_vs_returning: {
@@ -1048,10 +1050,11 @@ export async function get_operational_efficiency(params: {
     .where(threadWhere);
   const totalThreads = Number(total);
 
-  // Escalation is over every chat the AI started — all in-range threads, not
-  // only closed ones (every Thread defaults to AI-handled at creation).
+  // Escalation is over closed chats only, so the count matches the closed-only
+  // list the dashboard card links to (/threads always shows closed threads).
   const allThreadWhere = and(
     localDateRange(sql`${chatThread.createdAt}`, startDate, endDate),
+    eq(chatThread.isActive, false),
     storeIdScope(chatThread.storeId, params.store_code) ?? undefined,
     threadChannelScope(params.channel),
   )!;
@@ -1226,8 +1229,8 @@ export async function get_operational_efficiency(params: {
     }
 
     // period_threads: in-range threads with created_at in [periodStart, periodEnd)
-    // compared in current tz local time. Escalation counts every chat in the
-    // period; AI resolution only the closed ones — same scopes as the headline.
+    // compared in current tz local time. Escalation counts closed chats only;
+    // AI resolution uses the same closed-only scope.
     const periodBounds = and(
       sql`(${chatThread.createdAt} AT TIME ZONE ${APP_TZ_SQL}) >= ${periodStartDate}::timestamp`,
       sql`(${chatThread.createdAt} AT TIME ZONE ${APP_TZ_SQL}) < ${periodEndDate}::timestamp`,
@@ -1661,6 +1664,9 @@ export async function get_chat_history_raw(params: {
   ];
   const storeScope = threadIdScope(chatHistory.threadId, params.store_code);
   if (storeScope) conds.push(storeScope);
+  // An agent searches only the messages of their own chats and the queue.
+  const queue = threadQueueScope(chatHistory.threadId);
+  if (queue) conds.push(queue);
   if (params.query) {
     conds.push(sql`${chatHistory.message} ILIKE ${"%" + params.query + "%"}`);
   }

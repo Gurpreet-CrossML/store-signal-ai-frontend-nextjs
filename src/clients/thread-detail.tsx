@@ -40,6 +40,7 @@ import {
 } from "@/components/custom/customer-header";
 import { TagsCell } from "@/components/custom/threads-columns";
 import { InfoIcon } from "@/components/custom/info-icon";
+import { CreditLabel } from "@/components/custom/credit-label";
 import { closedByLabel, closeReasonLabel } from "@/lib/thread-options";
 import { LinkCustomerDialog } from "@/components/custom/link-customer-dialog";
 import {
@@ -336,7 +337,7 @@ function AIInsightsSection({
           <>
             <InsightGroup
               icon={IconListCheck}
-              title="Suggested Follow-ups"
+              title="Suggested Follow-Ups"
               tone="action"
               items={nextActionableItems}
             />
@@ -507,9 +508,8 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
     if (!threadId) return;
     const result = await dispatch(GenerateAIInsight(threadId));
     if (GenerateAIInsight.fulfilled.match(result)) {
-      // The summary and tags come from the same analysis.
+      // The summary comes from the same analysis; tags are set on thread close.
       dispatch(FetchConversationSummary(threadId));
-      dispatch(FetchTags(threadId));
     }
   };
 
@@ -583,7 +583,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
           </EmptyDescription>
         </EmptyHeader>
         <Button variant="outline" asChild>
-          <Link href="/threads">Back to Threads</Link>
+          <Link href="/threads">Back To Threads</Link>
         </Button>
       </Empty>
     );
@@ -640,7 +640,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
     ? "—"
     : handlerNames.length
       ? `AI + ${handlerNames.join(", ")}`
-      : "AI only";
+      : "AI Only";
 
   const transcript = (
     <ConversationTranscript
@@ -659,7 +659,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
         <div className="flex items-center gap-4 border-b px-5 py-5">
           {hasInsights && <ResolutionRing value={resolutionRate} />}
           <div>
-            <h2 className="text-lg font-semibold">AI review</h2>
+            <h2 className="text-lg font-semibold">AI Review</h2>
             {hasInsights && (
               <p className="text-sm text-muted-foreground">
                 {FetchAIInsightData?.reason_for_score ||
@@ -676,15 +676,20 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
                 <EmptyMedia variant="icon" className="mb-1 size-8">
                   <IconSparkles className="size-4" />
                 </EmptyMedia>
-                <EmptyTitle className="text-sm">No AI insights yet</EmptyTitle>
-                <EmptyDescription className="text-xs">
+                <EmptyTitle className="text-base">
+                  No AI Insights Yet
+                </EmptyTitle>
+                <EmptyDescription className="text-sm">
                   Generate a summary, score and suggestions for this
                   conversation.
                 </EmptyDescription>
               </EmptyHeader>
               <EmptyContent>
                 <Button
+                  // Same look as "Draft With AI" (create-ticket-dialog).
+                  variant="outline"
                   size="sm"
+                  className="h-auto gap-2 px-4 py-1"
                   disabled={GenerateAIInsightIsLoading}
                   onClick={handleGenerateInsights}
                 >
@@ -693,9 +698,13 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
                   ) : (
                     <IconSparkles className="size-4" />
                   )}
-                  {GenerateAIInsightIsLoading
-                    ? "Generating insights…"
-                    : "Generate AI insights"}
+                  {GenerateAIInsightIsLoading ? (
+                    "Generating Insights…"
+                  ) : (
+                    <CreditLabel className="self-center text-xs">
+                      Generate AI Insights
+                    </CreditLabel>
+                  )}
                 </Button>
               </EmptyContent>
             </Empty>
@@ -710,7 +719,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
           {successes.length > 0 && (
             <div className="border-b px-5 py-5">
               <h3 className="mb-3 text-xs font-bold uppercase tracking-wide text-emerald-700">
-                Went well
+                Went Well
               </h3>
               <ul className="space-y-3.5">
                 {successes.map((item, index) => (
@@ -728,7 +737,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
           {improvements.length > 0 && (
             <div className="px-5 py-5">
               <h3 className="mb-3 text-xs font-bold uppercase tracking-wide text-red-700">
-                To improve
+                To Improve
               </h3>
               <div className="space-y-3.5">
                 {improvements.map((item, index) => (
@@ -751,9 +760,9 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
         <ThreadCard
           title={
             <div className="flex items-center justify-between">
-              <span>Suggested actions</span>
+              <span>Suggested Actions</span>
               <span className="text-sm font-normal text-muted-foreground">
-                {actions.length} actions
+                {actions.length} Actions
               </span>
             </div>
           }
@@ -789,7 +798,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
                       <IconArrowUpRight className="size-3.5" />
                     </Link>
                   </TooltipTrigger>
-                  <TooltipContent>Open full profile</TooltipContent>
+                  <TooltipContent>Open Full Profile</TooltipContent>
                 </Tooltip>
               ) : (
                 <p className="font-semibold">{customerName}</p>
@@ -806,7 +815,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
                 <p className="font-semibold">{FetchOrderData?.length ?? 0}</p>
               </div>
               <div className="p-3">
-                <p className="text-xs text-muted-foreground">Past chats</p>
+                <p className="text-xs text-muted-foreground">Past Chats</p>
                 <p className="font-semibold">
                   {details?.customer?.past_threads_count ?? 0}
                 </p>
@@ -820,7 +829,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
           <div className="flex justify-between">
             <span>Cart</span>
             <span className="text-sm font-normal text-muted-foreground">
-              {cartItems.length} items
+              {cartItems.length} Items
             </span>
           </div>
         }
@@ -852,37 +861,38 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
           )}
         </div>
       </ThreadCard>
-      <ThreadCard title="Thread details">
+      <ThreadCard title="Thread Details">
+        {/* Values line up on the left of their column, like Help Desk. */}
         <dl className="grid grid-cols-[auto_1fr] gap-x-5 gap-y-1.5 px-5 py-4 text-sm">
           <dt className="text-muted-foreground">Thread ID</dt>
-          <dd className="truncate text-right font-mono">{threadId}</dd>
+          <dd className="truncate font-mono">{threadId}</dd>
           <dt className="text-muted-foreground">Channel</dt>
-          <dd className="text-right">Web chat</dd>
+          <dd>Web Chat</dd>
           <dt className="text-muted-foreground">Started</dt>
-          <dd className="text-right">{started}</dd>
+          <dd>{started}</dd>
           <dt className="text-muted-foreground">Ended</dt>
-          <dd className="text-right">{ended}</dd>
+          <dd>{ended}</dd>
           <dt className="text-muted-foreground">Duration</dt>
-          <dd className="text-right">
+          <dd>
             {getDuration(
               details?.created_at ?? null,
               details?.ended_at ?? null,
             ) || "—"}
           </dd>
-          <dt className="text-muted-foreground">Handled by</dt>
-          <dd className="text-right">{handledBy}</dd>
+          <dt className="text-muted-foreground">Handled By</dt>
+          <dd>{handledBy}</dd>
           {closeReason ? (
             <>
-              <dt className="text-muted-foreground">Close reason</dt>
-              <dd className="text-right">{closeReason}</dd>
+              <dt className="text-muted-foreground">Close Reason</dt>
+              <dd>{closeReason}</dd>
             </>
           ) : null}
           <dt className="text-muted-foreground">Category</dt>
-          <dd className="text-right">{threadTagLabels[0] ?? "—"}</dd>
+          <dd>{threadTagLabels[0] ?? "—"}</dd>
           {feedback ? (
             <>
-              <dt className="text-muted-foreground">User feedback</dt>
-              <dd className="flex items-center justify-end gap-1.5 text-right">
+              <dt className="text-muted-foreground">User Feedback</dt>
+              <dd className="flex items-center gap-1.5">
                 <span aria-label={feedback.rating}>
                   {FEEDBACK_RATINGS.find(
                     (rating) => rating.value === feedback.rating,
@@ -964,7 +974,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
                 disabled={!storeCode || !canCreateTicket}
                 onClick={() => setIsCreateTicketOpen(true)}
               >
-                Create ticket
+                Create Ticket
               </Button>
             )}
           </div>
@@ -1018,7 +1028,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
               value="review"
               className="text-base data-active:after:bg-primary"
             >
-              AI review{" "}
+              AI Review{" "}
               {improvements.length ? (
                 <span className="rounded-full bg-red-100 px-1.5 text-xs text-red-700">
                   {improvements.length}
@@ -1053,7 +1063,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
             disabled={!storeCode || !canCreateTicket}
             onClick={() => setIsCreateTicketOpen(true)}
           >
-            Create ticket
+            Create Ticket
           </Button>
         )}
       </div>

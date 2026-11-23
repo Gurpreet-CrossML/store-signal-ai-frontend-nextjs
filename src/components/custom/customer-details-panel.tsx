@@ -145,7 +145,7 @@ export function CustomerDetailsPanel({
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-3">
             <h2 className="min-w-0 truncate text-base font-semibold tracking-tight sm:text-lg">
-              Customer overview
+              Customer Overview
             </h2>
             {customerData?.id ? (
               <span className="shrink-0 text-xs text-muted-foreground sm:text-sm">
@@ -260,7 +260,7 @@ export function CustomerDetailsPanel({
           >
             <SheetHeader className="border-b">
               <SheetTitle>
-                {showCopilot ? "Details and Copilot" : "Customer details"}
+                {showCopilot ? "Details And Copilot" : "Customer Details"}
               </SheetTitle>
               <SheetDescription className="sr-only">
                 Orders, tickets and session data for this customer.

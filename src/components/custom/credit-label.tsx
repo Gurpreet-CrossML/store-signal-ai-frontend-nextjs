@@ -22,7 +22,7 @@ export function CreditLabel({
       <span
         className={cn("text-[10px] font-normal text-destructive", className)}
       >
-        1 AI credit
+        1 AI Credit
       </span>
     </span>
   );

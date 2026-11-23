@@ -74,6 +74,10 @@ export type SupportTicketFilters = {
   assigned_to_me?: boolean;
   is_assigned?: boolean;
   is_snoozed?: boolean;
+  /** Created on or after this ISO instant. */
+  created_from?: string;
+  /** Created on or before this ISO instant. */
+  created_to?: string;
 };
 
 type GetSupportTicketsArgs = {
@@ -233,7 +237,7 @@ export type SupportTicketDraftMessage = {
 };
 
 /** Who or what opened a ticket. */
-export type SupportTicketCreatedBy = "agent" | "ai" | "rule";
+export type SupportTicketCreatedBy = "agent" | "ai" | "email";
 
 export type SupportTicket = {
   id: number;

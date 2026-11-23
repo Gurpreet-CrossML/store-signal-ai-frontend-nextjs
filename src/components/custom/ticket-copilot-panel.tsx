@@ -301,7 +301,7 @@ function AnswerCard({
             onClick={() => setShowDetails((open) => !open)}
             className="-ml-1.5 text-muted-foreground"
           >
-            {showDetails ? "Hide sources & basis" : "View sources & basis"}
+            {showDetails ? "Hide Sources & Basis" : "View Sources & Basis"}
             <IconChevronDown
               className={cn(
                 "size-3.5 transition-transform",
@@ -333,9 +333,9 @@ function SummaryBody({ message }: { message: CopilotMessage }) {
       <p>Here is a summary of this ticket.</p>
       {(
         [
-          ["Core issue", summary.core_issue],
-          ["Steps attempted", summary.steps_attempted],
-          ["Pending action", summary.pending_action],
+          ["Core Issue", summary.core_issue],
+          ["Steps Attempted", summary.steps_attempted],
+          ["Pending Action", summary.pending_action],
         ] as const
       ).map(([label, text]) => (
         <div key={label}>
@@ -383,7 +383,7 @@ function AnswerDetails({ message }: { message: CopilotMessage }) {
     <div className="flex flex-col gap-2.5 border-t bg-muted/30 px-3 py-2.5 text-xs">
       {sources && sources.length > 0 ? (
         <div className="flex flex-col gap-1.5">
-          <SectionLabel>Sources used</SectionLabel>
+          <SectionLabel>Sources Used</SectionLabel>
           <div className="flex flex-wrap gap-1.5">
             {sources.map((source, index) => (
               <SourceBadge key={`${source.label}-${index}`} source={source} />
@@ -433,7 +433,7 @@ function AnswerDetails({ message }: { message: CopilotMessage }) {
                     className="mt-1 inline-flex items-center gap-1 text-xs text-primary hover:underline"
                   >
                     <IconExternalLink className="size-3" />
-                    Open source
+                    Open Source
                   </a>
                 ) : null}
               </div>
@@ -443,7 +443,7 @@ function AnswerDetails({ message }: { message: CopilotMessage }) {
       ) : null}
       {similar_tickets && similar_tickets.length > 0 ? (
         <div className="flex flex-col gap-1.5">
-          <SectionLabel>Similar tickets</SectionLabel>
+          <SectionLabel>Similar Tickets</SectionLabel>
           {similar_tickets.map((ticket) => (
             <p
               key={ticket.id}
@@ -506,7 +506,7 @@ function DraftBody({
           }}
         >
           <IconCheck className="size-4" />
-          Insert into reply editor
+          Insert Into Reply Editor
         </Button>
         <Button type="button" size="sm" variant="outline" onClick={copy}>
           <IconCopy className="size-4" />

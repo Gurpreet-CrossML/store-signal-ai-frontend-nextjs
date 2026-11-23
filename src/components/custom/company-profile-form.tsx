@@ -3,18 +3,19 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useFormik } from "formik";
 import {
+  IconBuilding,
+  IconCircleCheck,
   IconDeviceFloppy,
-  IconPencil,
-  IconPhoto,
-  IconPlus,
+  IconInfoCircle,
+  IconLock,
+  IconPhotoPlus,
   IconTrash,
+  IconUpload,
 } from "@tabler/icons-react";
 
-import { InfoIcon } from "@/components/custom/info-icon";
 import { Button } from "@/components/ui/button";
 import {
   Card,
-  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -22,19 +23,11 @@ import {
 } from "@/components/ui/card";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Typography } from "@/components/ui/typography";
 import { cn } from "@/lib/utils";
 import { LoadingState } from "@/components/custom/loading-state";
 import { LocationSelect } from "@/components/custom/location-select";
 import { UnsavedChangesDialog } from "@/components/custom/unsaved-changes-dialog";
 import { Spinner } from "@/components/ui/spinner";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { companyProfileSchema } from "@/lib/company-profile-schema";
 import { applyServerFieldErrors, formikErrorsFromZod } from "@/lib/form-errors";
@@ -208,133 +201,110 @@ export default function CompanyProfileForm({
     return <LoadingState />;
   }
 
-  return (
-    <div className={cn("w-full", className)}>
-      <form onSubmit={formik.handleSubmit} className="flex flex-col gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              Company Identity
-              <InfoIcon text="The company name and code are set by the platform operator and can't be edited here. Contact them if either needs to change." />
-            </CardTitle>
-            <CardDescription>
-              Your company&apos;s logo, name, and code.
-            </CardDescription>
-            {companyProfile && (
-              <CardAction>
-                <Badge
-                  variant={companyProfile.is_active ? "default" : "destructive"}
-                >
-                  {companyProfile.is_active ? "Active" : "Inactive"}
-                </Badge>
-              </CardAction>
-            )}
-          </CardHeader>
-          <CardContent className="flex flex-col gap-6">
-            <Field>
-              <FieldLabel>Logo</FieldLabel>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={onFilePicked}
-              />
-              <div>
-                {shownLogo ? (
-                  <div className="relative h-24 w-24">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={shownLogo}
-                      alt="Company logo"
-                      className="h-24 w-24 rounded-md border bg-muted object-contain p-1"
-                    />
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          size="icon"
-                          aria-label="Edit logo"
-                          className="absolute -right-2 -top-2 size-7 rounded-full shadow"
-                        >
-                          <IconPencil className="size-3.5" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={onRemoveLogo}>
-                          <IconTrash />
-                          Remove logo
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={openFilePicker}>
-                          <IconPhoto />
-                          Upload image
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={openFilePicker}
-                    aria-label="Upload logo"
-                    className="flex h-24 w-24 items-center justify-center rounded-md border-2 border-dashed text-muted-foreground transition hover:bg-muted/50 hover:text-foreground"
-                  >
-                    <IconPlus className="size-6" />
-                  </button>
-                )}
-                {logoFile && (
-                  <p className="text-xs text-muted-foreground">
-                    New logo selected: {logoFile.name}
-                  </p>
-                )}
-                {removeLogo && companyProfile?.logo && (
-                  <p className="text-xs text-muted-foreground">
-                    Logo will be removed when you save.
-                  </p>
-                )}
-              </div>
-            </Field>
+  const hasChanges = formik.dirty || hasLogoChange;
 
-            {/* Read-only identity: plain text, not disabled inputs — these
-                values are informational and cannot be edited here. */}
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="flex flex-col gap-1.5">
-                <Typography variant="muted" as="span">
-                  Company Name
-                </Typography>
-                <Typography variant="small" as="span" className="text-base">
-                  {companyProfile?.name || "—"}
-                </Typography>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Typography variant="muted" as="span">
-                  Company Code
-                </Typography>
-                <Typography
-                  variant="small"
-                  as="span"
-                  className="font-mono text-base"
-                >
-                  {companyProfile?.schema_name || "—"}
-                </Typography>
+  return (
+    <div className={cn("flex w-full flex-1 flex-col", className)}>
+      <form
+        onSubmit={formik.handleSubmit}
+        className="flex flex-1 flex-col gap-6"
+      >
+        {/* One card for the whole profile. On a phone it drops its frame
+            and the fields sit straight on the page. */}
+        <Card className="max-sm:gap-4 max-sm:rounded-none max-sm:bg-transparent max-sm:py-0 max-sm:shadow-none max-sm:ring-0">
+          <CardHeader className="border-b max-sm:hidden">
+            <div className="flex items-center gap-3">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <IconBuilding className="size-4" />
+              </span>
+              <div>
+                <CardTitle>Company Details</CardTitle>
+                <CardDescription>
+                  Your company&apos;s logo, name, contact details and address.
+                </CardDescription>
               </div>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              Contact &amp; Address
-              <InfoIcon text="How your company can be reached, and its registered address." />
-            </CardTitle>
-            <CardDescription>
-              Contact details and registered address.
-            </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex flex-col gap-6 max-sm:px-0">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={onFilePicked}
+            />
+            {/* The logo: a dashed square until one is picked, then its
+                preview, with the actions beside it. */}
+            <div className="flex items-center gap-4">
+              {shownLogo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={shownLogo}
+                  alt="Company logo"
+                  className="size-16 shrink-0 rounded-lg border bg-muted object-contain p-1"
+                />
+              ) : (
+                <button
+                  type="button"
+                  onClick={openFilePicker}
+                  aria-label="Upload logo"
+                  className="flex size-16 shrink-0 items-center justify-center rounded-lg border-2 border-dashed text-muted-foreground transition hover:bg-muted/50 hover:text-foreground"
+                >
+                  <IconPhotoPlus className="size-5" />
+                </button>
+              )}
+              <div className="flex min-w-0 flex-col gap-1.5">
+                <div>
+                  <p className="text-sm font-medium">Logo</p>
+                  <p className="text-xs text-muted-foreground">
+                    {logoFile
+                      ? `New logo selected: ${logoFile.name}`
+                      : removeLogo && companyProfile?.logo
+                        ? "Logo will be removed when you save."
+                        : "PNG, JPG or SVG. Shown in the app and emails."}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={openFilePicker}
+                  >
+                    <IconUpload />
+                    {shownLogo ? "Change Logo" : "Upload Logo"}
+                  </Button>
+                  {shownLogo && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive"
+                      onClick={onRemoveLogo}
+                    >
+                      <IconTrash />
+                      Remove
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+
             <div className="grid gap-4 sm:grid-cols-2">
+              {/* Set by the platform operator, so shown locked. */}
+              <Field>
+                <FieldLabel htmlFor="company-name">Company Name</FieldLabel>
+                <div className="relative">
+                  <Input
+                    id="company-name"
+                    value={companyProfile?.name ?? ""}
+                    readOnly
+                    aria-readonly
+                    className="bg-muted pr-9 text-muted-foreground"
+                  />
+                  <IconLock className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                </div>
+              </Field>
               {EDITABLE_FIELDS.map((f) => (
                 <Field key={f.name}>
                   <FieldLabel htmlFor={f.name}>{f.label}</FieldLabel>
@@ -409,11 +379,26 @@ export default function CompanyProfileForm({
           </CardContent>
         </Card>
 
-        <div className="flex justify-start border-t border-border py-3">
+        {/* Save bar: whether anything is waiting, and the button. Pinned to
+            the bottom of the page, like the Knowledge add pages. */}
+        <div className="sticky bottom-0 z-10 -mx-4 mt-auto -mb-4 flex items-center justify-between gap-3 border-t border-border bg-background px-4 py-3">
+          <p className="hidden items-center gap-1.5 text-sm text-muted-foreground sm:flex">
+            {hasChanges ? (
+              <>
+                <span className="size-2 rounded-full bg-amber-500" />
+                Unsaved changes
+              </>
+            ) : (
+              <>
+                <IconCircleCheck className="size-4 text-emerald-600" />
+                All changes saved
+              </>
+            )}
+          </p>
           <Button
             type="submit"
-            size="lg"
-            disabled={companySaving || (!formik.dirty && !hasLogoChange)}
+            className="w-full sm:w-auto"
+            disabled={companySaving || !hasChanges}
           >
             {companySaving ? (
               <>
@@ -431,7 +416,7 @@ export default function CompanyProfileForm({
       </form>
 
       <UnsavedChangesDialog
-        isDirty={formik.dirty || hasLogoChange}
+        isDirty={hasChanges}
         isSaving={companySaving}
         onSave={async () => (await formik.submitForm()) === true}
       />

@@ -83,13 +83,13 @@ const SLASH_ITEMS: SlashItem[] = [
     run: (editor) => editor.chain().focus().setHeading({ level: 3 }).run(),
   },
   {
-    label: "Bulleted list",
+    label: "Bulleted List",
     hint: "Simple list",
     icon: IconList,
     run: (editor) => editor.chain().focus().toggleBulletList().run(),
   },
   {
-    label: "Numbered list",
+    label: "Numbered List",
     hint: "Steps in order",
     icon: IconListNumbers,
     run: (editor) => editor.chain().focus().toggleOrderedList().run(),
@@ -245,7 +245,7 @@ function LinkButton({ editor }: { editor: Editor }) {
             </Button>
           )}
           <Button type="button" size="sm" onClick={apply}>
-            {isLink ? "Update" : "Add link"}
+            {isLink ? "Update" : "Add Link"}
           </Button>
         </div>
       </PopoverContent>
@@ -358,14 +358,14 @@ function Toolbar({ editor, words }: { editor: Editor; words: number }) {
       <Divider />
 
       <ToolbarButton
-        label="Bulleted list"
+        label="Bulleted List"
         active={state.bulletList}
         onClick={() => editor.chain().focus().toggleBulletList().run()}
       >
         <IconList className="size-4" />
       </ToolbarButton>
       <ToolbarButton
-        label="Numbered list"
+        label="Numbered List"
         active={state.orderedList}
         onClick={() => editor.chain().focus().toggleOrderedList().run()}
       >
@@ -401,7 +401,7 @@ function Toolbar({ editor, words }: { editor: Editor; words: number }) {
       </ToolbarButton>
 
       <span className="ml-auto shrink-0 pl-3 text-xs whitespace-nowrap text-muted-foreground">
-        {words.toLocaleString()} {words === 1 ? "word" : "words"}
+        {words.toLocaleString()} {words === 1 ? "Word" : "Words"}
         <span className="hidden sm:inline">
           {" · Type "}
           <kbd className="rounded border px-1 font-mono">/</kbd>

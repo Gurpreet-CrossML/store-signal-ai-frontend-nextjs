@@ -17,9 +17,12 @@ import { ProductCard } from "@/components/custom/product-card";
 export function ProductCarousel({
   products,
   comparisonBlock,
+  alignStart = false,
 }: {
   products: ProductData[];
   comparisonBlock?: ProductComparisonBlock[] | null;
+  /** Keep a few cards at the left edge; chat bubbles push them to the right. */
+  alignStart?: boolean;
 }) {
   const [api, setApi] = useState<CarouselApi>();
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -67,7 +70,7 @@ export function ProductCarousel({
         }}
       >
         <CarouselContent
-          className={`-ml-2 ${products.length < 3 ? "justify-end" : ""}`}
+          className={`-ml-2 ${products.length < 3 && !alignStart ? "justify-end" : ""}`}
         >
           {products.map((product) => (
             <CarouselItem

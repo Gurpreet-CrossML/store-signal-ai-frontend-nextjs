@@ -411,7 +411,7 @@ export default function SegmentCreate({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <IconUsersGroup className="size-4" />
-            Segment details
+            Segment Details
             <InfoIcon text="A segment = one category + a time window, optionally floored by value. Only Last Order and Total Spent use the value floor — Abandoned Cart ignores it." />
           </CardTitle>
           <CardDescription>
@@ -429,7 +429,7 @@ export default function SegmentCreate({
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <div className="flex items-center gap-1.5">
-                <Label htmlFor="segment-name">Segment name</Label>
+                <Label htmlFor="segment-name">Segment Name</Label>
                 <InfoIcon text="Internal label to identify this segment later — customers never see it." />
               </div>
               <Input
@@ -491,7 +491,7 @@ export default function SegmentCreate({
 
             <div className="space-y-2">
               <div className="flex items-center gap-1.5">
-                <Label htmlFor="segment-window">In the last (days)</Label>
+                <Label htmlFor="segment-window">In The Last (Days)</Label>
                 <InfoIcon text="The eligibility window — e.g. 7 means “in the last 7 days.”" />
               </div>
               <Input
@@ -513,7 +513,7 @@ export default function SegmentCreate({
             </div>
             <div className="space-y-2">
               <div className="flex items-center gap-1.5">
-                <Label htmlFor="segment-min-price">Min cart value (₹)</Label>
+                <Label htmlFor="segment-min-price">Min Cart Value (₹)</Label>
                 <InfoIcon text="Only customers whose order or spend reaches this amount are included. Abandoned-cart has no cart value, so it stays at 0." />
               </div>
               <Input
@@ -577,7 +577,7 @@ export default function SegmentCreate({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <IconUsersGroup className="size-4" />
-            Matching customers
+            Matching Customers
           </CardTitle>
           <CardDescription>
             Everyone who matches this configuration right now, highest{" "}

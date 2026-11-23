@@ -20,8 +20,8 @@ export type AddableSource = "url" | "file" | "article" | "faq";
 export type AddStep = "source" | "content" | "done";
 
 const STEPS: { key: AddStep; label: string }[] = [
-  { key: "source", label: "Choose a source" },
-  { key: "content", label: "Add content" },
+  { key: "source", label: "Choose A Source" },
+  { key: "content", label: "Add Content" },
   { key: "done", label: "Done" },
 ];
 
@@ -32,7 +32,7 @@ export function AddKnowledgeStepper({ step }: { step: AddStep }) {
   return (
     <ol
       aria-label="Progress"
-      className="flex items-center gap-4 overflow-x-auto border-b sm:gap-6"
+      className="scrollbar-hidden flex items-center gap-4 overflow-x-auto border-b sm:gap-6"
     >
       {STEPS.map(({ key, label }, index) => {
         const isCurrent = index === current;
@@ -74,13 +74,15 @@ export function StepFooter({
   message,
   children,
 }: {
-  message: React.ReactNode;
+  message?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
     <div className="sticky bottom-0 z-10 -mx-4 mt-auto flex flex-col gap-3 border-t bg-background px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-      <p className="text-sm text-muted-foreground">{message}</p>
-      <div className="flex items-center justify-end gap-2">{children}</div>
+      {message && <p className="text-sm text-muted-foreground">{message}</p>}
+      <div className="flex items-center justify-end gap-2 sm:ml-auto">
+        {children}
+      </div>
     </div>
   );
 }
@@ -103,13 +105,12 @@ const SOURCE_CARDS: {
   value: AddableSource;
   title: string;
   description: string;
-  tag?: string;
   icon: Icon;
   tone: string;
 }[] = [
   {
     value: "url",
-    title: "Website pages",
+    title: "Website Pages",
     description:
       "Pages from your store, like shipping, refunds or contact us. We read the text on each page.",
     icon: IconGlobe,
@@ -120,7 +121,6 @@ const SOURCE_CARDS: {
     title: "Documents",
     description:
       "PDF or Word files, like size guides, care instructions or policy documents.",
-    tag: "PDF · Word",
     icon: IconFileText,
     tone: "bg-violet-50 text-violet-600 dark:bg-violet-950/40",
   },
@@ -129,13 +129,12 @@ const SOURCE_CARDS: {
     title: "Article",
     description:
       "Write a help article in the editor, with headings, lists and tables. Keep it as a draft until it's ready.",
-    tag: "Draft or publish",
     icon: IconArticle,
     tone: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40",
   },
   {
     value: "faq",
-    title: "Questions and answers",
+    title: "Questions And Answers",
     description:
       "Write the answer to a question shoppers ask, in your own words. The quickest way to fix a wrong answer.",
     icon: IconMessageQuestion,
@@ -158,7 +157,7 @@ export function SourceCards({
       className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
     >
       {SOURCE_CARDS.map(
-        ({ value: source, title, description, tag, icon: Icon, tone }) => {
+        ({ value: source, title, description, icon: Icon, tone }) => {
           const selected = value === source;
           return (
             <button
@@ -197,11 +196,6 @@ export function SourceCards({
               <span className="text-xs text-muted-foreground">
                 {description}
               </span>
-              {tag && (
-                <span className="mt-auto w-fit rounded-md bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
-                  {tag}
-                </span>
-              )}
             </button>
           );
         },
@@ -217,7 +211,7 @@ export function ShopifySyncedNote() {
       <IconBolt className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
       <div>
         <p className="font-semibold">
-          Your Shopify products and collections are already synced
+          Your Shopify Products And Collections Are Already Synced
         </p>
         <p className="text-xs text-muted-foreground">
           They update automatically when you change them in Shopify, so you
@@ -273,7 +267,7 @@ export function ContentLayout({
             disabled={changeSourceDisabled}
             onClick={onChangeSource}
           >
-            Change source
+            Change Source
           </Button>
         </div>
         {children}
@@ -283,28 +277,12 @@ export function ContentLayout({
   );
 }
 
-/** The tinted tip under the scope panel. */
-export function TipCard({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <aside className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm">
-      <p className="font-semibold text-primary">{title}</p>
-      <p className="mt-1 text-xs text-primary/80">{children}</p>
-    </aside>
-  );
-}
-
 export const SOURCE_META: Record<
   Exclude<AddableSource, "article">,
   { title: string; icon: Icon; tone: string }
 > = {
   url: {
-    title: "Website pages",
+    title: "Website Pages",
     icon: IconGlobe,
     tone: "bg-blue-50 text-blue-600 dark:bg-blue-950/40",
   },
@@ -314,7 +292,7 @@ export const SOURCE_META: Record<
     tone: "bg-violet-50 text-violet-600 dark:bg-violet-950/40",
   },
   faq: {
-    title: "Questions and answers",
+    title: "Questions And Answers",
     icon: IconMessageQuestion,
     tone: "bg-orange-50 text-orange-600 dark:bg-orange-950/40",
   },

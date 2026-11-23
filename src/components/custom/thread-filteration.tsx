@@ -221,7 +221,7 @@ function TagChipFilter({
           aria-expanded={expanded}
           onClick={() => setExpanded((current) => !current)}
         >
-          {expanded ? "Show less" : `Show more (${hiddenCount})`}
+          {expanded ? "Show Less" : `Show More (${hiddenCount})`}
         </Button>
       ) : null}
     </div>

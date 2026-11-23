@@ -32,9 +32,9 @@ export const DEFAULT_DASHBOARD_FILTERS: DashboardFilterState = {
 
 const RANGE_OPTIONS = [
   { value: "today", label: "Today" },
-  { value: "7d", label: "Last 7 days" },
-  { value: "30d", label: "Last 30 days" },
-  { value: "custom", label: "Custom range" },
+  { value: "7d", label: "Last 7 Days" },
+  { value: "30d", label: "Last 30 Days" },
+  { value: "custom", label: "Custom Range" },
 ];
 
 // Days back from today — the same window the APIs default to for 30 days.
@@ -68,9 +68,12 @@ export function dashboardRangeLabel(filters: DashboardFilterState) {
 export function DashboardRangeFilter({
   filters,
   onChange,
+  numberOfMonths,
 }: {
   filters: DashboardFilterState;
   onChange: (filters: DashboardFilterState) => void;
+  /** Months the custom picker shows side by side; one fits a narrow screen. */
+  numberOfMonths?: 1 | 2;
 }) {
   return (
     <>
@@ -95,6 +98,7 @@ export function DashboardRangeFilter({
           to={filters.to}
           onRangeChange={(from, to) => onChange({ ...filters, from, to })}
           disabled={{ after: new Date() }}
+          numberOfMonths={numberOfMonths}
         />
       )}
     </>

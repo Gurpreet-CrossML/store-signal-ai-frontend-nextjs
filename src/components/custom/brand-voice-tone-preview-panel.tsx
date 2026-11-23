@@ -85,7 +85,7 @@ export default function ToneStylePreviewPanel({
         <div>
           <div className="mb-3 flex items-center justify-between">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Why it sounds this way
+              Why It Sounds This Way
             </h3>
           </div>
           <div className="space-y-3">
@@ -153,7 +153,7 @@ export default function ToneStylePreviewPanel({
 
         <div>
           <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Structure & expression
+            Structure & Expression
           </h3>
           <div className="flex flex-col gap-3">
             <div className="flex items-start gap-3 text-sm">
@@ -172,7 +172,7 @@ export default function ToneStylePreviewPanel({
                 variant="secondary"
                 className="min-w-24 justify-center font-normal"
               >
-                Bullet points
+                Bullet Points
               </Badge>
               <p className="leading-relaxed text-muted-foreground">
                 {currentProfile.useBulletPoints ? "Enabled" : "Disabled"}
@@ -183,7 +183,7 @@ export default function ToneStylePreviewPanel({
 
         <div>
           <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Current profile
+            Current Profile
           </h3>
           <div className="space-y-3">
             <div className="flex flex-wrap gap-2">

@@ -336,24 +336,17 @@ export function WebsiteUrlDiscovery({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <p className="text-sm font-semibold">
-          {checkingPages
-            ? "Your pages"
-            : scannedHost
-              ? `Found on ${scannedHost}`
-              : "Scan a website"}
-        </p>
         {/* Not offered while a scan or check is still running. */}
         {!checkingPages && (scannedUrl || scanError) && !busy && (
           <Button
             type="button"
             variant="ghost"
             size="sm"
-            className="text-primary"
+            className="ml-auto text-primary"
             onClick={() => void scan(scannedUrl || websiteUrl)}
           >
             <IconRefresh className="size-4" />
-            {scanError ? "Try again" : "Scan again"}
+            {scanError ? "Try Again" : "Scan Again"}
           </Button>
         )}
       </div>
@@ -371,8 +364,9 @@ export function WebsiteUrlDiscovery({
 
       {!isLoading && hasScanned && !checkingPages && pages.length === 0 && (
         <p className="rounded-lg border border-dashed border-border/60 px-4 py-6 text-center text-sm text-muted-foreground">
-          No help or policy pages were found in this website&apos;s sitemap. You
-          can still add specific pages by pasting their links.
+          No help or policy pages were found. We look in the website for pages
+          about shipping, returns, payment, privacy, terms, FAQ, contact and
+          similar topics. You can still add any page by pasting its link.
         </p>
       )}
 
@@ -430,7 +424,7 @@ export function WebsiteUrlDiscovery({
                 disabled={newPages === 0}
                 onCheckedChange={(checked) => toggleAll(checked === true)}
               />
-              Select all new pages
+              Select All New Pages
             </label>
             <span className="text-xs text-muted-foreground">
               {selectedUrls.length} of {newPages} selected
@@ -496,7 +490,7 @@ export function WebsiteUrlDiscovery({
                       </a>
                       {page.alreadyAdded ? (
                         <Badge variant="secondary" className="font-normal">
-                          Already added
+                          Already Added
                         </Badge>
                       ) : (
                         !page.hasEnoughContent && (
@@ -505,7 +499,7 @@ export function WebsiteUrlDiscovery({
                             className="font-normal"
                             title={`Fewer than ${minWords} words — not enough content to index`}
                           >
-                            Not enough content
+                            Not Enough Content
                           </Badge>
                         )
                       )}

@@ -26,6 +26,12 @@ import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { useCan } from "@/hooks/use-can";
 import { useIsBelowLg } from "@/hooks/use-narrow-viewport";
+import { limitAttemptHandlers, limitReachedMessage } from "@/lib/input-limit";
+import {
+  FAQ_QUESTION_MAX_LENGTH,
+  faqAnswerProblem,
+  faqQuestionProblem,
+} from "@/lib/faq-validation";
 import { isValidUrl, normalizeUrl } from "@/lib/url";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
@@ -167,6 +173,13 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
   const [answer, setAnswer] = useState("");
   const [url, setUrl] = useState("");
   const [showErrors, setShowErrors] = useState(false);
+  // A field's problem shows once it was left, or once saving was tried.
+  const [questionTouched, setQuestionTouched] = useState(false);
+  const [answerTouched, setAnswerTouched] = useState(false);
+  // Set when someone tries to type past a limit; shown until they edit or
+  // leave the field.
+  const [questionLimitHit, setQuestionLimitHit] = useState(false);
+  const [answerLimitHit, setAnswerLimitHit] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   const [publishOpen, setPublishOpen] = useState(false);
@@ -226,6 +239,8 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
     setAnswer(item.answer ?? "");
     setUrl(item.url ?? "");
     setShowErrors(false);
+    setQuestionTouched(false);
+    setAnswerTouched(false);
     setEditing(false);
   };
 
@@ -253,7 +268,8 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
 
     setShowErrors(true);
     const faqInvalid =
-      item.source === "faq" && (!question.trim() || !answer.trim());
+      item.source === "faq" &&
+      Boolean(faqQuestionProblem(question) || faqAnswerProblem(answer));
     const urlInvalid =
       item.source === "url" && (!url.trim() || !isValidUrl(url));
     const scopeErrors = validateScope(scope);
@@ -324,7 +340,7 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
           It may have been deleted, or it belongs to another store.
         </p>
         <Button asChild variant="outline">
-          <Link href="/knowledge">Back to Knowledge</Link>
+          <Link href="/knowledge">Back To Knowledge</Link>
         </Button>
       </div>
     );
@@ -332,6 +348,16 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
 
   const extension = (fileExtension(item) ?? "").toUpperCase();
   const scopeErrors = showErrors ? validateScope(scope) : {};
+  const questionProblem = questionLimitHit
+    ? limitReachedMessage(FAQ_QUESTION_MAX_LENGTH)
+    : showErrors || questionTouched
+      ? faqQuestionProblem(question)
+      : undefined;
+  const answerProblem = answerLimitHit
+    ? limitReachedMessage(FAQ_ANSWER_MAX_LENGTH)
+    : showErrors || answerTouched
+      ? faqAnswerProblem(answer)
+      : undefined;
 
   const settingsPanel = (
     <>
@@ -373,13 +399,13 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
           </dd>
           {item.createdBy && (
             <>
-              <dt className="text-muted-foreground">Added by</dt>
+              <dt className="text-muted-foreground">Added By</dt>
               <dd>{item.createdBy}</dd>
             </>
           )}
           <dt className="text-muted-foreground">Added</dt>
           <dd>{formatDate(item.createdAt)}</dd>
-          <dt className="text-muted-foreground">Last updated</dt>
+          <dt className="text-muted-foreground">Last Updated</dt>
           <dd>
             {formatDate(item.updatedAt)}
             {item.updatedBy ? ` by ${item.updatedBy}` : ""}
@@ -435,7 +461,7 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
                 onClick={() => void handleSave()}
               >
                 {isSaving && <Spinner data-icon="inline-start" />}
-                Save changes
+                Save Changes
               </Button>
             </>
           ) : (
@@ -502,12 +528,12 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
               <Stat
                 label="Type"
                 value={
-                  item.source === "faq" ? "Question & answer" : "Website page"
+                  item.source === "faq" ? "Question & Answer" : "Website Page"
                 }
               />
             )}
             <Stat label="Added" value={formatDate(item.createdAt)} />
-            <Stat label="Last updated" value={formatDate(item.updatedAt)} />
+            <Stat label="Last Updated" value={formatDate(item.updatedAt)} />
           </dl>
 
           {item.status === "failed" && (
@@ -522,7 +548,7 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
 
           {item.source === "faq" && (
             <section className="flex flex-col gap-3">
-              <h2 className="text-sm font-semibold">Question and answer</h2>
+              <h2 className="text-sm font-semibold">Question And Answer</h2>
               {editing ? (
                 <div className="flex flex-col gap-4 rounded-xl border p-4">
                   <div className="flex flex-col gap-1.5">
@@ -530,43 +556,85 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
                       htmlFor="faq-question"
                       className="text-xs font-medium"
                     >
-                      Customer asks
+                      Customer Asks
                     </label>
                     <Input
                       id="faq-question"
                       value={question}
-                      maxLength={500}
+                      maxLength={FAQ_QUESTION_MAX_LENGTH}
                       autoComplete="off"
-                      onChange={(event) => setQuestion(event.target.value)}
-                      aria-invalid={showErrors && !question.trim()}
+                      onChange={(event) => {
+                        setQuestion(event.target.value);
+                        setQuestionLimitHit(false);
+                      }}
+                      {...limitAttemptHandlers<HTMLInputElement>(
+                        FAQ_QUESTION_MAX_LENGTH,
+                        () => setQuestionLimitHit(true),
+                      )}
+                      onBlur={() => {
+                        setQuestionTouched(true);
+                        setQuestionLimitHit(false);
+                      }}
+                      aria-invalid={Boolean(questionProblem)}
                     />
-                    {showErrors && !question.trim() && (
-                      <p className="text-xs text-destructive">
-                        Question is required
-                      </p>
-                    )}
+                    <div className="flex items-center justify-between gap-2">
+                      {questionProblem ? (
+                        <p className="text-xs text-destructive">
+                          {questionProblem}
+                        </p>
+                      ) : (
+                        <span />
+                      )}
+                      <span
+                        className={cn(
+                          "text-xs text-muted-foreground",
+                          question.length >= FAQ_QUESTION_MAX_LENGTH &&
+                            "text-destructive",
+                        )}
+                      >
+                        {question.length.toLocaleString()} /{" "}
+                        {FAQ_QUESTION_MAX_LENGTH.toLocaleString()}
+                      </span>
+                    </div>
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label htmlFor="faq-answer" className="text-xs font-medium">
-                      Your answer
+                      Your Answer
                     </label>
                     <Textarea
                       id="faq-answer"
                       className="max-h-96 min-h-28 resize-y"
                       value={answer}
                       maxLength={FAQ_ANSWER_MAX_LENGTH}
-                      onChange={(event) => setAnswer(event.target.value)}
-                      aria-invalid={showErrors && !answer.trim()}
+                      onChange={(event) => {
+                        setAnswer(event.target.value);
+                        setAnswerLimitHit(false);
+                      }}
+                      {...limitAttemptHandlers<HTMLTextAreaElement>(
+                        FAQ_ANSWER_MAX_LENGTH,
+                        () => setAnswerLimitHit(true),
+                      )}
+                      onBlur={() => {
+                        setAnswerTouched(true);
+                        setAnswerLimitHit(false);
+                      }}
+                      aria-invalid={Boolean(answerProblem)}
                     />
                     <div className="flex items-center justify-between gap-2">
-                      {showErrors && !answer.trim() ? (
+                      {answerProblem ? (
                         <p className="text-xs text-destructive">
-                          Answer is required
+                          {answerProblem}
                         </p>
                       ) : (
                         <span />
                       )}
-                      <span className="text-xs text-muted-foreground">
+                      <span
+                        className={cn(
+                          "text-xs text-muted-foreground",
+                          answer.length >= FAQ_ANSWER_MAX_LENGTH &&
+                            "text-destructive",
+                        )}
+                      >
                         {answer.length.toLocaleString()} /{" "}
                         {FAQ_ANSWER_MAX_LENGTH.toLocaleString()}
                       </span>
@@ -593,7 +661,7 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
           {item.source === "url" &&
             (editing ? (
               <section className="flex flex-col gap-2">
-                <h2 className="text-sm font-semibold">Page address</h2>
+                <h2 className="text-sm font-semibold">Page Address</h2>
                 <Input
                   value={url}
                   autoComplete="off"
@@ -617,7 +685,7 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
                   label="Page"
                   href={item.url}
                   text={item.url}
-                  action="Open page"
+                  action="Open Page"
                 />
               )
             ))}
@@ -627,7 +695,7 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
               label="Document"
               href={item.fileUrl}
               text={item.fileName || item.title}
-              action="View document"
+              action="View Document"
             />
           )}
         </main>
@@ -655,7 +723,7 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Publish this knowledge?</AlertDialogTitle>
+            <AlertDialogTitle>Publish This Knowledge?</AlertDialogTitle>
             <AlertDialogDescription>
               <strong className="font-semibold break-words text-foreground">
                 {item.title}

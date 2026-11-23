@@ -155,7 +155,7 @@ export function OnboardingBrandVoiceCard() {
         <>
           <Card>
             <CardHeader>
-              <CardTitle>Set up your brand voice</CardTitle>
+              <CardTitle>Set Up Your Brand Voice</CardTitle>
               <CardDescription>
                 Name your assistant and pick how it sounds. You can fine-tune
                 everything later under Brand Voice.
@@ -218,7 +218,7 @@ export function OnboardingBrandVoiceCard() {
           ) : (
             <IconArrowRight data-icon="inline-start" />
           )}
-          Finish setup
+          Finish Setup
         </Button>
         <Button
           type="button"
@@ -227,7 +227,7 @@ export function OnboardingBrandVoiceCard() {
           onClick={skip}
         >
           {skipping && <Spinner data-icon="inline-start" />}
-          Skip for now
+          Skip For Now
         </Button>
       </div>
     </form>

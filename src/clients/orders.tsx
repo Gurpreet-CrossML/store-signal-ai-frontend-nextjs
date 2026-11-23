@@ -34,11 +34,11 @@ import { cn } from "@/lib/utils";
 const PER_PAGE = 25;
 
 const SORT_OPTIONS: { value: OrderOrdering; label: string }[] = [
-  { value: "-created_at", label: "Newest first" },
-  { value: "created_at", label: "Oldest first" },
-  { value: "-total_price", label: "Highest value" },
-  { value: "total_price", label: "Lowest value" },
-  { value: "-order_number", label: "Order number" },
+  { value: "-created_at", label: "Newest First" },
+  { value: "created_at", label: "Oldest First" },
+  { value: "-total_price", label: "Highest Value" },
+  { value: "total_price", label: "Lowest Value" },
+  { value: "-order_number", label: "Order Number" },
 ];
 
 function numeric(value: string) {
@@ -232,7 +232,7 @@ export default function Orders() {
         isLoading={FetchOrdersIsLoading}
         noun="order"
         onRowClick={(order) => router.push(`/crm/orders/${order.id}`)}
-        emptyTitle={hasQuery ? "No matching orders" : "No orders yet"}
+        emptyTitle={hasQuery ? "No Matching Orders" : "No Orders Yet"}
         emptyDescription={
           hasQuery
             ? "Try a different search or loosen the filters."

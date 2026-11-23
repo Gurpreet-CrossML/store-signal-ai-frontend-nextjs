@@ -12,17 +12,17 @@ import { cn } from "@/lib/utils";
 // `shortDescription` is the wording on a phone, where there is less room.
 const STEPS = [
   {
-    title: "Add what you know",
+    title: "Add What You Know",
     description: "Upload files, add pages or write answers.",
     shortDescription: "Files, pages or answers.",
   },
   {
-    title: "Choose who uses it",
+    title: "Choose Who Uses It",
     description: "Sales, Support, or both. Defaults are set.",
     shortDescription: "Defaults are set for you.",
   },
   {
-    title: "Test it",
+    title: "Test It",
     description: "Ask a question and see where the answer came from.",
     shortDescription: "See where each answer came from.",
   },
@@ -42,28 +42,28 @@ const OPTIONS: {
     source: "file",
     icon: IconFileText,
     iconClassName: "bg-violet-100 text-violet-700",
-    title: "Upload documents",
+    title: "Upload Documents",
     description: "Policies, catalogues, size charts or price lists.",
     shortDescription: "Policies, catalogues, size charts or price lists.",
     note: "PDF, Word, Excel, CSV, PowerPoint, images",
-    action: "Upload files",
+    action: "Upload Files",
   },
   {
     source: "url",
     icon: IconLink,
     iconClassName: "bg-blue-100 text-blue-700",
-    title: "Add website pages",
+    title: "Add Website Pages",
     description:
       "Paste links to pages on your store, like Shipping or Contact us.",
     shortDescription: "Paste links to pages on your store.",
     note: "We read the text on each page",
-    action: "Add links",
+    action: "Add Links",
   },
   {
     source: "faq",
     icon: IconMessageQuestion,
     iconClassName: "bg-orange-100 text-orange-700",
-    title: "Write questions & answers",
+    title: "Write Questions & Answers",
     description: "Short answers to things customers ask all the time.",
     shortDescription: "Short answers to things customers ask all the time.",
     note: "e.g. Do you ship to Dubai?",
@@ -77,7 +77,7 @@ export function KnowledgeEmptyState() {
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 text-left sm:items-center sm:py-8 sm:text-center">
       <div className="flex flex-col gap-2">
         <h2 className="text-xl font-semibold">
-          Teach your AI about your store
+          Teach Your AI About Your Store
         </h2>
         <p className="mx-auto max-w-md text-sm text-muted-foreground sm:hidden">
           Your AI already knows your products, prices and orders from Shopify.

@@ -34,7 +34,7 @@ export function SearchInput({
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         aria-label={label}
-        className="pl-9"
+        className={cn("pl-9 text-ellipsis", value && "pr-9")}
       />
       {value ? (
         <button

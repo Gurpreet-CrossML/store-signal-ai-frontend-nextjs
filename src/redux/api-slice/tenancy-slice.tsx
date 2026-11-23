@@ -177,6 +177,24 @@ export const FetchStaff = createAsyncThunk(
   },
 );
 
+/** Who a live chat or helpdesk ticket can be assigned to (the backend filters). */
+export const FetchAssignableStaff = createAsyncThunk(
+  "tenancy/FetchAssignableStaff",
+  async (_: void, thunkAPI) => {
+    try {
+      const res = await axiosInstance.get(ENDPOINTS.fetchAssignableStaff(), {
+        useBackend: true,
+      });
+      return res.data.data as StaffMember[];
+    } catch (error) {
+      toast.error("Couldn't load teammates.", {
+        description: errorMessage(error, "Please try again later."),
+      });
+      return thunkAPI.rejectWithValue(errorMessage(error, "Failed"));
+    }
+  },
+);
+
 export const CreateStaff = createAsyncThunk(
   "tenancy/CreateStaff",
   async (
@@ -286,6 +304,8 @@ type TenancyState = {
     FetchCitiesData: LocationOption[];
   };
   staff: StaffMember[];
+  /** Active support agents and store managers, for assignee pickers. */
+  assignableStaff: StaffMember[];
   staffLoading: boolean;
   staffSaving: boolean;
 };
@@ -313,6 +333,7 @@ const initialState: TenancyState = {
     FetchCitiesData: [] as LocationOption[],
   },
   staff: [],
+  assignableStaff: [],
   staffLoading: false,
   staffSaving: false,
 };
@@ -402,6 +423,9 @@ const TenancySlice = createSlice({
       })
       .addCase(FetchStaff.rejected, (state) => {
         state.staffLoading = false;
+      })
+      .addCase(FetchAssignableStaff.fulfilled, (state, action) => {
+        state.assignableStaff = action.payload;
       })
       .addCase(UpdateStaff.fulfilled, (state, action) => {
         const idx = state.staff.findIndex((s) => s.id === action.payload.id);

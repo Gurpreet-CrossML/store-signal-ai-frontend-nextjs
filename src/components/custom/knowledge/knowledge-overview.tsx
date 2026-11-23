@@ -1,15 +1,17 @@
 "use client";
 
 import { useEffect } from "react";
+import Link from "next/link";
+import { IconArrowRight } from "@tabler/icons-react";
 
 import { PageHeading } from "@/components/custom/page-heading";
 import { KnowledgeCategoriesGrid } from "@/components/custom/knowledge/knowledge-categories-grid";
 import { KnowledgeEmptyState } from "@/components/custom/knowledge/knowledge-empty-state";
 import { KnowledgeHeadingActions } from "@/components/custom/knowledge/knowledge-heading-actions";
-import { KnowledgeSummary } from "@/components/custom/knowledge/knowledge-summary";
 import { KnowledgeStorageCard } from "@/components/custom/knowledge/knowledge-storage-card";
 import { KnowledgeStorageNotice } from "@/components/custom/knowledge/knowledge-storage-notice";
 import { useCan } from "@/hooks/use-can";
+import { KNOWLEDGE_ALL_ROUTE } from "@/lib/config";
 import { cn } from "@/lib/utils";
 import {
   FetchKnowledgeCategories,
@@ -75,26 +77,27 @@ export default function KnowledgeOverview() {
       <div className="flex w-full flex-col gap-4">
         <KnowledgeStorageNotice storage={stats?.vector_storage ?? null} />
         {showStorage && (
-          <KnowledgeStorageCard storage={stats?.vector_storage ?? null} />
+          <KnowledgeStorageCard
+            storage={stats?.vector_storage ?? null}
+            counts={stats?.counts ?? null}
+          />
         )}
 
         {isEmptyLibrary && canEditKnowledge ? (
           <KnowledgeEmptyState />
         ) : (
           <>
-            <KnowledgeSummary counts={stats?.counts ?? null} />
-            <div className="flex flex-col gap-3">
-              <div className="flex flex-col gap-0.5">
-                <h3 className="text-sm font-semibold">Knowledge by category</h3>
-                <p className="text-xs text-muted-foreground">
-                  Pick a category to see and manage its knowledge.
-                </p>
-              </div>
-              <KnowledgeCategoriesGrid
-                data={categories}
-                isLoading={categoriesLoading}
-              />
-            </div>
+            <Link
+              href={`/knowledge/categories/${KNOWLEDGE_ALL_ROUTE}`}
+              className="inline-flex items-center gap-1 self-end text-xs font-medium text-primary hover:underline"
+            >
+              View All
+              <IconArrowRight className="size-3.5" />
+            </Link>
+            <KnowledgeCategoriesGrid
+              data={categories}
+              isLoading={categoriesLoading}
+            />
           </>
         )}
       </div>

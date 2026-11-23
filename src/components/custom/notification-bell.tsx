@@ -446,7 +446,7 @@ export function NotificationBell() {
                 ) : (
                   <IconChecks data-icon="inline-start" />
                 )}
-                Mark all as read
+                Mark All As Read
               </Button>
             </div>
           )}
@@ -465,7 +465,7 @@ export function NotificationBell() {
                   <EmptyMedia variant="icon">
                     <IconBell />
                   </EmptyMedia>
-                  <EmptyTitle>No notifications</EmptyTitle>
+                  <EmptyTitle>No Notifications</EmptyTitle>
                   <EmptyDescription>
                     Ticket and live chat updates meant for you show up here.
                   </EmptyDescription>

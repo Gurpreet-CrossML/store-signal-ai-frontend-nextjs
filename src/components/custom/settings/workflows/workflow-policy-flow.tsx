@@ -28,13 +28,13 @@ export const OUTCOMES: Record<
     question: "Does any of these apply?",
   },
   need_info: {
-    title: "Ask the customer",
+    title: "Ask The Customer",
     tone: "neutral",
     icon: IconMessage2,
     question: "Do we still need something from the customer?",
   },
   team: {
-    title: "Sent to your team",
+    title: "Sent To Your Team",
     tone: "info",
     icon: IconUsers,
     question: "Does it need a person?",

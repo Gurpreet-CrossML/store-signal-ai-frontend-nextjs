@@ -94,7 +94,7 @@ export default function SocialDmAutomation() {
           <div className="flex items-start justify-between gap-4">
             <div className="flex min-w-0 flex-1 flex-col gap-1.5">
               <Typography variant="small" as="span">
-                Auto-Respond to DMs
+                Auto-Respond To DMs
               </Typography>
               <Typography variant="caption" as="p" className="leading-relaxed">
                 The AI reads the message, pulls in context, and prepares a

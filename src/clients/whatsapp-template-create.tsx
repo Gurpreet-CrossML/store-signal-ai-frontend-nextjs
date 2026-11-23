@@ -67,6 +67,7 @@ import {
   LOCATION_HEADER_FORMAT,
   HEADER_MEDIA_RULES,
   isMediaHeaderFormat,
+  languageLabel,
   renderPreviewText,
   WHATSAPP_LANGUAGES,
   WHATSAPP_VARIABLES_BY_TOKEN,
@@ -369,11 +370,11 @@ export default function WhatsAppTemplateCreate({
 
     // Refuse it here rather than spending an upload on a file the server
     // will reject anyway — and never hold an oversized one in the tab.
-    const { accept, maxMB } = HEADER_MEDIA_RULES[headerFormat];
+    const { accept, formats, maxMB } = HEADER_MEDIA_RULES[headerFormat];
     if (!accept.split(",").includes(file.type)) {
       toast.error(
         `${file.type || "That file type"} can't be used as a ${headerFormat} ` +
-          `header. Supported: ${accept.split(",").join(", ")}.`,
+          `header. Supported: ${formats}.`,
       );
       return;
     }
@@ -645,7 +646,7 @@ export default function WhatsAppTemplateCreate({
             ) : (
               <IconSend2 className="size-4" />
             )}
-            {isEditMode ? "Save Changes" : "Submit for Review"}
+            {isEditMode ? "Save Changes" : "Submit For Review"}
           </Button>
         </div>
       </div>
@@ -855,8 +856,14 @@ export default function WhatsAppTemplateCreate({
                         onClick={() => fileInputRef.current?.click()}
                       >
                         <IconUpload className="size-4" />
-                        Upload sample
+                        Upload Sample
                       </Button>
+                    )}
+                    {isMediaHeaderFormat(headerFormat) && (
+                      <Typography variant="caption">
+                        {HEADER_MEDIA_RULES[headerFormat].formats} · up to{" "}
+                        {HEADER_MEDIA_RULES[headerFormat].maxMB} MB
+                      </Typography>
                     )}
                   </div>
                 )}
@@ -1129,7 +1136,9 @@ export default function WhatsAppTemplateCreate({
                 </div>
                 <div className="flex items-center justify-between gap-2">
                   <Typography variant="caption">Language</Typography>
-                  <Typography variant="small">{language}</Typography>
+                  <Typography variant="small">
+                    {languageLabel(language)}
+                  </Typography>
                 </div>
                 <div className="flex items-center justify-between gap-2">
                   <Typography variant="caption">Variable Type</Typography>
@@ -1149,7 +1158,7 @@ export default function WhatsAppTemplateCreate({
 
             <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 text-sm">
               <p className="font-medium text-primary">
-                Follow WhatsApp&apos;s template guidelines
+                Follow WhatsApp&apos;s Template Guidelines
               </p>
               <p className="mt-1 text-muted-foreground">
                 Templates will be reviewed by Meta before they can be used to
@@ -1161,7 +1170,7 @@ export default function WhatsAppTemplateCreate({
                 rel="noopener noreferrer"
                 className="mt-2 inline-block font-medium text-primary hover:underline"
               >
-                Learn more →
+                Learn More →
               </a>
             </div>
           </div>

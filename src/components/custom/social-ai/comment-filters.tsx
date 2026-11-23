@@ -111,10 +111,10 @@ export function CommentFiltersBar({
           size="sm"
           className={cn("w-40", filters.intent !== ANY && ACTIVE_FILTER_STYLE)}
         >
-          <SelectValue placeholder="Any intent" />
+          <SelectValue placeholder="Any Intent" />
         </SelectTrigger>
         <SelectContent position="popper" className="max-h-72">
-          <SelectItem value={ANY}>Any intent</SelectItem>
+          <SelectItem value={ANY}>Any Intent</SelectItem>
           {INTENT_GROUPS.map((group, index) => {
             const intentsInGroup = DEFAULT_INTENTS.filter(
               (intent) => intent.group === group,
@@ -146,10 +146,10 @@ export function CommentFiltersBar({
             filters.sentiment !== ANY && ACTIVE_FILTER_STYLE,
           )}
         >
-          <SelectValue placeholder="Any sentiment" />
+          <SelectValue placeholder="Any Sentiment" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value={ANY}>Any sentiment</SelectItem>
+          <SelectItem value={ANY}>Any Sentiment</SelectItem>
           {SENTIMENT_OPTIONS.map((option) => (
             <SelectItem key={option.value} value={option.value}>
               {option.label}
@@ -170,7 +170,7 @@ export function CommentFiltersBar({
               )}
             >
               <span className="truncate">
-                {filters.topics.length ? "Tags" : "Any tag"}
+                {filters.topics.length ? "Tags" : "Any Tag"}
               </span>
               <span className="flex items-center gap-1">
                 {filters.topics.length > 0 && (

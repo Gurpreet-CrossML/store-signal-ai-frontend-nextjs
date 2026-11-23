@@ -83,6 +83,7 @@ export function DateRangePicker({
   onRangeChange,
   disabled,
   withTime = false,
+  numberOfMonths = 2,
   className,
 }: {
   from: string;
@@ -92,6 +93,8 @@ export function DateRangePicker({
   onRangeChange: (from: string, to: string) => void;
   disabled?: React.ComponentProps<typeof Calendar>["disabled"];
   withTime?: boolean;
+  /** Months shown side by side; one fits a narrow screen. */
+  numberOfMonths?: 1 | 2;
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -121,13 +124,13 @@ export function DateRangePicker({
         ? `From ${format(committed.from, DISPLAY_DATE_TIME_FORMAT)}`
         : committed?.to
           ? `Until ${format(committed.to, DISPLAY_DATE_TIME_FORMAT)}`
-          : "Pick a Date/Time Range"
+          : "Pick A Date/Time Range"
     : committed?.from && committed?.to
       ? `${format(committed.from, DISPLAY_DATE_FORMAT)} – ${format(
           committed.to,
           DISPLAY_DATE_FORMAT,
         )}`
-      : "Pick a Date Range";
+      : "Pick A Date Range";
 
   const maxDateTimeValue =
     disabled &&
@@ -240,7 +243,7 @@ export function DateRangePicker({
           <>
             <Calendar
               mode="range"
-              numberOfMonths={2}
+              numberOfMonths={numberOfMonths}
               min={1}
               defaultMonth={draft?.from ?? committed?.from}
               selected={draft}

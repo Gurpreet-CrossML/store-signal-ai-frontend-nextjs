@@ -195,12 +195,12 @@ export const threadsColumns: ColumnDef<Thread>[] = [
   // Messages — total message count for the thread.
   {
     accessorKey: "total_messages",
-    header: () => <div className="text-right">Messages</div>,
+    header: () => <div className="text-left">Messages</div>,
     cell: ({ row }) => (
       <Typography
         variant="small"
         as="div"
-        className="text-right tabular-nums font-normal"
+        className="text-left tabular-nums font-normal"
       >
         {row.original.total_messages}
       </Typography>

@@ -72,7 +72,7 @@ function DraftCard({
   const commenter =
     draft.message.social_user?.name ||
     draft.message.social_user?.username ||
-    "Unknown commenter";
+    "Unknown Commenter";
   const avatarUrl = draft.message.social_user?.profile_picture_url;
 
   // The feed opens a post from its ?post= param; the account's channel
@@ -262,7 +262,7 @@ export default function SocialCommentDrafts() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Typography variant="caption" as="p">
           {draftsData?.count != null &&
-            `${draftsData.count} draft${draftsData.count === 1 ? "" : "s"}`}
+            `${draftsData.count} Draft${draftsData.count === 1 ? "" : "s"}`}
         </Typography>
         <div className="flex flex-wrap items-center gap-2">
           <Select value={accountId} onValueChange={setAccountId}>

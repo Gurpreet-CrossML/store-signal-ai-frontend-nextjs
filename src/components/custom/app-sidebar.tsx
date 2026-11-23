@@ -27,7 +27,8 @@ import {
 import {
   activeNavUrl,
   flattenMenuItems,
-  isNavItemVisible,
+  visibleMenuItems,
+  visibleNavItems,
   sidebarMenus,
   SubSidebarMenuItem,
 } from "@/lib/sidebar-navs";
@@ -67,9 +68,28 @@ export function AppSidebar({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { isMobile } = useSidebar();
+  const { data: session } = useSession();
+  // The server renders without a session, so the menus filter as if signed
+  // out until hydration is done, and the user's own entries follow right
+  // after. Filtering with the session straight away breaks hydration.
+  const hydrated = React.useSyncExternalStore(
+    noopSubscribe,
+    () => true,
+    () => false,
+  );
+  const menuUser = hydrated ? session?.user : undefined;
   // The help desk's views come with their ticket counts; any other area's
   // sub-sidebar is the static one.
-  const subSidebarItems = useHelpdeskSidebar(staticSubSidebarItems);
+  const areaSubSidebar = useHelpdeskSidebar(staticSubSidebarItems);
+  // Owner-only screens are dropped for every other role.
+  const subSidebarItems = React.useMemo(
+    () =>
+      areaSubSidebar && {
+        ...areaSubSidebar,
+        items: visibleMenuItems(areaSubSidebar.items, menuUser),
+      },
+    [areaSubSidebar, menuUser],
+  );
   // The help desk draws its own panel, with the hide button in its header.
   const isHelpdesk =
     staticSubSidebarItems !== null &&
@@ -86,7 +106,6 @@ export function AppSidebar({
     pathname,
     subNavSearch,
   );
-  const { data: session } = useSession();
   const dispatch = useAppDispatch();
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
@@ -116,16 +135,8 @@ export function AppSidebar({
 
   // One ordered list, filtered rather than concatenated — a hidden entry
   // leaves the rest in their order. Admins see everything; staff see what
-  // their role allows. The server renders without a session, so hydration
-  // filters the same way and the user's own entries follow right after.
-  const hydrated = React.useSyncExternalStore(
-    noopSubscribe,
-    () => true,
-    () => false,
-  );
-  const navMain = sidebarMenus.nav.filter((item) =>
-    isNavItemVisible(item, hydrated ? session?.user : undefined),
-  );
+  // their role allows.
+  const navMain = visibleNavItems(menuUser);
 
   // A phone has no room for the rail and sub-sidebar side by side: one
   // drawer, opened from the top bar, holds both.

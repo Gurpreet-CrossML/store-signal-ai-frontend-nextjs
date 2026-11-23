@@ -1,7 +1,7 @@
 import Signup from "@/clients/signup";
 
 export const metadata = {
-  title: "Create an account",
+  title: "Create An Account",
 };
 
 export default function Page() {

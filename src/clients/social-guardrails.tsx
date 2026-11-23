@@ -340,7 +340,7 @@ function GuardrailsForm({ accountId }: { accountId: string }) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="always">Around the Clock</SelectItem>
+                <SelectItem value="always">Around The Clock</SelectItem>
                 <SelectItem value="custom">Custom Hours</SelectItem>
               </SelectContent>
             </Select>

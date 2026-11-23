@@ -11,6 +11,7 @@ import {
 } from "@tabler/icons-react";
 
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,6 +19,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  languageLabel,
   resolveTemplateIcon,
   WhatsAppTemplateCategoryBadge,
   WhatsAppTemplateStatusBadge,
@@ -36,6 +38,8 @@ export function getWhatsAppTemplateColumns(
   onDelete: (template: WhatsAppTemplate) => void,
   onResubmit: (template: WhatsAppTemplate) => void,
   onResubmitAsNew: (template: WhatsAppTemplate) => void,
+  onToggleActive: (template: WhatsAppTemplate, value: boolean) => void,
+  togglingId: number | null,
 ): ColumnDef<WhatsAppTemplate>[] {
   return [
     {
@@ -71,7 +75,7 @@ export function getWhatsAppTemplateColumns(
       header: "Language",
       cell: ({ row }) => (
         <span className="text-sm text-muted-foreground">
-          {row.original.language}
+          {languageLabel(row.original.language)}
         </span>
       ),
     },
@@ -89,6 +93,15 @@ export function getWhatsAppTemplateColumns(
         const template = row.original;
         return (
           <div className="flex items-center gap-1">
+            {/* Off: never sent to customers, auto-send included. */}
+            <Switch
+              checked={template.is_active}
+              disabled={togglingId === template.id}
+              onClick={(event) => event.stopPropagation()}
+              onCheckedChange={(value) => onToggleActive(template, value)}
+              aria-label={`Send ${template.display_name || template.name} to customers`}
+              className="mr-1"
+            />
             <Button
               variant="ghost"
               size="icon-sm"
@@ -120,7 +133,7 @@ export function getWhatsAppTemplateColumns(
                     }}
                   >
                     <IconRefresh className="size-4" />
-                    Resubmit to Meta
+                    Resubmit To Meta
                   </DropdownMenuItem>
                 )}
                 {(template.status?.toUpperCase() === "PENDING_DELETION" ||

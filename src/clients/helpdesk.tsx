@@ -37,6 +37,7 @@ import {
   IconSparkles,
   IconX,
 } from "@tabler/icons-react";
+import { DateRangePicker } from "@/components/custom/date-range-picker";
 import ReactMarkdown from "react-markdown";
 
 import {
@@ -96,7 +97,6 @@ import {
   TicketDetailsPlaceholder,
   findLinkedOrder,
   formatMoney,
-  formatTicketDateTime,
   formatTicketTime,
 } from "@/components/custom/helpdesk/ticket-details-panel";
 import { LoadingState } from "@/components/custom/loading-state";
@@ -161,10 +161,19 @@ import {
   type SupportTicketStatusCounts,
   type SupportSocketPayload,
 } from "@/redux/api-slice/support-ticket-slice";
-import { FetchStaff, type StaffMember } from "@/redux/api-slice/tenancy-slice";
+import {
+  FetchAssignableStaff,
+  FetchStaff,
+  type StaffMember,
+} from "@/redux/api-slice/tenancy-slice";
 import { can } from "@/lib/access-rules";
 import { FetchFreshdeskTicketId } from "@/redux/api-slice/thread-slice";
-import { capitalizeText, formatRelativeDateTime } from "@/lib/helpers";
+import {
+  capitalizeText,
+  endOfDay,
+  formatRelativeDateTime,
+  startOfDay,
+} from "@/lib/helpers";
 
 const RichTextArea = dynamic(
   () => import("@/components/custom/rich-text-area"),
@@ -376,7 +385,7 @@ function TicketRow({
         </Tooltip>
         <div className="mt-1.5 flex min-w-0 items-center gap-1.5 overflow-hidden text-xs text-muted-foreground">
           <span className="shrink-0">
-            {ticket.order_id ? `#${ticket.order_id}` : "No order linked"}
+            {ticket.order_id ? `#${ticket.order_id}` : "No Order Linked"}
             {orderTotal
               ? ` · ${formatMoney(orderTotal, orderCurrency).replace(/\.00$/, "")}`
               : ""}
@@ -435,9 +444,9 @@ const statusFilterOptions = [
 const DEFAULT_SORT_ORDER: SupportTicketOrdering = "last_updated";
 
 const SORT_OPTIONS: { key: SupportTicketOrdering; label: string }[] = [
-  { key: "last_updated", label: "Last updated" },
-  { key: "newest", label: "Newest first" },
-  { key: "oldest", label: "Oldest first" },
+  { key: "last_updated", label: "Last Updated" },
+  { key: "newest", label: "Newest First" },
+  { key: "oldest", label: "Oldest First" },
 ];
 
 /**
@@ -459,39 +468,44 @@ const createTempMessageId = () => -Date.now();
 /** Copy for the confirmation shown before each status change. */
 const STATUS_CONFIRMATIONS = {
   open: {
-    title: "Open ticket",
+    title: "Open Ticket",
     description:
       "Are you sure you want to open this ticket? This will mark the ticket as open.",
-    action: "Open ticket",
+    action: "Open Ticket",
   },
   reopen: {
-    title: "Reopen ticket",
+    title: "Reopen Ticket",
     description:
       "Are you sure you want to reopen this ticket? This will mark the ticket as reopened.",
-    action: "Reopen ticket",
+    action: "Reopen Ticket",
   },
   resolved: {
-    title: "Mark ticket as resolved",
+    title: "Mark Ticket As Resolved",
     description:
       "Are you sure this issue has been resolved? This will mark the ticket as resolved.",
-    action: "Mark resolved",
+    action: "Mark Resolved",
   },
   closed: {
-    title: "Close ticket",
+    title: "Close Ticket",
     description:
       "Are you sure you want to close this ticket? This will mark the ticket as closed.",
-    action: "Close ticket",
+    action: "Close Ticket",
   },
 } as const;
 
 type TicketFilterSelection = {
   priorities: SupportTicketPriority[];
   statuses: (typeof statusFilterOptions)[number]["key"][];
+  /** Created date range, API_DATE_FORMAT days; "" when not set. */
+  createdFrom: string;
+  createdTo: string;
 };
 
 const emptyTicketFilters: TicketFilterSelection = {
   priorities: [],
   statuses: [],
+  createdFrom: "",
+  createdTo: "",
 };
 
 /** The known values of a comma-separated param; a hand-edited URL may hold others. */
@@ -502,7 +516,7 @@ const pickParam = <T extends string>(param: string, known: readonly T[]) =>
 const CREATED_BY_LABEL: Record<SupportTicketCreatedBy, string> = {
   ai: "AI",
   agent: "an agent",
-  rule: "a rule",
+  email: "an email",
 };
 
 const priorityOptions: { value: SupportTicketPriority; label: string }[] = [
@@ -666,13 +680,13 @@ function TicketListPanel({
       </PopoverTrigger>
       <PopoverContent align="end" className="w-80 p-0">
         <div className="flex items-center justify-between border-b px-4 py-3">
-          <p className="text-sm font-semibold">Filter tickets</p>
+          <p className="text-sm font-semibold">Filter Tickets</p>
           <button
             type="button"
             className="text-sm font-medium text-primary"
             onClick={() => onFiltersChange(emptyTicketFilters)}
           >
-            Clear all
+            Clear All
           </button>
         </div>
         <div
@@ -756,6 +770,26 @@ function TicketListPanel({
             })}
           </div>
         </div>
+        <div
+          role="group"
+          aria-labelledby="ticket-filter-created"
+          className="border-t px-4 py-3"
+        >
+          <p
+            id="ticket-filter-created"
+            className="mb-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase"
+          >
+            Created
+          </p>
+          <DateRangePicker
+            from={filters.createdFrom}
+            to={filters.createdTo}
+            disabled={{ after: new Date() }}
+            onRangeChange={(createdFrom, createdTo) =>
+              onFiltersChange({ ...filters, createdFrom, createdTo })
+            }
+          />
+        </div>
         <div className="flex justify-end gap-2 border-t p-3">
           <Button
             variant="outline"
@@ -765,7 +799,7 @@ function TicketListPanel({
             Cancel
           </Button>
           <Button size="sm" onClick={onApplyFilters}>
-            Show results
+            Show Results
           </Button>
         </div>
       </PopoverContent>
@@ -834,7 +868,7 @@ function TicketListPanel({
             </Tooltip>
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-                Sort by
+                Sort By
               </DropdownMenuLabel>
               {SORT_OPTIONS.map((option) => (
                 <DropdownMenuItem
@@ -863,8 +897,8 @@ function TicketListPanel({
           onChange={onSearchChange}
           placeholder={
             isPhone
-              ? "Search name, ticket or order #"
-              : "Search name, email, ticket or order #"
+              ? "Search name, ticket or order ID"
+              : "Search name, email, ticket or order ID"
           }
           label="Search tickets"
         />
@@ -925,13 +959,15 @@ function TicketListPanel({
         className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto border-t"
         onScroll={handleScroll}
       >
-        {isLoading && rows?.length === 0 ? (
+        {/* A fresh list (a search typed or cleared, another view) replaces the
+            old rows, so they give way to the loader; loading more keeps them. */}
+        {isLoading && (rows?.length === 0 || !isLoadingMore) ? (
           <LoadingState label="Loading tickets…" className="py-10" />
         ) : !rows || rows?.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-1 px-6 py-12 text-center">
             <IconInbox className="mb-1 size-7 text-muted-foreground opacity-40" />
             <Typography variant="small" as="p">
-              No tickets found
+              No Tickets Found
             </Typography>
             <Typography variant="muted">
               Try a different view, search, or filter.
@@ -1096,9 +1132,11 @@ function ConversationPanel({
   /** Asks first: every status change emails the customer. */
   onRequestStatus: (status: SupportTicketStatus) => void;
 }) {
+  // Send & Resolve by default; a ticket that can't be resolved falls back
+  // to a plain Send (see effectiveSendMode).
   const [selectedSendMode, setSelectedSendMode] = useState<
     "reply" | "customer_language" | "reply_and_resolve"
-  >("reply");
+  >("reply_and_resolve");
   const [noteMode, setNoteMode] = useState(false);
   // Opening another ticket goes back to replying, so a note meant for one
   // ticket is never sent to the next one's customer by mistake, or the reverse.
@@ -1185,11 +1223,11 @@ function ConversationPanel({
   });
 
   const sendLabel = noteMode
-    ? "Add note"
+    ? "Add Note"
     : effectiveSendMode === "customer_language"
-      ? "Send translated"
+      ? "Send Translated"
       : effectiveSendMode === "reply_and_resolve"
-        ? "Send & resolve"
+        ? "Send & Resolve"
         : "Send";
   // Replies on a non-English ticket are always translated, so billed.
   const sendCostsCredit =
@@ -1253,7 +1291,7 @@ function ConversationPanel({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-72 p-0">
         <div className="border-b px-3 py-2.5">
-          <p className="text-sm font-semibold">Translate the conversation</p>
+          <p className="text-sm font-semibold">Translate The Conversation</p>
           <p className="text-xs text-muted-foreground">
             Shows the messages in another language. Uses 1 AI credit.
           </p>
@@ -1270,7 +1308,7 @@ function ConversationPanel({
                 <IconCheck className="size-4 text-primary" />
               ) : language.code === ticketLanguage ? (
                 <span className="text-xs font-medium text-primary">
-                  Customer&apos;s language
+                  Customer&apos;s Language
                 </span>
               ) : null}
             </DropdownMenuItem>
@@ -1286,7 +1324,7 @@ function ConversationPanel({
       variant="ghost"
       size="icon-sm"
       aria-label="Attach files"
-      title="Attach files"
+      title="Attach Files"
       disabled={composerDisabled}
       onClick={() => attachmentInputRef.current?.click()}
     >
@@ -1328,7 +1366,7 @@ function ConversationPanel({
                 { mode: "reply", label: "Send", icon: IconSend },
                 {
                   mode: "customer_language",
-                  label: "Send in customer's language",
+                  label: "Send In Customer's Language",
                   icon: IconLanguage,
                   credit: true,
                 },
@@ -1336,7 +1374,7 @@ function ConversationPanel({
                   ? [
                       {
                         mode: "reply_and_resolve",
-                        label: "Send and resolve",
+                        label: "Send And Resolve",
                         icon: IconCheck,
                       },
                     ]
@@ -1381,16 +1419,12 @@ function ConversationPanel({
       <header className="hidden h-16 shrink-0 items-center gap-3 border-b px-4 md:flex md:px-6">
         <CustomerAvatar name={customerName} size="size-9" />
         <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 items-baseline gap-2">
-            <h2 className="truncate text-base font-semibold">
-              {ticket.subject}
-            </h2>
-            <span className="shrink-0 font-mono text-xs text-muted-foreground">
-              {ticketRef(ticket.ticket_id)}
-            </span>
-          </div>
+          <h2 className="truncate text-base font-semibold">{ticket.subject}</h2>
+          {/* The ticket's number first, then who raised it. */}
           <p className="truncate text-xs text-muted-foreground">
-            {customerName} · opened {formatTicketDateTime(ticket.created_at)}
+            <span className="font-mono">{ticketRef(ticket.ticket_id)}</span>
+            {" · "}
+            {customerName}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -1423,7 +1457,7 @@ function ConversationPanel({
               {ticket.subject}
             </h2>
             <p className="truncate text-xs text-muted-foreground">
-              {customerName} · {ticketRef(ticket.ticket_id)}
+              {ticketRef(ticket.ticket_id)} · {customerName}
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
@@ -1484,7 +1518,7 @@ function ConversationPanel({
             <div className="flex flex-col items-center justify-center gap-1 p-6 text-center">
               <IconMessageChatbot className="mb-1 size-6 text-muted-foreground opacity-40" />
               <Typography variant="small" as="p">
-                No messages yet
+                No Messages Yet
               </Typography>
               <Typography variant="muted">
                 Messages exchanged with the customer will appear here.
@@ -1590,9 +1624,10 @@ function ConversationPanel({
                       <p className="flex min-w-0 items-center gap-1.5 text-xs font-semibold text-primary">
                         <IconSparkles className="size-3.5 shrink-0" />
                         <span className="truncate">
-                          {isPhone
-                            ? `Created by ${creator} from ${source.replace(/^a /, "")}`
-                            : `Ticket created by ${creator} from ${source}`}{" "}
+                          {isPhone ? "Created" : "Ticket created"}{" "}
+                          {ticket.created_by_type === "email"
+                            ? "from an email"
+                            : `by ${creator} from ${isPhone ? source.replace(/^a /, "") : source}`}{" "}
                           · {clock}
                         </span>
                       </p>
@@ -1603,7 +1638,7 @@ function ConversationPanel({
                           rel="noreferrer"
                           className="hidden shrink-0 text-xs font-medium text-primary underline md:inline"
                         >
-                          View chat
+                          View Chat
                         </Link>
                       ) : null}
                     </div>
@@ -1615,7 +1650,7 @@ function ConversationPanel({
                         rel="noreferrer"
                         className="mt-1 inline-block text-sm font-medium text-primary underline md:hidden"
                       >
-                        View chat
+                        View Chat
                       </Link>
                     ) : null}
                   </div>
@@ -1640,7 +1675,7 @@ function ConversationPanel({
                       {isNote ? (
                         <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-amber-800 dark:text-amber-300">
                           <IconLock className="size-3.5" />
-                          Internal note · {author} · {clock}
+                          Internal Note · {author} · {clock}
                         </p>
                       ) : (
                         <p className="mb-1 text-right text-xs text-muted-foreground">
@@ -1784,7 +1819,7 @@ function ConversationPanel({
                       className="gap-1.5 px-2"
                       title={
                         translatedLanguage
-                          ? `Translated to ${translatedLanguage.name}`
+                          ? `Translated To ${translatedLanguage.name}`
                           : undefined
                       }
                     >
@@ -1794,7 +1829,7 @@ function ConversationPanel({
                         <IconLanguage className="size-4" />
                       )}
                       {translatedLanguage
-                        ? `Translated to ${translatedLanguage.name}`
+                        ? `Translated To ${translatedLanguage.name}`
                         : "Translate"}
                       <span className="text-xs font-normal text-destructive">
                         1 credit
@@ -1847,7 +1882,7 @@ function ConversationPanel({
                   disabled={composerDisabled}
                   aria-label="Internal note"
                 />
-                <span className="hidden md:inline">Internal note</span>
+                <span className="hidden md:inline">Internal Note</span>
                 <span className="md:hidden">Note</span>
               </label>
               <div className="ml-auto flex items-center gap-2">
@@ -1860,7 +1895,7 @@ function ConversationPanel({
                   aria-label="Save draft"
                 >
                   <IconDeviceFloppy className="size-4 md:hidden" />
-                  <span className="hidden md:inline">Save draft</span>
+                  <span className="hidden md:inline">Save Draft</span>
                 </Button>
                 {sendButton}
               </div>
@@ -1918,7 +1953,10 @@ export default function HelpDesk() {
     (state) =>
       state.GetSupportTicketsReducer.SupportTicketMessagesTranslateState,
   );
-  const { staff } = useAppSelector((state) => state.GetTenancyReducer);
+  // Everyone (for names on old messages) and who a ticket can be given to.
+  const { staff, assignableStaff } = useAppSelector(
+    (state) => state.GetTenancyReducer,
+  );
   const { FetchFreshdeskTicketIdData, FetchFreshdeskTicketIdIsLoading } =
     useAppSelector(
       (state) => state.GetThreadReducer.FetchFreshdeskTicketIdState,
@@ -2047,6 +2085,8 @@ export default function HelpDesk() {
   // view changes (its links carry them along). Read as plain strings first so
   // the objects below keep their identity until one really changes.
   const priorityParam = searchParams?.get("priority") ?? "";
+  const createdFromParam = searchParams?.get("created_from") ?? "";
+  const createdToParam = searchParams?.get("created_to") ?? "";
   const sortParam = searchParams?.get("sort");
   // The list reads them from state, not the URL: a tab click clears them, and
   // it has to do that in the same render that switches the tab, or the list
@@ -2065,8 +2105,10 @@ export default function HelpDesk() {
         priorityOptions.map((option) => option.value),
       ),
       statuses: appliedStatuses,
+      createdFrom: createdFromParam,
+      createdTo: createdToParam,
     }),
-    [priorityParam, appliedStatuses],
+    [priorityParam, appliedStatuses, createdFromParam, createdToParam],
   );
   // The status to fetch: the selected tab's. That tab can be Open, Reopen or
   // the one added by the filter.
@@ -2517,13 +2559,17 @@ export default function HelpDesk() {
     upsertSocketTicket,
   ]);
 
-  // Only admins and supervisors assign tickets, and only they may read the
+  // Only owners and managers assign tickets to others, and only they may read the
   // staff list; fetching it as anyone else would only fail with an error toast.
   const canAssign = can(session?.user, "reassignment", { write: true });
+  // Everyone else who works tickets may take an unassigned one for themselves.
+  const canTakeTicket =
+    !canAssign && can(session?.user, "conversations", { write: true });
   useEffect(() => {
     if (!storeCode || !canAssign) return;
 
     dispatch(FetchStaff());
+    dispatch(FetchAssignableStaff());
   }, [dispatch, storeCode, canAssign]);
 
   useEffect(() => {
@@ -2539,6 +2585,13 @@ export default function HelpDesk() {
       ...(debouncedSearch ? { search: debouncedSearch } : {}),
       ...(appliedFilters.priorities.length
         ? { priority: appliedFilters.priorities }
+        : {}),
+      // The picker yields whole days; the range covers all of its last one.
+      ...(appliedFilters.createdFrom
+        ? { created_from: startOfDay(appliedFilters.createdFrom) }
+        : {}),
+      ...(appliedFilters.createdTo
+        ? { created_to: endOfDay(appliedFilters.createdTo) }
         : {}),
     };
 
@@ -3146,7 +3199,12 @@ export default function HelpDesk() {
         }),
       ).unwrap();
 
-      const assignedStaff = staff.find((member) => member.id === staffId);
+      const assignedStaff = assignableStaff.find(
+        (member) => member.id === staffId,
+      );
+      // An agent taking a ticket has no staff list; they are the assignee.
+      const me = session?.user;
+      const tookIt = staffId !== null && staffId === me?.user_id;
 
       applyTicketRowUpdate(ticketId, {
         internal_assignee: assignedStaff
@@ -3155,7 +3213,13 @@ export default function HelpDesk() {
               name: `${assignedStaff.first_name} ${assignedStaff.last_name}`,
               email: assignedStaff.email,
             }
-          : null,
+          : tookIt
+            ? {
+                id: staffId,
+                name: me?.name ?? me?.email ?? "",
+                email: me?.email ?? "",
+              }
+            : null,
       });
       // The assignment is now part of the ticket's history.
       if (currentActiveSupportTicketIdRef.current === ticketId) {
@@ -3711,6 +3775,8 @@ export default function HelpDesk() {
     updateQueryParams({
       priority: draftFilters.priorities.join(",") || null,
       status: draftFilters.statuses.join(",") || null,
+      created_from: draftFilters.createdFrom || null,
+      created_to: draftFilters.createdTo || null,
     });
     setAppliedStatuses(draftFilters.statuses);
     // Switch to the status just picked. If it was cleared while its tab was
@@ -3748,7 +3814,13 @@ export default function HelpDesk() {
           sortOrder={sortOrder}
           onSortChange={handleSortChange}
           onSelectTicket={handleSelectTicket}
-          isLoading={FetchSupportTicketsLoading}
+          // Loading while the tickets are fetched, and also during the 800ms
+          // after typing or clearing the search, before that fetch starts.
+          // Without this, the old results would stay on screen with no
+          // spinner for that moment, as if the search did nothing.
+          isLoading={
+            FetchSupportTicketsLoading || searchValue.trim() !== debouncedSearch
+          }
           isLoadingMore={isLoadingMore}
           hasMore={Boolean(FetchSupportTicketsListData?.next)}
           onLoadMore={() => {
@@ -3760,7 +3832,9 @@ export default function HelpDesk() {
           onSearchChange={setSearchValue}
           filters={draftFilters}
           activeFilterCount={
-            appliedFilters.priorities.length + appliedFilters.statuses.length
+            appliedFilters.priorities.length +
+            appliedFilters.statuses.length +
+            (appliedFilters.createdFrom || appliedFilters.createdTo ? 1 : 0)
           }
           isFilterOpen={isFilterOpen}
           onFilterOpenChange={handleFilterOpenChange}
@@ -3787,7 +3861,7 @@ export default function HelpDesk() {
           >
             <IconInbox className="mb-1 size-7 text-muted-foreground opacity-40" />
             <Typography variant="small" as="p">
-              Ticket not found
+              Ticket Not Found
             </Typography>
             <Typography variant="muted">
               This ticket could not be opened. It may belong to another store,
@@ -3799,7 +3873,7 @@ export default function HelpDesk() {
               className="mt-3"
               onClick={() => setActiveTicketId(null)}
             >
-              Back to inbox
+              Back To Inbox
             </Button>
           </div>
         ) : !activeSupportTicket ? (
@@ -3811,7 +3885,7 @@ export default function HelpDesk() {
           >
             <IconInbox className="mb-1 size-7 text-muted-foreground opacity-40" />
             <Typography variant="small" as="p">
-              No ticket selected
+              No Ticket Selected
             </Typography>
             <Typography variant="muted">
               Open a ticket from the list to see its conversation.
@@ -3881,9 +3955,14 @@ export default function HelpDesk() {
               status !== "snoozed" && setPendingStatus(status)
             }
             onPriorityChange={handleSupportTicketPriorityUpdate}
-            staff={staff}
+            staff={assignableStaff}
             canAssign={canAssign}
             onAssign={handleStaffAssign}
+            onTake={
+              canTakeTicket && session?.user?.user_id
+                ? () => handleStaffAssign(session.user.user_id ?? null)
+                : undefined
+            }
             onLanguageSentimentChange={
               handleSupportTicketLanguageSentimentUpdate
             }
@@ -3982,7 +4061,7 @@ export default function HelpDesk() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove this tag?</AlertDialogTitle>
+            <AlertDialogTitle>Remove This Tag?</AlertDialogTitle>
             <AlertDialogDescription>
               <span className="font-semibold text-foreground">
                 {pendingTagRemoval?.name}
@@ -4000,7 +4079,7 @@ export default function HelpDesk() {
                 if (pendingTagRemoval) handleRemoveTag(pendingTagRemoval.id);
               }}
             >
-              Remove tag
+              Remove Tag
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
