@@ -193,6 +193,14 @@ export function NewKnowledgePage() {
       else router.push("/knowledge");
     });
 
+  // Going back to the sources drops what was entered, so it asks first. If
+  // the prompt's Save Changes added it, the "added" screen stays.
+  const backToSources = () =>
+    unsavedChanges.current?.confirmLeave(() => {
+      resetContent();
+      setStep((current) => (current === "done" ? current : "source"));
+    });
+
   // --- What is ready to add -------------------------------------------------
   const filledFaqs = faqRows.filter(
     (row) => row.question.trim() || row.answer.trim(),
@@ -448,10 +456,7 @@ export function NewKnowledgePage() {
             icon={meta.icon}
             tone={meta.tone}
             changeSourceDisabled={isSubmitting}
-            onChangeSource={() => {
-              resetContent();
-              setStep("source");
-            }}
+            onChangeSource={backToSources}
             side={
               <KnowledgeScopePanel
                 value={scope}
@@ -532,10 +537,7 @@ export function NewKnowledgePage() {
               type="button"
               variant="outline"
               disabled={isSubmitting}
-              onClick={() => {
-                resetContent();
-                setStep("source");
-              }}
+              onClick={backToSources}
             >
               Back
             </Button>
