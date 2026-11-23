@@ -31,7 +31,7 @@ import {
   faqAnswerProblem,
   faqQuestionProblem,
 } from "@/lib/faq-validation";
-import { isValidUrl, normalizeUrl } from "@/lib/url";
+import { isValidWebsiteUrl, normalizeUrl } from "@/lib/url";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
   FetchKnowledgeItem,
@@ -278,7 +278,7 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
       item.source === "faq" &&
       Boolean(faqQuestionProblem(question) || faqAnswerProblem(answer));
     const urlInvalid =
-      item.source === "url" && (!url.trim() || !isValidUrl(url));
+      item.source === "url" && (!url.trim() || !isValidWebsiteUrl(url));
     const scopeErrors = validateScope(scope);
     if (
       scopeErrors.aiScope ||
@@ -672,9 +672,9 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
                   autoComplete="off"
                   aria-label="Page address"
                   onChange={(event) => setUrl(event.target.value)}
-                  aria-invalid={showErrors && !isValidUrl(url)}
+                  aria-invalid={showErrors && !isValidWebsiteUrl(url)}
                 />
-                {showErrors && !isValidUrl(url) ? (
+                {showErrors && !isValidWebsiteUrl(url) ? (
                   <p className="text-xs text-destructive">
                     Enter a valid page address
                   </p>
