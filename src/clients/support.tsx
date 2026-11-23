@@ -35,12 +35,15 @@ import { useIsBelowLg } from "@/hooks/use-narrow-viewport";
 import { ConversationRow } from "@/components/custom/conversation-row";
 import { AnimatePresence, motion } from "framer-motion";
 
+import { CheckboxMultiSelect } from "@/components/custom/checkbox-multi-select";
 import { CustomerAvatar } from "@/components/custom/customer-avatar";
+import { CustomerSegmentBadge } from "@/components/custom/customer-segment-badge";
 import {
   AdminBadge,
   AssigneeSelect,
   type AgentOption,
 } from "@/components/custom/assignee-select";
+import { StaffRoleBadge } from "@/components/custom/staff-columns";
 import {
   CustomerDetailsButton,
   CustomerDetailsPanel,
@@ -91,7 +94,10 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { FetchStaff } from "@/redux/api-slice/tenancy-slice";
+import {
+  FetchAssignableStaff,
+  FetchStaff,
+} from "@/redux/api-slice/tenancy-slice";
 import { type StaffMember } from "@/redux/api-slice/tenancy-slice";
 import {
   IconAlertTriangle,
@@ -108,6 +114,7 @@ import {
   IconSend,
   IconShoppingBag,
   IconMessageOff,
+  IconPlus,
   IconTicket,
   IconX,
 } from "@tabler/icons-react";
@@ -116,7 +123,12 @@ import { useSession } from "next-auth/react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { toast } from "sonner";
-import { ENDPOINTS } from "@/lib/config";
+import {
+  ACTIVE_FILTER_STYLE,
+  ENDPOINTS,
+  MAX_MESSAGE_LENGTH,
+  MESSAGE_TOO_LONG_TEXT,
+} from "@/lib/config";
 import { can } from "@/lib/access-rules";
 import type { ThreadCloseReason } from "@/lib/thread-options";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
@@ -250,7 +262,7 @@ const HANDOVER_ACTION_ID = "thread-handover-action";
 
 // Roles allowed to answer live chats (the backend's "conversations" write
 // permission). Viewers and content managers can't be assigned a chat.
-const CHAT_HANDLER_ROLES = ["supervisor", "agent"];
+const CHAT_HANDLER_ROLES = ["manager", "agent"];
 
 function getAgentInitials(name: string) {
   return name
@@ -272,6 +284,7 @@ function ThreadChatControls({
   userRole,
   canReassign = false,
   agents = [],
+  assignees = [],
   chatSocketReady,
   transitionState,
   composerMessage,
@@ -302,7 +315,10 @@ function ThreadChatControls({
   user: string | null;
   userRole?: string | null;
   canReassign?: boolean;
+  /** Everyone who may hold a chat: names and admin badges. */
   agents?: AgentOption[];
+  /** Who the chat can be given to: active support agents and store managers. */
+  assignees?: AgentOption[];
   chatSocketReady: boolean;
   transitionState: "idle" | "taking_over" | "returning_to_ai";
   composerMessage: string;
@@ -341,11 +357,11 @@ function ThreadChatControls({
   }
 
   // A chat an admin holds can only be reassigned by an admin (the backend
-  // enforces it too), so a supervisor sees the holder but can't change it.
+  // enforces it too), so a manager sees the holder but can't change it.
   const heldByAdmin = !!agents.find((a) => a.email === connectedAgent)?.isAdmin;
   const iAmAdmin = !!agents.find((a) => a.email === user)?.isAdmin;
   const lockedByAdmin = heldByAdmin && !iAmAdmin;
-  const reassignRoleLabel = userRole === "supervisor" ? "supervisor" : "admin";
+  const reassignRoleLabel = userRole === "manager" ? "store manager" : "owner";
 
   const isUploadingAttachments = attachments.some(
     (attachment) => attachment.status === "uploading",
@@ -355,7 +371,15 @@ function ThreadChatControls({
   );
   const inputsDisabled = transitionState !== "idle" || isUploadingAttachments;
 
+  // The same limit as the customer's widget: typing stops at it, the box
+  // turns red, sending is off, and the reason shows under the box like a
+  // form field's error (no toast).
+  const tooLong = composerMessage.length >= MAX_MESSAGE_LENGTH;
+  const changeComposerMessage = (value: string) =>
+    setComposerMessage(value.slice(0, MAX_MESSAGE_LENGTH));
+
   const canSend =
+    !tooLong &&
     (composerMessage.trim().length > 0 ||
       attachments.length > 0 ||
       attachedProducts.length > 0) &&
@@ -364,7 +388,7 @@ function ThreadChatControls({
     !isUploadingAttachments &&
     !hasFailedAttachments;
   const canSaveInternalNote =
-    composerMessage.trim().length > 0 && transitionState === "idle";
+    !tooLong && composerMessage.trim().length > 0 && transitionState === "idle";
 
   const handleEmojiClick = (emojiData: EmojiClickData) => {
     onEmojiSelect(emojiData.emoji);
@@ -444,10 +468,12 @@ function ThreadChatControls({
               >
                 {canReassign && (
                   <AssigneeSelect
-                    agents={agents}
+                    agents={assignees}
                     currentAgent={null}
                     disabled={transitionState !== "idle" || !chatSocketReady}
                     onReassign={onReassign}
+                    hideLabel
+                    triggerClassName="rounded-lg sm:h-8 sm:rounded-md"
                   />
                 )}
                 {activeThreadId && (
@@ -470,7 +496,7 @@ function ThreadChatControls({
                       }
                     >
                       <IconHeadset className="hidden h-4 w-4 sm:block" />
-                      <span className="sm:hidden">Take over</span>
+                      <span className="sm:hidden">Take Over</span>
                       <span className="hidden sm:inline">Take Over</span>
                     </Button>
                   </motion.div>
@@ -492,7 +518,12 @@ function ThreadChatControls({
             transition={{ duration: 0.2, ease: "easeOut" }}
             className="order-2 p-2 sm:p-2.5"
           >
-            <div className="overflow-hidden rounded-xl border border-amber-300/80 bg-amber-50 shadow-xs transition-shadow focus-within:border-amber-400 focus-within:shadow-sm dark:border-amber-700/70 dark:bg-amber-950/30">
+            <div
+              className={cn(
+                "overflow-hidden rounded-xl border border-amber-300/80 bg-amber-50 shadow-xs transition-shadow focus-within:border-amber-400 focus-within:shadow-sm dark:border-amber-700/70 dark:bg-amber-950/30",
+                tooLong && "border-red-600 focus-within:border-red-600",
+              )}
+            >
               <div className="flex items-start gap-2 bg-amber-50 px-3 py-1.5 text-xs leading-snug text-amber-800 sm:text-xsm dark:bg-amber-950/30 dark:text-amber-100">
                 <IconLock className="mt-0.5 size-3 shrink-0 text-amber-700 sm:size-3 dark:text-amber-300" />
                 <span>
@@ -506,11 +537,13 @@ function ThreadChatControls({
                   placeholder="Add a note for your team."
                   value={composerMessage}
                   disabled={isSavingInternalNote || transitionState !== "idle"}
-                  onChange={(event) => setComposerMessage(event.target.value)}
+                  onChange={(event) =>
+                    changeComposerMessage(event.target.value)
+                  }
                   onKeyDown={(event) => {
                     if (event.key === "Enter" && !event.shiftKey) {
                       event.preventDefault();
-                      onSendInternalNote();
+                      if (!tooLong) onSendInternalNote();
                     }
                   }}
                   className="min-h-12 max-h-20 w-full resize-none bg-transparent py-0.5 text-sm leading-6 outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60"
@@ -523,11 +556,12 @@ function ThreadChatControls({
                     size="sm"
                     onClick={onSendInternalNote}
                     disabled={
+                      tooLong ||
                       composerMessage.trim().length === 0 ||
                       isSavingInternalNote ||
                       transitionState !== "idle"
                     }
-                    title="Save internal note"
+                    title="Save Internal Note"
                     className="h-8 bg-amber-700 px-3 text-xs text-white hover:bg-amber-800 sm:text-sm dark:bg-amber-600 dark:hover:bg-amber-500"
                   >
                     {isSavingInternalNote ? (
@@ -535,10 +569,15 @@ function ThreadChatControls({
                     ) : (
                       <IconNote className="size-3.5 sm:size-4" />
                     )}
-                    Add note
+                    Add Note
                   </Button>
                 </div>
               </div>
+              {tooLong && (
+                <p className="px-3 pb-2 text-xs text-destructive">
+                  {MESSAGE_TOO_LONG_TEXT}
+                </p>
+              )}
             </div>
           </motion.div>
         )}
@@ -576,7 +615,7 @@ function ThreadChatControls({
             <div className="flex w-full min-w-0 shrink-0 flex-nowrap items-center justify-end gap-1.5 sm:ml-auto sm:w-auto sm:gap-3">
               {(canReassign || Boolean(connectedAgent)) && (
                 <AssigneeSelect
-                  agents={agents}
+                  agents={assignees}
                   currentAgent={connectedAgent}
                   currentAgentName={connectedAgentName}
                   disabled={
@@ -586,6 +625,8 @@ function ThreadChatControls({
                     lockedByAdmin
                   }
                   onReassign={onReassign}
+                  hideLabel
+                  triggerClassName="h-8 rounded-md"
                 />
               )}
               {canReassign && (
@@ -601,7 +642,7 @@ function ThreadChatControls({
                   }
                 >
                   <IconHeadset className="h-4 w-4" />
-                  Take over
+                  Take Over
                 </Button>
               )}
             </div>
@@ -639,7 +680,7 @@ function ThreadChatControls({
             <div className="flex w-full min-w-0 shrink-0 items-center justify-end gap-1.5 sm:w-auto sm:gap-3">
               {(canReassign || Boolean(connectedAgent)) && (
                 <AssigneeSelect
-                  agents={agents}
+                  agents={assignees}
                   currentAgent={connectedAgent}
                   currentAgentName={connectedAgentName}
                   disabled={
@@ -648,6 +689,8 @@ function ThreadChatControls({
                     !chatSocketReady
                   }
                   onReassign={onReassign}
+                  hideLabel
+                  triggerClassName="h-8 rounded-md"
                 />
               )}
               <motion.div layoutId={HANDOVER_ACTION_ID} className="shrink-0">
@@ -660,7 +703,7 @@ function ThreadChatControls({
                   disabled={transitionState !== "idle" || !chatSocketReady}
                 >
                   <IconArrowBackUp className="size-3.5 sm:size-4" />
-                  Hand back to AI
+                  Hand Back To AI
                 </Button>
               </motion.div>
             </div>
@@ -674,7 +717,10 @@ function ThreadChatControls({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="order-2 m-2 overflow-hidden rounded-lg border border-border/60 bg-background shadow-xs transition-shadow focus-within:border-primary/50 focus-within:shadow-sm sm:m-2.5"
+            className={cn(
+              "order-2 m-2 overflow-hidden rounded-lg border border-border/60 bg-background shadow-xs transition-shadow focus-within:border-primary/50 focus-within:shadow-sm sm:m-2.5",
+              tooLong && "border-red-600 focus-within:border-red-600",
+            )}
           >
             {isEmojiPickerOpen && (
               <div className="border-b border-border/50 p-2">
@@ -795,7 +841,7 @@ function ThreadChatControls({
                         disabled={isUploading}
                         className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-background/80 text-muted-foreground opacity-0 shadow-sm transition-opacity group-hover:opacity-100 hover:bg-background hover:text-foreground disabled:cursor-not-allowed disabled:opacity-0"
                         onClick={() => onRemoveAttachment(attachment.id)}
-                        title={isUploading ? "Uploading…" : "Remove attachment"}
+                        title={isUploading ? "Uploading…" : "Remove Attachment"}
                       >
                         <IconX className="h-3 w-3" />
                       </button>
@@ -817,11 +863,11 @@ function ThreadChatControls({
                 }
                 value={composerMessage}
                 disabled={inputsDisabled}
-                onChange={(event) => setComposerMessage(event.target.value)}
+                onChange={(event) => changeComposerMessage(event.target.value)}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" && !event.shiftKey) {
                     event.preventDefault();
-                    onSendAgentMessage();
+                    if (!tooLong) onSendAgentMessage();
                   }
                 }}
                 className="min-h-12 max-h-24 w-full resize-none bg-transparent py-0.5 text-xs leading-5 outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm sm:leading-6"
@@ -841,7 +887,7 @@ function ThreadChatControls({
                   isEmojiPickerOpen && "ring-2 ring-ring/40",
                 )}
                 onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
-                title="Add emoji"
+                title="Add Emoji"
               >
                 <IconMoodSmile className="size-4" />
               </Button>
@@ -851,7 +897,7 @@ function ThreadChatControls({
                 size="icon-sm"
                 disabled={inputsDisabled}
                 onClick={() => fileInputRef.current?.click()}
-                title="Attach image or file"
+                title="Attach Image Or File"
                 className="size-7 sm:size-8"
               >
                 <IconPaperclip className="size-4" />
@@ -862,7 +908,7 @@ function ThreadChatControls({
                 size="icon-sm"
                 disabled={inputsDisabled}
                 onClick={() => setIsProductPickerOpen(true)}
-                title="Attach products (max 10)"
+                title="Attach Products (Max 10)"
                 className={cn(
                   "size-7 sm:size-8",
                   attachedProducts.length > 0 &&
@@ -906,7 +952,7 @@ function ThreadChatControls({
                     as="span"
                     className="hidden 2xl:inline"
                   >
-                    {attachedProducts.length} product
+                    {attachedProducts.length} Product
                     {attachedProducts.length > 1 ? "s" : ""}
                   </Typography>
                 )}
@@ -916,7 +962,7 @@ function ThreadChatControls({
                     as="span"
                     className="hidden 2xl:inline"
                   >
-                    {attachments.length} attached
+                    {attachments.length} Attached
                   </Typography>
                 )}
                 <Button
@@ -930,7 +976,7 @@ function ThreadChatControls({
                 >
                   <IconNote className="size-3.5 sm:size-4" />
                   <span className="hidden xl:inline">
-                    Send as Internal Note
+                    Send As Internal Note
                   </span>
                   <span className="xl:hidden">Note</span>
                 </Button>
@@ -951,6 +997,11 @@ function ThreadChatControls({
                 </Button>
               </div>
             </div>
+            {tooLong && (
+              <p className="px-3 pb-2 text-xs text-destructive">
+                {MESSAGE_TOO_LONG_TEXT}
+              </p>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -1149,7 +1200,12 @@ export default function Support() {
   const [hasManualTabSelection, setHasManualTabSelection] = useState(false);
   const [isThreadFilterOpen, setIsThreadFilterOpen] = useState(false);
   const [appliedThreadFilters, setAppliedThreadFilters] =
-    useState<SupportThreadFilters>(EMPTY_SUPPORT_THREAD_FILTERS);
+    useState<SupportThreadFilters>(() => ({
+      ...EMPTY_SUPPORT_THREAD_FILTERS,
+      channels: searchParams?.get("channel")
+        ? [searchParams.get("channel") as string]
+        : [],
+    }));
   const [draftThreadFilters, setDraftThreadFilters] =
     useState<SupportThreadFilters>(EMPTY_SUPPORT_THREAD_FILTERS);
   const [replyWithAILoadingId, setReplyWithAILoadingId] = useState<
@@ -1161,7 +1217,7 @@ export default function Support() {
   // the permission from their role. The backend enforces this too — checking
   // here spares a round trip and says why.
   const canHandleChats = can(session?.user, "conversations", { write: true });
-  // Admins and supervisors may assign a chat to another agent.
+  // Owners and managers may assign a chat to another agent.
   const canReassign = can(session?.user, "reassignment", { write: true });
   const staff: StaffMember[] = useAppSelector(
     (state) => state.GetTenancyReducer.staff,
@@ -1186,7 +1242,7 @@ export default function Support() {
             `${member.first_name} ${member.last_name}`.trim() || member.email,
           isAdmin,
           // Admins stay visible (so you can see who holds a chat), but only
-          // an admin can assign to one — the backend refuses a supervisor.
+          // an owner can assign to one — the backend refuses a manager.
           disabled: isAdmin && !iAmAdmin,
         };
       });
@@ -1213,6 +1269,24 @@ export default function Support() {
     session?.user?.role,
   ]);
 
+  // Who a chat can be given to; the backend sends only active support
+  // agents and store managers.
+  const assignableStaff: StaffMember[] = useAppSelector(
+    (state) => state.GetTenancyReducer.assignableStaff,
+  );
+  const assignees = useMemo<AgentOption[]>(() => {
+    const myEmail = session?.user?.email ?? "";
+    return assignableStaff.map((member) => {
+      const name =
+        `${member.first_name} ${member.last_name}`.trim() || member.email;
+      return {
+        email: member.email,
+        name: member.email === myEmail ? `${name} (you)` : name,
+        role: member.role,
+      };
+    });
+  }, [assignableStaff, session?.user?.email]);
+
   const connectedAgentName = useMemo(() => {
     if (!connectedAgent) return null;
     if (connectedAgentServerName) return connectedAgentServerName;
@@ -1233,7 +1307,7 @@ export default function Support() {
     connectedAgentNameRef.current = connectedAgentName;
   }, [connectedAgentName]);
 
-  // Only admins and supervisors can reassign, and only they need the agent list
+  // Only owners and managers can reassign, and only they need the agent list
   // (the staff API refuses everyone else). Fetch the shared company staff roster
   // from Redux so the assignee filter and reassignment controls use the same
   // source of truth. Keyed on the boolean, not the session object, so a session
@@ -1241,6 +1315,7 @@ export default function Support() {
   useEffect(() => {
     if (!canReassign) return;
     void dispatch(FetchStaff());
+    void dispatch(FetchAssignableStaff());
   }, [canReassign, dispatch]);
 
   const wsRef = useRef<WebSocket | null>(null);
@@ -1636,7 +1711,7 @@ export default function Support() {
     }
   }, [activeThreadId, canHandleChats]);
 
-  // Admin and supervisor: hands the chat to another agent. Sent over the same
+  // Owner and manager: hands the chat to another agent. Sent over the same
   // handler_change channel as Take Over, naming the agent to assign.
   const handleReassign = useCallback(
     (email: string) => {
@@ -1887,7 +1962,10 @@ export default function Support() {
   );
 
   const handleEmojiSelect = useCallback((emoji: string) => {
-    setComposerMessage((prev) => `${prev}${emoji}`);
+    // Past the message limit the emoji is not added, as typing stops there.
+    setComposerMessage((prev) =>
+      `${prev}${emoji}`.length > MAX_MESSAGE_LENGTH ? prev : `${prev}${emoji}`,
+    );
     setIsEmojiPickerOpen(false);
   }, []);
 
@@ -1936,11 +2014,13 @@ export default function Support() {
       setPortraitView("conversation");
       setAttachments([]);
       setAppliedChatParam(threadId);
-      router.replace(`${pathname}?chat=${encodeURIComponent(threadId)}`, {
+      const params = new URLSearchParams(searchParams?.toString() ?? "");
+      params.set("chat", threadId);
+      router.replace(`${pathname}?${params.toString()}`, {
         scroll: false,
       });
     },
-    [router, pathname],
+    [router, pathname, searchParams],
   );
 
   // Closing is the customer's call: this only asks their widget for feedback.
@@ -2110,6 +2190,18 @@ export default function Support() {
     }
 
     if (event.action_type === "thread_updated") {
+      // A chat another agent now holds leaves a support agent's list (the
+      // server stops sending its messages too).
+      const holderId = event.data.chat_handler_user?.id;
+      if (
+        session?.user?.queue_only &&
+        holderId &&
+        holderId !== session.user.user_id
+      ) {
+        removeClosedThread(event.data.thread_id);
+        return;
+      }
+
       if (
         event.data.thread_id === activeThreadId &&
         activeReadFilter !== "all"
@@ -2567,7 +2659,7 @@ export default function Support() {
         <SidebarHeader className="gap-0 p-0">
           <div className="flex h-16 shrink-0 items-center justify-between gap-2 border-b px-4">
             <CardTitle className="flex items-center gap-2">
-              Live chats
+              Live Chats
             </CardTitle>
           </div>
 
@@ -2577,7 +2669,7 @@ export default function Support() {
                 <SearchInput
                   value={threadSearch}
                   onChange={setThreadSearch}
-                  placeholder="Name, email, phone or order #"
+                  placeholder="Name, email, phone, order"
                   label="Search conversations"
                 />
               </div>
@@ -2597,7 +2689,11 @@ export default function Support() {
                   <Button
                     variant="outline"
                     size="icon-sm"
-                    className="relative shrink-0"
+                    className={cn(
+                      "relative shrink-0",
+                      hasAppliedThreadFilters(appliedThreadFilters) &&
+                        ACTIVE_FILTER_STYLE,
+                    )}
                     aria-label="Filter conversations"
                   >
                     <IconFilter className="size-4" />
@@ -2639,28 +2735,37 @@ export default function Support() {
                       />
                     </fieldset>
 
-                    <fieldset>
-                      <legend className="mb-2">
-                        <Typography variant="small" as="span">
-                          Assignee
-                        </Typography>
-                      </legend>
-                      <MultiSelectCombobox
-                        options={agents.map((agent) => ({
-                          value: agent.email,
-                          label: agent.name,
-                        }))}
-                        value={draftThreadFilters.assignees}
-                        onValueChange={(assignees) =>
-                          setDraftThreadFilters((current) => ({
-                            ...current,
-                            assignees,
-                          }))
-                        }
-                        placeholder="Search assignees…"
-                        emptyMessage="No assignees found."
-                      />
-                    </fieldset>
+                    {/* Store owners and managers only: they hand chats out.
+                        The list is active support agents and store managers. */}
+                    {canReassign && (
+                      <fieldset>
+                        <legend className="mb-2">
+                          <Typography variant="small" as="span">
+                            Assignee
+                          </Typography>
+                        </legend>
+                        <CheckboxMultiSelect
+                          options={assignees.map((agent) => ({
+                            value: agent.email,
+                            label: agent.name,
+                            hint: agent.email,
+                            badge: agent.role && (
+                              <StaffRoleBadge role={agent.role} />
+                            ),
+                          }))}
+                          value={draftThreadFilters.assignees}
+                          onChange={(next) =>
+                            setDraftThreadFilters((current) => ({
+                              ...current,
+                              assignees: next,
+                            }))
+                          }
+                          placeholder="Choose assignees"
+                          searchPlaceholder="Search name or email"
+                          emptyMessage="No assignees found."
+                        />
+                      </fieldset>
+                    )}
                   </div>
                   <div className="flex justify-between border-t p-3">
                     {appliedThreadFilters.channels.length +
@@ -2698,13 +2803,15 @@ export default function Support() {
                 </PopoverContent>
               </Popover>
             </div>
-            <div className="grid grid-cols-4 gap-1 rounded-xl bg-muted/60 p-1">
+            {/* Each tab is as wide as its label plus an equal share of the
+                rest: equal columns squeezed "Human 15" past its own pill. */}
+            <div className="flex gap-1 rounded-xl bg-muted/60 p-1">
               {(
                 [
+                  { key: "all", label: "All" },
                   { key: "needs_human", label: "Human" },
                   { key: "ai", label: "AI" },
                   { key: "with_agent", label: "Agent" },
-                  { key: "all", label: "All" },
                 ] as const
               ).map((option) => (
                 <button
@@ -2735,7 +2842,7 @@ export default function Support() {
                     });
                   }}
                   className={cn(
-                    "flex min-w-0 items-center justify-center gap-1 rounded-lg px-1.5 py-2 text-xs font-medium whitespace-nowrap transition-colors",
+                    "flex flex-auto items-center justify-center gap-1 rounded-lg px-1.5 py-2 text-xs font-medium whitespace-nowrap transition-colors",
                     activeReadFilter === option.key
                       ? "bg-background text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground",
@@ -2845,6 +2952,10 @@ export default function Support() {
                             )}
                             {handlerLabel}
                           </Badge>
+                          <CustomerSegmentBadge
+                            segment={thread.customer_segment}
+                            className="rounded-md px-1.5"
+                          />
                           {waitingLabel && (
                             <Badge
                               variant="secondary"
@@ -2862,12 +2973,12 @@ export default function Support() {
                 <div className="flex flex-col items-center justify-center gap-1 p-6 text-center">
                   <Typography variant="small" as="p">
                     {activeReadFilter === "needs_human"
-                      ? "No chats need human help"
+                      ? "No Chats Need Human Help"
                       : activeReadFilter === "ai"
-                        ? "No AI-handled chats"
+                        ? "No AI-Handled Chats"
                         : activeReadFilter === "with_agent"
-                          ? "No chats with agents"
-                          : "No matches"}
+                          ? "No Chats With Agents"
+                          : "No Matches"}
                   </Typography>
                   <Typography variant="muted">
                     {threadSearch
@@ -2950,14 +3061,21 @@ export default function Support() {
                           talking to is what an agent needs from a header,
                           and who is handling the thread is already said by
                           the take-over banner above the composer. */}
-                      <CustomerContact
-                        email={selectedThread?.customer?.email}
-                        phone={selectedThread?.customer?.phone}
-                        // Orders keep the last thread's rows until the new
-                        // ones land; reading them sooner would show the
-                        // previous customer's phone.
-                        orders={FetchOrderDataIsLoading ? null : FetchOrderData}
-                      />
+                      <div className="flex min-w-0 items-center gap-2">
+                        <CustomerContact
+                          email={selectedThread?.customer?.email}
+                          phone={selectedThread?.customer?.phone}
+                          // Orders keep the last thread's rows until the new
+                          // ones land; reading them sooner would show the
+                          // previous customer's phone.
+                          orders={
+                            FetchOrderDataIsLoading ? null : FetchOrderData
+                          }
+                        />
+                        <CustomerSegmentBadge
+                          segment={selectedThread?.customer_segment}
+                        />
+                      </div>
                     </div>
                   </div>
 
@@ -2981,14 +3099,14 @@ export default function Support() {
                           onSelect={() => setIsDetailsOpen(true)}
                         >
                           <IconId className="size-4" />
-                          Customer details
+                          Customer Details
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           disabled={!canCreateTicket}
                           onSelect={() => setIsCreateTicketOpen(true)}
                         >
                           <IconTicket className="size-4" />
-                          Create ticket
+                          Create Ticket
                         </DropdownMenuItem>
                         {selectedThread?.is_active && canHandleChats ? (
                           <DropdownMenuItem
@@ -3000,7 +3118,7 @@ export default function Support() {
                             onSelect={() => setIsCloseChatOpen(true)}
                           >
                             <IconMessageOff className="size-4" />
-                            Close chat
+                            Close Chat
                           </DropdownMenuItem>
                         ) : null}
                       </DropdownMenuContent>
@@ -3010,13 +3128,13 @@ export default function Support() {
                       <CustomerDetailsButton
                         onClick={() => setIsDetailsOpen(true)}
                       />
+                      {/* Same look as Create Ticket in Help Desk. */}
                       <Button
-                        variant="outline"
                         size="sm"
                         disabled={!canCreateTicket}
                         onClick={() => setIsCreateTicketOpen(true)}
                       >
-                        <IconTicket className="size-4" />
+                        <IconPlus data-icon="inline-start" />
                         Create Ticket
                       </Button>
                       {selectedThread?.is_active && canHandleChats && (
@@ -3051,7 +3169,10 @@ export default function Support() {
                 ) : (
                   <div className="flex min-h-0 flex-1 flex-col">
                     <div className="min-h-0 flex-1 overflow-y-auto p-1 sm:p-3">
-                      {threadMessages.length > 0 ? (
+                      {/* Assignments and take-overs show even before the first
+                          message; "No Messages Yet" is only for a chat with
+                          nothing in it at all. */}
+                      {threadMessages.length > 0 || handlerEvents.length > 0 ? (
                         <LiveMessagePan
                           messages={threadMessages}
                           handlerEvents={handlerEvents}
@@ -3073,7 +3194,7 @@ export default function Support() {
                             as="p"
                             className="text-lg font-semibold"
                           >
-                            No messages yet
+                            No Messages Yet
                           </Typography>
                           <Typography
                             variant="muted"
@@ -3086,7 +3207,7 @@ export default function Support() {
                             {selectedThread?.chat_handler === "human" &&
                             selectedThread.chat_handler_user?.name
                               ? ` ${selectedThread.chat_handler_user.email?.toLowerCase() === session?.user?.email?.toLowerCase() ? "You" : selectedThread.chat_handler_user.name} will reply as soon as they do.`
-                              : "The AI Assistant will reply as soon as they do."}
+                              : " The AI Assistant will reply as soon as they do."}
                           </Typography>
                         </div>
                       )}
@@ -3136,6 +3257,7 @@ export default function Support() {
                         userRole={session?.user?.role}
                         canReassign={canReassign}
                         agents={agents}
+                        assignees={assignees}
                         chatSocketReady={chatSocketReady}
                         onReassign={handleReassign}
                         transitionState={transitionState}
@@ -3193,7 +3315,7 @@ export default function Support() {
               as="p"
               className="text-lg font-semibold"
             >
-              No active chats
+              No Active Chats
             </Typography>
             <Typography
               variant="muted"

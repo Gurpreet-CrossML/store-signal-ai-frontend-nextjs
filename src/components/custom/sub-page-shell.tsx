@@ -28,7 +28,7 @@ export default function SubPageShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-6 p-4">
+    <div className="flex min-h-full flex-col gap-6 p-4">
       <div className="flex items-start gap-3">
         {backHref && (
           <Button variant="ghost" size="icon-sm" asChild aria-label={backLabel}>

@@ -53,15 +53,15 @@ export const WHATSAPP_VARIABLE_CATEGORIES: WhatsAppVariableCategory[] = [
     label: "Customer",
     icon: IconUser,
     variables: [
-      { token: "customer_name", label: "Full name", sample: "Jhon Wick" },
+      { token: "customer_name", label: "Full Name", sample: "Jhon Wick" },
       {
         token: "customer_email",
-        label: "Email address",
+        label: "Email Address",
         sample: "jhon.wick@example.com",
       },
       {
         token: "customer_phone",
-        label: "Phone number",
+        label: "Phone Number",
         sample: "919876543210",
       },
     ],
@@ -71,19 +71,19 @@ export const WHATSAPP_VARIABLE_CATEGORIES: WhatsAppVariableCategory[] = [
     label: "Order",
     icon: IconShoppingBag,
     variables: [
-      { token: "order_number", label: "Order number", sample: "#1001" },
-      { token: "order_total", label: "Order total", sample: "₹2,499.00" },
-      { token: "order_date", label: "Date placed", sample: "Aug 10, 2026" },
+      { token: "order_number", label: "Order Number", sample: "#1001" },
+      { token: "order_total", label: "Order Total", sample: "₹2,499.00" },
+      { token: "order_date", label: "Date Placed", sample: "Aug 10, 2026" },
       {
         token: "order_status_url",
-        label: "Order status page link",
+        label: "Order Status Page Link",
         sample: "https://example.com/orders/1001",
       },
-      { token: "order_status", label: "Order status", sample: "fulfilled" },
-      { token: "payment_status", label: "Payment status", sample: "paid" },
+      { token: "order_status", label: "Order Status", sample: "fulfilled" },
+      { token: "payment_status", label: "Payment Status", sample: "paid" },
       {
         token: "shipping_method",
-        label: "Shipping method",
+        label: "Shipping Method",
         sample: "Standard",
       },
     ],
@@ -95,18 +95,18 @@ export const WHATSAPP_VARIABLE_CATEGORIES: WhatsAppVariableCategory[] = [
     variables: [
       {
         token: "tracking_number",
-        label: "Tracking number",
+        label: "Tracking Number",
         sample: "1Z999AA10123456784",
       },
-      { token: "tracking_company", label: "Shipping carrier", sample: "UPS" },
+      { token: "tracking_company", label: "Shipping Carrier", sample: "UPS" },
       {
         token: "tracking_url",
-        label: "Tracking link",
+        label: "Tracking Link",
         sample: "https://example.com/track/1001",
       },
       {
         token: "shipment_status",
-        label: "Shipment status",
+        label: "Shipment Status",
         sample: "fulfilled",
       },
     ],
@@ -118,17 +118,17 @@ export const WHATSAPP_VARIABLE_CATEGORIES: WhatsAppVariableCategory[] = [
     variables: [
       {
         token: "product_name",
-        label: "First item's name",
+        label: "First Item's Name",
         sample: "Travel Backpack",
       },
       {
         token: "product_price",
-        label: "First item's price",
+        label: "First Item's Price",
         sample: "₹2,499.00",
       },
       {
         token: "order_items",
-        label: "All items (qty, price, total)",
+        label: "All Items (Qty, Price, Total)",
         sample:
           "1 x Travel Backpack @ ₹1,999.00 = ₹1,999.00 | 2 x Packing Cube @ ₹250.00 = ₹500.00",
       },
@@ -139,8 +139,8 @@ export const WHATSAPP_VARIABLE_CATEGORIES: WhatsAppVariableCategory[] = [
     label: "Discount & Payment",
     icon: IconDiscount,
     variables: [
-      { token: "discount_code", label: "Discount code", sample: "SAVE20" },
-      { token: "refund_status", label: "Refund status", sample: "No Refund" },
+      { token: "discount_code", label: "Discount Code", sample: "SAVE20" },
+      { token: "refund_status", label: "Refund Status", sample: "No Refund" },
     ],
   },
   {
@@ -151,17 +151,17 @@ export const WHATSAPP_VARIABLE_CATEGORIES: WhatsAppVariableCategory[] = [
       { token: "ticket_id", label: "Ticket ID", sample: "482" },
       {
         token: "ticket_subject",
-        label: "Ticket subject",
+        label: "Ticket Subject",
         sample: "Where is my order?",
       },
       {
         token: "ticket_description",
-        label: "Ticket description",
+        label: "Ticket Description",
         sample:
           "The package hasn't arrived and tracking hasn't updated in 5 days.",
       },
-      { token: "ticket_status", label: "Ticket status", sample: "open" },
-      { token: "ticket_priority", label: "Ticket priority", sample: "high" },
+      { token: "ticket_status", label: "Ticket Status", sample: "open" },
+      { token: "ticket_priority", label: "Ticket Priority", sample: "high" },
     ],
   },
   {
@@ -169,7 +169,7 @@ export const WHATSAPP_VARIABLE_CATEGORIES: WhatsAppVariableCategory[] = [
     label: "Store / Brand",
     icon: IconBuildingStore,
     variables: [
-      { token: "store_name", label: "Store name", sample: "Safarnest" },
+      { token: "store_name", label: "Store Name", sample: "Safarnest" },
       {
         token: "store_url",
         label: "Store URL",
@@ -281,6 +281,10 @@ export const WHATSAPP_LANGUAGES: { code: string; label: string }[] = [
   { code: "gu", label: "Gujarati" },
 ];
 
+/** A language code's readable name ("en_US" → "English (US)"); unknown codes show as is. */
+export const languageLabel = (code: string) =>
+  WHATSAPP_LANGUAGES.find((lang) => lang.code === code)?.label ?? code;
+
 /**
  * A WhatsApp template's top-level category, as Meta labels it — mirrors
  * campaign.constants.WhatsAppTemplateCategory.
@@ -320,9 +324,13 @@ export type HeaderFormat =
  * the two in step.
  */
 export const HEADER_MEDIA_RULES = {
-  IMAGE: { accept: "image/jpeg,image/png", maxMB: 5 },
-  VIDEO: { accept: "video/mp4,video/3gpp", maxMB: 16 },
-  DOCUMENT: { accept: "application/pdf", maxMB: 100 },
+  IMAGE: {
+    accept: "image/jpeg,image/png",
+    formats: "JPG, JPEG, PNG",
+    maxMB: 5,
+  },
+  VIDEO: { accept: "video/mp4,video/3gpp", formats: "MP4", maxMB: 16 },
+  DOCUMENT: { accept: "application/pdf", formats: "PDF", maxMB: 100 },
 } as const;
 
 export type MediaHeaderFormat = keyof typeof HEADER_MEDIA_RULES;
@@ -336,7 +344,7 @@ export const BUTTON_TYPES = [
   { value: "QUICK_REPLY", label: "Quick Reply", icon: IconMessageCircle },
   { value: "URL", label: "Website URL", icon: IconLink },
   { value: "PHONE_NUMBER", label: "Phone Number", icon: IconPhoneCall },
-  { value: "COPY_CODE", label: "Copy code", icon: IconCopy },
+  { value: "COPY_CODE", label: "Copy Code", icon: IconCopy },
 ] as const;
 
 export type ButtonType = (typeof BUTTON_TYPES)[number]["value"];
@@ -368,12 +376,12 @@ const WHATSAPP_TEMPLATE_STATUS: Record<string, { tone: Tone; label: string }> =
     draft: { tone: "neutral", label: "Draft" },
     approved: { tone: "success", label: "Approved" },
     pending: { tone: "warning", label: "Pending" },
-    in_appeal: { tone: "warning", label: "In appeal" },
+    in_appeal: { tone: "warning", label: "In Appeal" },
     rejected: { tone: "danger", label: "Rejected" },
     paused: { tone: "warning", label: "Paused" },
     disabled: { tone: "danger", label: "Disabled" },
-    pending_deletion: { tone: "danger", label: "Pending deletion" },
-    limit_exceeded: { tone: "danger", label: "Limit exceeded" },
+    pending_deletion: { tone: "danger", label: "Pending Deletion" },
+    limit_exceeded: { tone: "danger", label: "Limit Exceeded" },
   };
 
 /** Badge for a WhatsApp message template's Meta review `status`. */

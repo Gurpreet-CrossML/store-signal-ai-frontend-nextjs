@@ -283,7 +283,7 @@ const Toolbar = ({
           <IconItalic className="size-4" />
         </ToolbarButton>
         <ToolbarButton
-          label="Bulleted list"
+          label="Bulleted List"
           active={state.bulletList}
           disabled={disabled}
           onClick={() => editor.chain().focus().toggleBulletList().run()}
@@ -291,7 +291,7 @@ const Toolbar = ({
           <IconList className="size-4" />
         </ToolbarButton>
         <ToolbarButton
-          label="Numbered list"
+          label="Numbered List"
           active={state.orderedList}
           disabled={disabled}
           onClick={() => editor.chain().focus().toggleOrderedList().run()}
@@ -376,7 +376,7 @@ const Toolbar = ({
       <span className="mx-1 h-5 w-px bg-border" aria-hidden />
 
       <ToolbarButton
-        label="Bulleted list"
+        label="Bulleted List"
         active={state.bulletList}
         disabled={disabled}
         onClick={() => editor.chain().focus().toggleBulletList().run()}
@@ -384,7 +384,7 @@ const Toolbar = ({
         <IconList className="size-4" />
       </ToolbarButton>
       <ToolbarButton
-        label="Numbered list"
+        label="Numbered List"
         active={state.orderedList}
         disabled={disabled}
         onClick={() => editor.chain().focus().toggleOrderedList().run()}
@@ -423,6 +423,9 @@ const RichTextArea: React.FC<RichTextAreaProps> = ({
   // The latest value this editor emitted, so the sync effect below can tell
   // an echo of the user's own typing from a genuine external change.
   const lastEmitted = useRef(value ?? "");
+  const placeholderRef = useRef(
+    placeholder || "Type or paste your content here!",
+  );
   const onChangeRef = useRef(onChange);
   const onBlurRef = useRef(onBlur);
   useEffect(() => {
@@ -434,9 +437,11 @@ const RichTextArea: React.FC<RichTextAreaProps> = ({
     {
       extensions: [
         ...BASE_EXTENSIONS,
-        Placeholder.configure({
-          placeholder: placeholder || "Type or paste your content here!",
-        }),
+        // Read on every redraw: the plugin keeps the options it was made
+        // with, so a string here would stay the first ticket's customer.
+        // ProseMirror calls this while drawing, never React during render.
+        // eslint-disable-next-line react-hooks/refs
+        Placeholder.configure({ placeholder: () => placeholderRef.current }),
         Marks,
         ...(useMarkdown ? [Markdown] : []),
       ],
@@ -465,15 +470,14 @@ const RichTextArea: React.FC<RichTextAreaProps> = ({
   );
 
   // The editor is made once, so a new placeholder (another customer's name,
-  // a note instead of a reply) is set on the extension and redrawn.
+  // a note instead of a reply) goes into the ref it reads, then is redrawn.
+  // Not `extension.options`: that getter hands back a copy each time, so
+  // setting a field on it changed nothing.
   useEffect(() => {
-    if (!editor || editor.isDestroyed) return;
-    const extension = editor.extensionManager.extensions.find(
-      (candidate) => candidate.name === "placeholder",
-    );
     const next = placeholder || "Type or paste your content here!";
-    if (!extension || extension.options.placeholder === next) return;
-    extension.options.placeholder = next;
+    if (placeholderRef.current === next) return;
+    placeholderRef.current = next;
+    if (!editor || editor.isDestroyed) return;
     // An empty transaction redraws the placeholder decoration.
     editor.view.dispatch(editor.state.tr);
   }, [editor, placeholder]);

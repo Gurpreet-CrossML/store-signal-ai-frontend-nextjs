@@ -1,9 +1,11 @@
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatBytes } from "@/components/custom/knowledge/file-upload-dropzone";
-import type { KnowledgeVectorStorage } from "@/redux/api-slice/knowledge-rag-slice";
+import type {
+  KnowledgeCounts,
+  KnowledgeVectorStorage,
+} from "@/redux/api-slice/knowledge-rag-slice";
 
 type Segment = {
-  key: keyof KnowledgeVectorStorage;
+  key: keyof KnowledgeVectorStorage & keyof KnowledgeCounts;
   label: string;
   /** Tailwind background colour of the bar segment and legend dot. */
   color: string;
@@ -15,7 +17,7 @@ type Segment = {
 const SEGMENTS: Segment[] = [
   {
     key: "products",
-    label: "Shopify products",
+    label: "Shopify Products",
     color: "bg-green-600",
     alwaysShow: true,
   },
@@ -27,7 +29,7 @@ const SEGMENTS: Segment[] = [
   },
   {
     key: "urls",
-    label: "Website pages",
+    label: "Website Pages",
     color: "bg-blue-600",
     alwaysShow: true,
   },
@@ -40,19 +42,33 @@ const SEGMENTS: Segment[] = [
   },
 ];
 
-/** `formatBytes` without a trailing ".0" ("100 MB", not "100.0 MB"). */
-function formatSize(bytes: number) {
-  return formatBytes(bytes).replace(".0 ", " ");
+/**
+ * A size such as "13.9 MB", without a trailing ".0" ("100 MB", not "100.0 MB").
+ * It rounds down, so a store with a little space left never reads "14 MB of
+ * 14 MB used", and it agrees with a percentage that is also rounded down.
+ */
+export function formatSize(bytes: number) {
+  if (bytes <= 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB"];
+  const exponent = Math.min(
+    Math.floor(Math.log(bytes) / Math.log(1024)),
+    units.length - 1,
+  );
+  const value = Math.floor((bytes / Math.pow(1024, exponent)) * 10) / 10;
+  return `${exponent === 0 ? value.toFixed(0) : value.toFixed(1).replace(/\.0$/, "")} ${units[exponent]}`;
 }
 
 /**
  * How much of the plan's vector storage this store has used, as a bar split
- * by kind of knowledge, with what is left over shown as "Free".
+ * by kind of knowledge, with what is left over shown as "Free". Each kind
+ * also shows how many items it has, e.g. "Shopify Products 11.6 MB (1,175)".
  */
 export function KnowledgeStorageCard({
   storage,
+  counts,
 }: {
   storage: KnowledgeVectorStorage | null;
+  counts: KnowledgeCounts | null;
 }) {
   if (!storage) {
     return <Skeleton className="h-[88px] w-full rounded-xl" />;
@@ -70,7 +86,7 @@ export function KnowledgeStorageCard({
       className="flex flex-col gap-3 rounded-xl border bg-card px-4 py-3"
     >
       <div className="flex items-baseline justify-between gap-4">
-        <h2 className="text-sm font-semibold">Knowledge storage</h2>
+        <h2 className="text-sm font-semibold">Knowledge Storage</h2>
         <p className="text-sm text-muted-foreground">
           <span className="font-semibold text-foreground">
             {formatSize(storage.total)}
@@ -102,7 +118,10 @@ export function KnowledgeStorageCard({
           <li key={key} className="flex items-center gap-1.5">
             <span className={`size-2 rounded-full ${color}`} />
             {label}
-            <span>{formatSize(storage[key])}</span>
+            <span>
+              {formatSize(storage[key])}
+              {counts && ` (${counts[key].toLocaleString()})`}
+            </span>
           </li>
         ))}
         <li className="flex items-center gap-1.5">

@@ -1,6 +1,6 @@
 import { alias } from "drizzle-orm/pg-core";
 import { getDb } from "@/lib/tenant-context";
-import { storeIdScope, scopedThreadFilter } from "@/db/access";
+import { queueScope, storeIdScope, scopedThreadFilter } from "@/db/access";
 import { FEEDBACK_RATING_VALUES } from "@/lib/config";
 import {
   chatThread,
@@ -160,6 +160,7 @@ type ThreadListRow = {
   cart_total: string | number;
   ended_at: string | null;
   customer_id: number | null;
+  customer_segment: string;
   customer_first_name: string | null;
   customer_last_name: string | null;
   customer_email: string | null;
@@ -183,6 +184,8 @@ export type ThreadListItem = {
   chat_handler_user: { id: number; name: string; email: string } | null;
   need_escalation: boolean;
   escalation_time: string | null;
+  /** The customer's segment when they were linked to this chat; kept after. */
+  customer_segment: string;
   customer: {
     id: number | null;
     name: string | null;
@@ -210,6 +213,9 @@ export async function get_thread_counts(storeCode?: string) {
   const conditions = [eq(chatThread.isActive, true)];
   const storeScope = storeIdScope(chatThread.storeId, storeCode);
   if (storeScope) conditions.push(storeScope);
+  // An agent counts only their own chats and the unassigned queue.
+  const queue = queueScope(chatThread.chatHandlerUserId);
+  if (queue) conditions.push(queue);
 
   const [counts] = await getDb()
     .select({
@@ -288,6 +294,9 @@ export async function list_threads(
       >`COALESCE((SELECT NULLIF(regexp_replace(${userMetadata.updatedCartData}->>'total', '[^0-9.]', '', 'g'), '')::numeric FROM ${userMetadata} WHERE ${userMetadata.threadId} = ${chatThread.id} LIMIT 1), 0)`,
       ended_at: chatThread.endedAt,
       customer_id: chatCustomer.id,
+      // The chat's own copy, taken when it got its customer; never the
+      // customer's current segment, so old chats keep what they had.
+      customer_segment: chatThread.customerSegment,
       customer_first_name: chatCustomer.firstName,
       customer_last_name: chatCustomer.lastName,
       customer_email: chatCustomer.email,
@@ -420,6 +429,7 @@ export async function list_threads(
           : null,
       need_escalation: row.need_escalation,
       escalation_time: row.escalation_time,
+      customer_segment: row.customer_segment,
       customer: {
         // Null for a guest — the UI keys its tickets lookup off this.
         id: row.customer_id ?? null,
@@ -463,6 +473,10 @@ function buildThreadConditions(
 
   const storeScope = storeIdScope(chatThread.storeId, filters.store_code);
   if (storeScope) conditions.push(storeScope);
+
+  // An agent lists only their own chats and the unassigned queue.
+  const queue = queueScope(chatThread.chatHandlerUserId);
+  if (queue) conditions.push(queue);
 
   if (filters.is_active) {
     conditions.push(
@@ -528,6 +542,13 @@ function buildThreadConditions(
           AND (o.order_number ILIKE ${`%${search}%`} OR o.order_id ILIKE ${`%${search}%`})
       )`,
     ];
+    // Phones are stored as digits only ("919876543210"), so "+91 98765
+    // 43210" or a bare "9876543210" is reduced the same way first. A term
+    // with no digits (a name) skips this, or it would match every phone.
+    const phoneDigits = search.replace(/\D/g, "").replace(/^00/, "");
+    if (phoneDigits) {
+      searchConditions.push(ilike(chatCustomer.phone, `%${phoneDigits}%`));
+    }
     if (isValidUuid(search)) {
       searchConditions.push(eq(chatThread.id, search));
     }
@@ -750,6 +771,8 @@ export type ThreadDetail =
       last_message_at: string | null;
       customer_name: string | null;
       customer_email: string | null;
+      /** The customer's segment when they were linked to this chat; kept after. */
+      customer_segment: string;
       /** Identity, plus the phone and past-thread count the side panel shows. */
       customer: {
         id: number;
@@ -810,6 +833,9 @@ export async function get_thread_details(
       created_at: chatThread.createdAt,
       ended_at: chatThread.endedAt,
       customer_id: chatCustomer.id,
+      // The chat's own copy, taken when it got its customer; never the
+      // customer's current segment, so old chats keep what they had.
+      customer_segment: chatThread.customerSegment,
       customer_first_name: chatCustomer.firstName,
       customer_last_name: chatCustomer.lastName,
       customer_email: chatCustomer.email,
@@ -993,6 +1019,7 @@ export async function get_thread_details(
     last_message_at,
     customer_name,
     customer_email: t.customer_email,
+    customer_segment: t.customer_segment,
     // The id was always selected by the join but never returned, so the
     // client's `customer?.id` reads were silently undefined.
     customer:
@@ -1041,7 +1068,13 @@ export async function get_ai_insights(
       next_actionable_items: aiInsights.nextActionableItems,
     })
     .from(aiInsights)
-    .where(scopedThreadFilter(aiInsights.threadId, thread_id))
+    .where(
+      and(
+        scopedThreadFilter(aiInsights.threadId, thread_id),
+        // A row with no summary holds only the auto-generated tags: not insights yet.
+        isNotNull(aiInsights.conversationSummary),
+      ),
+    )
     .limit(1);
 
   if (rows.length === 0) return null;
@@ -1289,10 +1322,12 @@ export async function get_user_metadata(
 export async function get_order_data(thread_id: string): Promise<OrderData[]> {
   const db = getDb();
 
+  // Scoped like every thread lookup: the caller's stores, and for a support
+  // agent only chats they hold or nobody holds.
   const thread = await db
     .select({ customerId: chatThread.customerId })
     .from(chatThread)
-    .where(eq(chatThread.id, thread_id))
+    .where(scopedThreadFilter(chatThread.id, thread_id))
     .then((rows) => rows[0]);
 
   if (!thread?.customerId) {

@@ -1,13 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { format } from "date-fns";
+import { format, isMatch, isSameDay, parse } from "date-fns";
 import { IconCalendar } from "@tabler/icons-react";
 import type { DateRange } from "react-day-picker";
 
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
+import {
+  ACTIVE_FILTER_STYLE,
+  API_DATE_FORMAT,
+  DISPLAY_DATE_FORMAT,
+} from "@/lib/config";
 import { cn } from "@/lib/utils";
 import {
   Popover,
@@ -15,25 +20,35 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
-const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
+const DISPLAY_DATE_TIME_FORMAT = `${DISPLAY_DATE_FORMAT} hh:mm a`;
+
+const isDateOnly = (value: string) => isMatch(value, API_DATE_FORMAT);
 
 const pad = (value: number) => String(value).padStart(2, "0");
 
-// Parse "yyyy-MM-dd" as a local date. `new Date("yyyy-MM-dd")` parses as UTC
-// midnight, which renders as the previous day in negative-offset timezones.
-const parseISODate = (value: string) => {
-  const [year, month, day] = value.split("-").map(Number);
-  return new Date(year, month - 1, day);
-};
+// Parse an API_DATE_FORMAT value as a local date. `new Date("yyyy-MM-dd")`
+// parses as UTC midnight, which renders as the previous day in
+// negative-offset timezones.
+const parseISODate = (value: string) =>
+  parse(value, API_DATE_FORMAT, new Date());
 
 function parseDateTimeValue(
   value: string,
   defaultTime: "start" | "end",
 ): Date | undefined {
   if (!value) return undefined;
-  if (DATE_ONLY_RE.test(value)) {
+  if (isDateOnly(value)) {
+    // The start or end of that day in UTC.
+    const day = parseISODate(value);
+    const [year, month, date] = [
+      day.getFullYear(),
+      day.getMonth(),
+      day.getDate(),
+    ];
     return new Date(
-      `${value}T${defaultTime === "start" ? "00:00:00.000Z" : "23:59:59.999Z"}`,
+      defaultTime === "start"
+        ? Date.UTC(year, month, date)
+        : Date.UTC(year, month, date, 23, 59, 59, 999),
     );
   }
 
@@ -43,8 +58,9 @@ function parseDateTimeValue(
 
 function toDateTimeLocalValue(value: string): string {
   if (!value) return "";
-  if (DATE_ONLY_RE.test(value)) {
-    return `${value}T00:00`;
+  if (isDateOnly(value)) {
+    // The <input type="datetime-local"> value format, fixed by HTML.
+    return format(parseISODate(value), "yyyy-MM-dd'T'HH:mm");
   }
 
   const date = new Date(value);
@@ -67,6 +83,7 @@ export function DateRangePicker({
   onRangeChange,
   disabled,
   withTime = false,
+  numberOfMonths = 2,
   className,
 }: {
   from: string;
@@ -76,6 +93,8 @@ export function DateRangePicker({
   onRangeChange: (from: string, to: string) => void;
   disabled?: React.ComponentProps<typeof Calendar>["disabled"];
   withTime?: boolean;
+  /** Months shown side by side; one fits a narrow screen. */
+  numberOfMonths?: 1 | 2;
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -97,21 +116,21 @@ export function DateRangePicker({
 
   const label = withTime
     ? committed?.from && committed?.to
-      ? `${format(committed.from, "MMM dd, yyyy hh:mm a")} – ${format(
+      ? `${format(committed.from, DISPLAY_DATE_TIME_FORMAT)} – ${format(
           committed.to,
-          "MMM dd, yyyy hh:mm a",
+          DISPLAY_DATE_TIME_FORMAT,
         )}`
       : committed?.from
-        ? `From ${format(committed.from, "MMM dd, yyyy hh:mm a")}`
+        ? `From ${format(committed.from, DISPLAY_DATE_TIME_FORMAT)}`
         : committed?.to
-          ? `Until ${format(committed.to, "MMM dd, yyyy hh:mm a")}`
-          : "Pick a Date/Time Range"
+          ? `Until ${format(committed.to, DISPLAY_DATE_TIME_FORMAT)}`
+          : "Pick A Date/Time Range"
     : committed?.from && committed?.to
-      ? `${format(committed.from, "MMM dd, yyyy")} – ${format(
+      ? `${format(committed.from, DISPLAY_DATE_FORMAT)} – ${format(
           committed.to,
-          "MMM dd, yyyy",
+          DISPLAY_DATE_FORMAT,
         )}`
-      : "Pick a Date Range";
+      : "Pick A Date Range";
 
   const maxDateTimeValue =
     disabled &&
@@ -123,6 +142,8 @@ export function DateRangePicker({
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (nextOpen) {
+      // Reopening starts from what is applied, not an abandoned draft.
+      setDraft(committed);
       setTimeDraft({
         from: toDateTimeLocalValue(from),
         to: toDateTimeLocalValue(to),
@@ -157,27 +178,37 @@ export function DateRangePicker({
     }
   };
 
-  const handleSelect = (range: DateRange | undefined) => {
-    setDraft(range);
-    // First click yields {from: day, to: day}; treat that as "start picked,
-    // still choosing the end". Commit and close only on a completed range.
-    if (
-      range?.from &&
-      range?.to &&
-      range.to.getTime() !== range.from.getTime()
-    ) {
-      onRangeChange(
-        format(range.from, "yyyy-MM-dd"),
-        format(range.to, "yyyy-MM-dd"),
-      );
-      setOpen(false);
+  // With `min={1}` on the calendar the first click leaves `to` unset, so a
+  // draft with both ends is a complete range ready to apply.
+  const canApply = !!draft?.from && !!draft?.to;
+
+  // `min={1}` would clear the range on a second click of the start day;
+  // make that a one-day range instead.
+  const handleSelect = (range: DateRange | undefined, day: Date) => {
+    if (!range && draft?.from && !draft.to && isSameDay(day, draft.from)) {
+      setDraft({ from: day, to: day });
+      return;
     }
+    setDraft(range);
+  };
+
+  const handleApply = () => {
+    if (!draft?.from || !draft?.to) return;
+    onRangeChange(
+      format(draft.from, API_DATE_FORMAT),
+      format(draft.to, API_DATE_FORMAT),
+    );
+    setOpen(false);
   };
 
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className={cn(className)}>
+        <Button
+          variant="outline"
+          size="sm"
+          className={cn((from || to) && ACTIVE_FILTER_STYLE, className)}
+        >
           <IconCalendar />
           {label}
         </Button>
@@ -209,14 +240,29 @@ export function DateRangePicker({
             </label>
           </div>
         ) : (
-          <Calendar
-            mode="range"
-            numberOfMonths={2}
-            defaultMonth={draft?.from ?? committed?.from}
-            selected={draft}
-            onSelect={handleSelect}
-            disabled={disabled}
-          />
+          <>
+            <Calendar
+              mode="range"
+              numberOfMonths={numberOfMonths}
+              min={1}
+              defaultMonth={draft?.from ?? committed?.from}
+              selected={draft}
+              onSelect={handleSelect}
+              disabled={disabled}
+            />
+            <div className="flex justify-end gap-2 border-t p-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button size="sm" onClick={handleApply} disabled={!canApply}>
+                Apply
+              </Button>
+            </div>
+          </>
         )}
       </PopoverContent>
     </Popover>

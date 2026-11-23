@@ -88,10 +88,10 @@ export function ShopifyConnectProgress() {
         <DialogHeader>
           <DialogTitle>
             {failed
-              ? "Couldn't connect the store"
+              ? "Couldn't Connect The Store"
               : CompleteShopifyOauthIsSuccess
                 ? `${connected?.store_name ?? "Store"} is connected`
-                : "Setting up your store"}
+                : "Setting Up Your Store"}
           </DialogTitle>
           <DialogDescription>
             {failed

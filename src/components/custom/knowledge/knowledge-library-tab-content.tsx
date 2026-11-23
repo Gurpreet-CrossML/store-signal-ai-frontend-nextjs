@@ -4,8 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
-  IconMessage2,
-  IconPlus,
+  IconArrowLeft,
   IconSearch,
   IconSend,
   IconX,
@@ -29,10 +28,22 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Spinner } from "@/components/ui/spinner";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { useCan } from "@/hooks/use-can";
-import { cn } from "@/lib/utils";
+import {
+  KNOWLEDGE_ALL_DESCRIPTION,
+  KNOWLEDGE_ALL_NAME,
+  KNOWLEDGE_ALL_ROUTE,
+  KNOWLEDGE_APPROVAL_WAITING_DESCRIPTION,
+  KNOWLEDGE_APPROVAL_WAITING_NAME,
+  KNOWLEDGE_APPROVAL_WAITING_PARAM,
+  KNOWLEDGE_UNCATEGORIZED_DESCRIPTION,
+  KNOWLEDGE_UNCATEGORIZED_FILTER,
+  KNOWLEDGE_UNCATEGORIZED_NAME,
+  KNOWLEDGE_UNCATEGORIZED_ROUTE,
+} from "@/lib/config";
 import {
   DeleteKnowledgeItem,
   DeleteKnowledgeItems,
+  FetchKnowledgeCategories,
   FetchKnowledgeItems,
   FetchKnowledgeStats,
   PublishKnowledgeItems,
@@ -44,8 +55,6 @@ import {
   countActiveKnowledgeFilters,
   type KnowledgeFilterSelection,
 } from "@/components/custom/knowledge/knowledge-filters";
-import { KnowledgeStorageCard } from "@/components/custom/knowledge/knowledge-storage-card";
-import { KnowledgeEmptyState } from "@/components/custom/knowledge/knowledge-empty-state";
 import {
   isKnowledgeItemSelectable,
   KnowledgeList,
@@ -79,7 +88,7 @@ const SOURCE_TABS: {
   { value: "all", label: "All", countKey: "knowledge_items" },
   { value: "article", label: "Articles", countKey: "articles" },
   { value: "file", label: "Documents", countKey: "documents" },
-  { value: "url", label: "Website pages", countKey: "urls" },
+  { value: "url", label: "Website Pages", countKey: "urls" },
   { value: "faq", label: "Q&A", countKey: "faqs" },
 ];
 
@@ -88,7 +97,18 @@ function splitParam(value: string) {
   return value.split(",").filter(Boolean);
 }
 
-export default function KnowledgeLibraryTabContent() {
+/**
+ * One knowledge category's list: the same tabs, search, filters and bulk
+ * actions as the whole library, limited to the items filed under it.
+ *
+ * `categorySlug` is the category's slug, or `KNOWLEDGE_UNCATEGORIZED_ROUTE`
+ * for the knowledge that is filed under none.
+ */
+export default function KnowledgeLibraryTabContent({
+  categorySlug,
+}: {
+  categorySlug: string;
+}) {
   const dispatch = useAppDispatch();
   const router = useRouter();
   const canEditKnowledge = useCan("knowledge", { write: true });
@@ -106,11 +126,53 @@ export default function KnowledgeLibraryTabContent() {
   const { DeleteKnowledgeItemIsLoading } = useAppSelector(
     (state) => state.GetKnowledgeRagReducer.DeleteKnowledgeItemState,
   );
+  const {
+    FetchKnowledgeCategoriesData: categoriesData,
+    FetchKnowledgeCategoriesIsLoading: categoriesLoading,
+  } = useAppSelector(
+    (state) => state.GetKnowledgeRagReducer.FetchKnowledgeCategoriesState,
+  );
+
+  // The category being shown: its heading comes from the categories list,
+  // which is loaded here when the page is opened directly.
+  const isUncategorized = categorySlug === KNOWLEDGE_UNCATEGORIZED_ROUTE;
+  // The "all knowledge" list is not one category: it has no category filter.
+  const isAll = categorySlug === KNOWLEDGE_ALL_ROUTE;
+  const categoryFilter = isUncategorized
+    ? KNOWLEDGE_UNCATEGORIZED_FILTER
+    : categorySlug;
+  const categoryFilters = isAll ? [] : [categoryFilter];
 
   // All list filters live in the URL (?q=&type=&source=&status=&page=&pageSize=)
   // so a reload, back/forward or a shared link restores the same view.
   const pathname = usePathname() ?? "/knowledge";
   const searchParams = useSearchParams();
+
+  // Only the imported pages that wait for the user's approval (from the
+  // checklist drawer); a list of everything has no such filter otherwise.
+  const approvalWaiting =
+    isAll && searchParams?.get(KNOWLEDGE_APPROVAL_WAITING_PARAM) === "true";
+
+  const category = isAll
+    ? approvalWaiting
+      ? {
+          name: KNOWLEDGE_APPROVAL_WAITING_NAME,
+          description: KNOWLEDGE_APPROVAL_WAITING_DESCRIPTION,
+        }
+      : { name: KNOWLEDGE_ALL_NAME, description: KNOWLEDGE_ALL_DESCRIPTION }
+    : isUncategorized
+      ? {
+          name: KNOWLEDGE_UNCATEGORIZED_NAME,
+          description: KNOWLEDGE_UNCATEGORIZED_DESCRIPTION,
+        }
+      : categoriesData?.categories.find((entry) => entry.slug === categorySlug);
+  // The categories have loaded and none has this slug (a mistyped or
+  // deactivated one).
+  const categoryNotFound =
+    !isUncategorized &&
+    !isAll &&
+    categoriesData !== null &&
+    category === undefined;
 
   const pageParam = Number(searchParams?.get("page"));
   const page = Number.isInteger(pageParam) && pageParam > 0 ? pageParam : 1;
@@ -197,12 +259,6 @@ export default function KnowledgeLibraryTabContent() {
       created_by: next.createdBy.join(","),
       page: null,
     });
-  // No knowledge exists yet (not just filtered down to nothing) — show only
-  // the centered "Add Knowledge" button from the empty state below, not the
-  // search/filter toolbar.
-  const isEmptyLibrary =
-    !FetchKnowledgeItemsIsLoading && !hasFilters && totalCount === 0;
-
   // Debounce so a request isn't fired per keystroke; the settled value is
   // written to the URL, which is the source of truth for the fetch.
   useEffect(() => {
@@ -225,6 +281,8 @@ export default function KnowledgeLibraryTabContent() {
         aiScope: filters.aiScope,
         type: filters.type,
         createdBy: filters.createdBy,
+        knowledgeCategory: categoryFilters,
+        approvalWaiting,
       }),
     );
   };
@@ -242,15 +300,29 @@ export default function KnowledgeLibraryTabContent() {
     statusParam,
     aiScopeParam,
     createdByParam,
+    categoryFilter,
+    approvalWaiting,
   ]);
 
+  // The counts on the tabs and the "Added by" list cover only this category.
   const loadStats = useCallback(() => {
-    if (storeCode) dispatch(FetchKnowledgeStats({ storeCode }));
-  }, [dispatch, storeCode]);
+    if (storeCode)
+      dispatch(
+        FetchKnowledgeStats({ storeCode, knowledgeCategory: categoryFilters }),
+      );
+    // categoryFilters is rebuilt on every render; categoryFilter and isAll
+    // are what it depends on.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dispatch, storeCode, categoryFilter, isAll]);
 
   useEffect(() => {
     loadStats();
   }, [loadStats]);
+
+  useEffect(() => {
+    if (storeCode && !isUncategorized && !isAll && categoriesData === null)
+      dispatch(FetchKnowledgeCategories({ storeCode }));
+  }, [dispatch, storeCode, isUncategorized, isAll, categoriesData]);
 
   // Each item opens on its own page; an article opens in its editor.
   const handleOpenItem = (item: KnowledgeItem) => {
@@ -368,227 +440,212 @@ export default function KnowledgeLibraryTabContent() {
     }
   };
 
-  // Products take up storage even before any knowledge is added, so an empty
-  // library still shows the card once something is used.
-  const showStorage = stats
-    ? !isEmptyLibrary || stats.vector_storage.total > 0
-    : !isEmptyLibrary;
-
-  const headingActions = (
-    <div className="flex items-center gap-2">
-      {/* Placeholder: not wired to anything yet. */}
-      {!isEmptyLibrary && (
-        <Button type="button" variant="outline" size="sm">
-          <IconMessage2 className="size-4" />
-          <span className="sm:hidden">Test</span>
-          <span className="max-sm:hidden">Test your AI</span>
-        </Button>
-      )}
-      {canEditKnowledge && (
-        <Button size="sm" asChild>
-          <Link href="/knowledge/new">
-            <IconPlus className="size-4" />
-            <span className="sm:hidden">Add</span>
-            <span className="max-sm:hidden">Add knowledge</span>
-          </Link>
-        </Button>
-      )}
-    </div>
-  );
+  if (categoryNotFound) {
+    return (
+      <div className="flex flex-col gap-4 p-4">
+        <Link
+          href="/knowledge"
+          className="inline-flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          <IconArrowLeft className="size-4" />
+          Knowledge
+        </Link>
+        <div className="rounded-xl border bg-card px-4 py-10 text-center">
+          <h2 className="text-base font-semibold">Category Not Found</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            This category doesn&apos;t exist or is no longer available.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6 p-4">
-      <PageHeading
-        title="Knowledge"
-        description="What your AI knows about your store. It answers shoppers using what you add here, plus your Shopify products and orders."
-        action={headingActions}
-        // On a phone the buttons stay on the title's row and the description
-        // is left out; the empty library also sits under a rule.
-        className={cn(
-          "max-sm:flex-row max-sm:items-center max-sm:justify-between",
-          isEmptyLibrary &&
-            "max-sm:-mx-4 max-sm:-mt-4 max-sm:border-b max-sm:p-4",
-        )}
-        descriptionClassName="max-sm:hidden"
-      />
+      <div className="flex flex-col gap-3">
+        <Link
+          href="/knowledge"
+          className="inline-flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          <IconArrowLeft className="size-4" />
+          Knowledge
+        </Link>
+        <PageHeading
+          title={
+            category?.name ?? (categoriesLoading ? "Loading…" : "Category")
+          }
+          description={category?.description}
+          // On a phone the description is left out.
+          descriptionClassName="max-sm:hidden"
+        />
+      </div>
       <div className="flex w-full flex-col gap-4">
-        {showStorage && (
-          <KnowledgeStorageCard storage={stats?.vector_storage ?? null} />
-        )}
-        {!isEmptyLibrary && (
-          <Tabs
-            value={filters.source || "all"}
-            onValueChange={(value) =>
-              updateParams({
-                source: value === "all" ? null : value,
-                page: null,
-              })
-            }
-          >
-            {/* Scrolls sideways when the tabs don't fit (a phone). The padding
+        <Tabs
+          value={filters.source || "all"}
+          onValueChange={(value) =>
+            updateParams({
+              source: value === "all" ? null : value,
+              page: null,
+            })
+          }
+        >
+          {/* Scrolls sideways when the tabs don't fit (a phone). The padding
                 keeps the active tab's underline, which hangs below the
                 trigger, from being clipped by the scroll container. */}
-            <div className="overflow-x-auto pb-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              <TabsList
-                variant="line"
-                className="h-10 w-max min-w-full justify-start"
-              >
-                {SOURCE_TABS.map(({ value, label, countKey }) => (
-                  <TabsTrigger
-                    key={value}
-                    value={value}
-                    className="group/tab flex-none px-3 data-active:font-semibold data-active:text-primary data-active:after:bg-primary dark:data-active:text-primary"
-                  >
-                    {label}
-                    {stats && (
-                      <span className="rounded-full bg-muted px-1.5 text-xs font-medium text-muted-foreground group-data-active/tab:bg-primary/10 group-data-active/tab:text-primary">
-                        {stats.counts[countKey]}
-                      </span>
-                    )}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-            </div>
-          </Tabs>
-        )}
-        {!isEmptyLibrary && (
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="relative min-w-0 flex-1 sm:w-72 sm:flex-none">
-              <IconSearch className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={searchInput}
-                onChange={(event) => setSearchInput(event.target.value)}
-                placeholder="Search by titles, links and answers"
-                className="pl-8"
-                aria-label="Search knowledge"
-              />
-            </div>
-
-            <KnowledgeFilterPopover
-              filters={filters}
-              creators={stats?.creators ?? []}
-              onFiltersChange={applyFilters}
-            />
-
-            {hasClearableFilters && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="text-muted-foreground max-sm:hidden"
-                onClick={() => {
-                  setSearchInput("");
-                  updateParams({
-                    q: null,
-                    status: null,
-                    ai_scope: null,
-                    type: null,
-                    created_by: null,
-                    page: null,
-                  });
-                }}
-              >
-                <IconX />
-                Clear
-              </Button>
-            )}
-
-            <Button
-              size="sm"
-              variant="ghost"
-              className="ml-auto max-sm:hidden"
-              onClick={loadItems}
-              disabled={FetchKnowledgeItemsIsLoading}
-              aria-label="Refresh knowledge list"
-              title="Refresh"
+          <div className="overflow-x-auto pb-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <TabsList
+              variant="line"
+              className="h-10 w-max min-w-full justify-start"
             >
-              {FetchKnowledgeItemsIsLoading ? (
-                <Spinner className="size-4" />
-              ) : (
-                <IconRefresh className="size-4" />
-              )}
-            </Button>
-
-            <span className="text-sm text-muted-foreground max-sm:hidden">
-              {items.length} of {totalCount} items
-            </span>
-          </div>
-        )}
-
-        {isEmptyLibrary && canEditKnowledge ? (
-          <>
-            <KnowledgeEmptyState />
-          </>
-        ) : (
-          <>
-            {selectedItems.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm font-medium">
-                  {selectedItems.length} selected
-                </span>
-                {selectedDrafts.length > 0 && (
-                  <Button
-                    type="button"
-                    size="sm"
-                    disabled={isPublishing}
-                    title="Only drafts are published"
-                    onClick={() => requestPublish(selectedDrafts)}
-                  >
-                    {isPublishing ? (
-                      <Spinner className="size-4" />
-                    ) : (
-                      <IconSend className="size-4" />
-                    )}
-                    {selectedDrafts.length === selectedItems.length
-                      ? "Publish"
-                      : `Publish ${selectedDrafts.length} ${selectedDrafts.length === 1 ? "draft" : "drafts"}`}
-                  </Button>
-                )}
-                <BulkAssistantsPopover
-                  count={selectedItems.length}
-                  onApply={handleChangeScope}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="text-destructive hover:text-destructive"
-                  onClick={() => setBulkDeleteOpen(true)}
+              {SOURCE_TABS.map(({ value, label, countKey }) => (
+                <TabsTrigger
+                  key={value}
+                  value={value}
+                  className="group/tab flex-none px-3 data-active:font-semibold data-active:text-primary data-active:after:bg-primary dark:data-active:text-primary"
                 >
-                  Delete
-                </Button>
-              </div>
-            )}
-
-            <KnowledgeList
-              items={items}
-              isLoading={FetchKnowledgeItemsIsLoading}
-              onOpenItem={handleOpenItem}
-              onEditItem={handleEditItem}
-              onPublish={(item) => requestPublish([item])}
-              onDelete={(item) => setItemToDelete(item)}
-              hasFilters={hasFilters}
-              canEdit={canEditKnowledge}
-              selectedIds={selectedIds}
-              onToggleItem={handleToggleItem}
-              onToggleAll={handleToggleAll}
+                  {label}
+                  {stats && (
+                    <span className="rounded-full bg-muted px-1.5 text-xs font-medium text-muted-foreground group-data-active/tab:bg-primary/10 group-data-active/tab:text-primary">
+                      {stats.counts[countKey]}
+                    </span>
+                  )}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </div>
+        </Tabs>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative min-w-0 flex-1 sm:w-72 sm:flex-none">
+            <IconSearch className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+              placeholder="Search by titles, links and answers"
+              className="pl-8"
+              aria-label="Search knowledge"
             />
+          </div>
 
-            <KnowledgeDataTablePagination
-              items={items}
-              totalCount={totalCount}
-              pageSize={pageSize}
-              page={page}
-              onPaginationChange={(next) => {
+          <KnowledgeFilterPopover
+            filters={filters}
+            creators={stats?.creators ?? []}
+            onFiltersChange={applyFilters}
+          />
+
+          {hasClearableFilters && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground max-sm:hidden"
+              onClick={() => {
+                setSearchInput("");
                 updateParams({
-                  page: next.page === 1 ? null : next.page,
-                  pageSize:
-                    next.pageSize === DEFAULT_PAGE_SIZE ? null : next.pageSize,
+                  q: null,
+                  status: null,
+                  ai_scope: null,
+                  type: null,
+                  created_by: null,
+                  page: null,
                 });
               }}
-            />
-          </>
-        )}
+            >
+              <IconX />
+              Clear
+            </Button>
+          )}
+
+          <Button
+            size="sm"
+            variant="ghost"
+            className="ml-auto max-sm:hidden"
+            onClick={loadItems}
+            disabled={FetchKnowledgeItemsIsLoading}
+            aria-label="Refresh knowledge list"
+            title="Refresh"
+          >
+            {FetchKnowledgeItemsIsLoading ? (
+              <Spinner className="size-4" />
+            ) : (
+              <IconRefresh className="size-4" />
+            )}
+          </Button>
+
+          <span className="text-sm text-muted-foreground max-sm:hidden">
+            {items.length} Of {totalCount} Items
+          </span>
+        </div>
+
+        <>
+          {selectedItems.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm font-medium">
+                {selectedItems.length} Selected
+              </span>
+              {selectedDrafts.length > 0 && (
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={isPublishing}
+                  title="Only drafts are published"
+                  onClick={() => requestPublish(selectedDrafts)}
+                >
+                  {isPublishing ? (
+                    <Spinner className="size-4" />
+                  ) : (
+                    <IconSend className="size-4" />
+                  )}
+                  {selectedDrafts.length === selectedItems.length
+                    ? "Publish"
+                    : `Publish ${selectedDrafts.length} ${selectedDrafts.length === 1 ? "Draft" : "Drafts"}`}
+                </Button>
+              )}
+              <BulkAssistantsPopover
+                count={selectedItems.length}
+                onApply={handleChangeScope}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="text-destructive hover:text-destructive"
+                onClick={() => setBulkDeleteOpen(true)}
+              >
+                Delete
+              </Button>
+            </div>
+          )}
+
+          <KnowledgeList
+            items={items}
+            isLoading={FetchKnowledgeItemsIsLoading}
+            onOpenItem={handleOpenItem}
+            onEditItem={handleEditItem}
+            onPublish={(item) => requestPublish([item])}
+            onDelete={(item) => setItemToDelete(item)}
+            hasFilters={hasFilters}
+            emptyDescription="Knowledge filed under this category will show up here."
+            showAddButton={false}
+            canEdit={canEditKnowledge}
+            selectedIds={selectedIds}
+            onToggleItem={handleToggleItem}
+            onToggleAll={handleToggleAll}
+          />
+
+          <KnowledgeDataTablePagination
+            items={items}
+            totalCount={totalCount}
+            pageSize={pageSize}
+            page={page}
+            onPaginationChange={(next) => {
+              updateParams({
+                page: next.page === 1 ? null : next.page,
+                pageSize:
+                  next.pageSize === DEFAULT_PAGE_SIZE ? null : next.pageSize,
+              });
+            }}
+          />
+        </>
 
         <AlertDialog
           open={itemToDelete !== null}
@@ -598,10 +655,13 @@ export default function KnowledgeLibraryTabContent() {
         >
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Delete this knowledge?</AlertDialogTitle>
+              <AlertDialogTitle>Delete This Knowledge?</AlertDialogTitle>
               <AlertDialogDescription>
-                This will permanently remove &quot;{itemToDelete?.title}&quot;.
-                This action cannot be undone.
+                This will permanently remove{" "}
+                <strong className="font-semibold break-words text-foreground">
+                  {itemToDelete?.title}
+                </strong>
+                . This action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -639,13 +699,20 @@ export default function KnowledgeLibraryTabContent() {
             <AlertDialogHeader>
               <AlertDialogTitle>
                 {publishTargets.length === 1
-                  ? "Publish this knowledge?"
-                  : `Publish ${publishTargets.length} knowledge items?`}
+                  ? "Publish This Knowledge?"
+                  : `Publish ${publishTargets.length} Knowledge Items?`}
               </AlertDialogTitle>
               <AlertDialogDescription>
-                {publishTargets.length === 1
-                  ? `"${publishTargets[0].title}" will be processed and added to what your AI knows.`
-                  : "They will be processed and added to what your AI knows."}{" "}
+                {publishTargets.length === 1 ? (
+                  <>
+                    <strong className="font-semibold break-words text-foreground">
+                      {publishTargets[0].title}
+                    </strong>{" "}
+                    will be processed and added to what your AI knows.
+                  </>
+                ) : (
+                  "They will be processed and added to what your AI knows."
+                )}{" "}
                 This uses your vector storage.
               </AlertDialogDescription>
             </AlertDialogHeader>
@@ -677,8 +744,8 @@ export default function KnowledgeLibraryTabContent() {
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>
-                Delete {selectedItems.length} knowledge{" "}
-                {selectedItems.length === 1 ? "item" : "items"}?
+                Delete {selectedItems.length} Knowledge{" "}
+                {selectedItems.length === 1 ? "Item" : "Items"}?
               </AlertDialogTitle>
               <AlertDialogDescription>
                 This will permanently remove the selected knowledge. This action

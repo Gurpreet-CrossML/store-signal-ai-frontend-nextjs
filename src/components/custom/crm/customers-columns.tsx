@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Typography } from "@/components/ui/typography";
 import { CustomerAvatar } from "@/components/custom/customer-avatar";
+import { CustomerSegmentBadge } from "@/components/custom/customer-segment-badge";
 import { BADGE_TONE_STYLES } from "@/lib/badge-tones";
 import {
   customerLocation,
@@ -44,13 +45,13 @@ function ConsentMarks({ customer }: { customer: CustomerRecord }) {
       key: "email",
       icon: IconMail,
       granted: customer.accepts_email_marketing,
-      label: "Email marketing",
+      label: "Email Marketing",
     },
     {
       key: "sms",
       icon: IconMessage,
       granted: customer.accepts_sms_marketing,
-      label: "SMS marketing",
+      label: "SMS Marketing",
     },
   ];
 
@@ -71,7 +72,7 @@ function ConsentMarks({ customer }: { customer: CustomerRecord }) {
             </span>
           </TooltipTrigger>
           <TooltipContent>
-            {channel.label}: {channel.granted ? "opted in" : "not opted in"}
+            {channel.label}: {channel.granted ? "Opted In" : "Not Opted In"}
           </TooltipContent>
         </Tooltip>
       ))}
@@ -115,6 +116,16 @@ export function getCustomerColumns(): ColumnDef<CustomerRecord>[] {
           </div>
         );
       },
+    },
+    {
+      accessorKey: "segment",
+      header: "Tag",
+      cell: ({ row }) => (
+        <CustomerSegmentBadge
+          segment={row.original.segment}
+          fallback={<Typography variant="muted">—</Typography>}
+        />
+      ),
     },
     {
       accessorKey: "phone",

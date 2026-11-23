@@ -144,24 +144,24 @@ export function buildDashboardReportHtml({
       .chart-copy [data-slot="chart"], .chart-copy .recharts-responsive-container, .chart-copy svg { height: 100% !important; max-width: 100%; width: 100% !important; }
       .chart-copy .fill-white { fill: #ffffff; }
     </style></head><body>
-      <h1>Dashboard analytics</h1>
+      <h1>Dashboard Analytics</h1>
       <div class="meta">Store: ${escapeHtml(storeName)}</div>
-      <div class="meta">Date range: ${escapeHtml(from)} to ${escapeHtml(to)}</div>
-      <h2>Performance summary</h2>
+      <div class="meta">Date Range: ${escapeHtml(from)} to ${escapeHtml(to)}</div>
+      <h2>Performance Summary</h2>
       <div class="summary">${summaryCards}</div>
-      <h2>Performance details</h2>
+      <h2>Performance Details</h2>
       <table><thead><tr><th>Metric</th><th>Value</th><th>Detail</th></tr></thead><tbody>${tableRows(summaryRows, 3)}</tbody></table>
-      <section class="report-section"><h2>Sentiment distribution</h2>
+      <section class="report-section"><h2>Sentiment Distribution</h2>
       ${chartOrFallback(charts.sentiment, barChart(sentiments))}
-      <table><thead><tr><th>Sentiment</th><th>Customer feedback</th></tr></thead><tbody>${tableRows(sentiments, 2)}</tbody></table></section>
-      <section class="report-section"><h2>Performance overview</h2>
+      <table><thead><tr><th>Sentiment</th><th>Customer Feedback</th></tr></thead><tbody>${tableRows(sentiments, 2)}</tbody></table></section>
+      <section class="report-section"><h2>Performance Overview</h2>
       ${chartOrFallback(charts.overview, barChart(overview))}
-      <table><thead><tr><th>Service metric</th><th>Value</th></tr></thead><tbody>${tableRows(overview, 2)}</tbody></table></section>
-      <section class="report-section"><h2>User activity</h2>
+      <table><thead><tr><th>Service Metric</th><th>Value</th></tr></thead><tbody>${tableRows(overview, 2)}</tbody></table></section>
+      <section class="report-section"><h2>User Activity</h2>
       ${chartOrFallback(charts.activity, barChart(activity))}
-      <table><thead><tr><th>User type</th><th>Visitors</th></tr></thead><tbody>${tableRows(activity, 2)}</tbody></table></section>
-      <section class="report-section"><h2>Customer interaction analytics</h2>
+      <table><thead><tr><th>User Type</th><th>Visitors</th></tr></thead><tbody>${tableRows(activity, 2)}</tbody></table></section>
+      <section class="report-section"><h2>Customer Interaction Analytics</h2>
       ${chartOrFallback(charts.interaction, interactionChart(interactions))}</section>
-      <table><thead><tr><th>Period</th><th>User queries</th></tr></thead><tbody>${tableRows(interactions, 2)}</tbody></table>
+      <table><thead><tr><th>Period</th><th>User Queries</th></tr></thead><tbody>${tableRows(interactions, 2)}</tbody></table>
     </body></html>`;
 }

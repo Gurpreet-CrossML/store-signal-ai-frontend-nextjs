@@ -50,6 +50,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Typography } from "@/components/ui/typography";
 import { InfoIcon } from "@/components/custom/info-icon";
+import { UnsavedChangesDialog } from "@/components/custom/unsaved-changes-dialog";
 import { useWhatsAppAccount } from "@/components/custom/social-ai/use-whatsapp-account";
 import { WhatsAppPhoneMockup } from "@/components/custom/social-ai/whatsapp-phone-mockup";
 import { WhatsAppVariablePicker } from "@/components/custom/social-ai/whatsapp-variable-picker";
@@ -66,6 +67,7 @@ import {
   LOCATION_HEADER_FORMAT,
   HEADER_MEDIA_RULES,
   isMediaHeaderFormat,
+  languageLabel,
   renderPreviewText,
   WHATSAPP_LANGUAGES,
   WHATSAPP_VARIABLES_BY_TOKEN,
@@ -368,11 +370,11 @@ export default function WhatsAppTemplateCreate({
 
     // Refuse it here rather than spending an upload on a file the server
     // will reject anyway — and never hold an oversized one in the tab.
-    const { accept, maxMB } = HEADER_MEDIA_RULES[headerFormat];
+    const { accept, formats, maxMB } = HEADER_MEDIA_RULES[headerFormat];
     if (!accept.split(",").includes(file.type)) {
       toast.error(
         `${file.type || "That file type"} can't be used as a ${headerFormat} ` +
-          `header. Supported: ${accept.split(",").join(", ")}.`,
+          `header. Supported: ${formats}.`,
       );
       return;
     }
@@ -459,6 +461,26 @@ export default function WhatsAppTemplateCreate({
     [headerMediaFile],
   );
 
+  // Everything a save sends besides the media file.
+  const formPayload = useMemo(
+    () => ({ name: name.trim(), category, language, ...templateParts }),
+    [name, category, language, templateParts],
+  );
+
+  // The form as it started: empty on create, and on edit captured once the
+  // prefill lands. Leaving a form that differs from it asks first.
+  const formSnapshot = JSON.stringify(formPayload);
+  const [loadedSnapshot, setLoadedSnapshot] = useState<string | null>(null);
+  if (!loadingTemplate && loadedSnapshot === null) {
+    setLoadedSnapshot(formSnapshot);
+  }
+  const isDirty =
+    headerMediaFile !== null ||
+    (loadedSnapshot !== null && formSnapshot !== loadedSnapshot);
+  // Save Changes stays off on edit until something changed, since an
+  // unchanged save would only put the template back in front of Meta's review.
+  const hasChanges = !isEditMode || isDirty;
+
   // What the live preview shows — a local object URL stands in for the
   // media (the real handle isn't a renderable image), and named tokens are
   // swapped for sample values (the user's override, or the registry
@@ -537,10 +559,11 @@ export default function WhatsAppTemplateCreate({
     account,
   ]);
 
-  const handleSubmit = async () => {
+  /** Sends the template to Meta; resolves true once it went through. */
+  const save = async () => {
     if (!storeCode || !account || validationError) {
       if (validationError) toast.error(validationError);
-      return;
+      return false;
     }
     setSubmitting(true);
     try {
@@ -550,13 +573,7 @@ export default function WhatsAppTemplateCreate({
             storeCode,
             accountId: String(account.id),
             templateId: Number(templateId),
-            payload: {
-              name: name.trim(),
-              category,
-              language,
-              ...templateParts,
-              ...mediaFields,
-            },
+            payload: { ...formPayload, ...mediaFields },
           }),
         ).unwrap();
         toast.success("Template updated", {
@@ -568,25 +585,24 @@ export default function WhatsAppTemplateCreate({
           submitWhatsAppTemplate({
             storeCode,
             accountId: String(account.id),
-            payload: {
-              name: name.trim(),
-              category,
-              language,
-              ...templateParts,
-              ...mediaFields,
-            },
+            payload: { ...formPayload, ...mediaFields },
           }),
         ).unwrap();
         toast.success("Template submitted for review", {
           description: `Meta status: ${result.status}. It'll show up in the templates list once reviewed.`,
         });
       }
-      router.push("/campaign/whatsapp-templates");
+      return true;
     } catch {
       // The thunk already surfaces the error toast.
+      return false;
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleSubmit = async () => {
+    if (await save()) router.push("/campaign/whatsapp-templates");
   };
 
   return (
@@ -619,7 +635,9 @@ export default function WhatsAppTemplateCreate({
         <div className="flex shrink-0 items-center gap-2">
           <Button
             onClick={handleSubmit}
-            disabled={submitting || accountLoading || loadingTemplate}
+            disabled={
+              submitting || accountLoading || loadingTemplate || !hasChanges
+            }
           >
             {submitting ? (
               <Spinner className="size-4" />
@@ -628,7 +646,7 @@ export default function WhatsAppTemplateCreate({
             ) : (
               <IconSend2 className="size-4" />
             )}
-            {isEditMode ? "Save Changes" : "Submit for Review"}
+            {isEditMode ? "Save Changes" : "Submit For Review"}
           </Button>
         </div>
       </div>
@@ -838,8 +856,14 @@ export default function WhatsAppTemplateCreate({
                         onClick={() => fileInputRef.current?.click()}
                       >
                         <IconUpload className="size-4" />
-                        Upload sample
+                        Upload Sample
                       </Button>
+                    )}
+                    {isMediaHeaderFormat(headerFormat) && (
+                      <Typography variant="caption">
+                        {HEADER_MEDIA_RULES[headerFormat].formats} · up to{" "}
+                        {HEADER_MEDIA_RULES[headerFormat].maxMB} MB
+                      </Typography>
                     )}
                   </div>
                 )}
@@ -1112,7 +1136,9 @@ export default function WhatsAppTemplateCreate({
                 </div>
                 <div className="flex items-center justify-between gap-2">
                   <Typography variant="caption">Language</Typography>
-                  <Typography variant="small">{language}</Typography>
+                  <Typography variant="small">
+                    {languageLabel(language)}
+                  </Typography>
                 </div>
                 <div className="flex items-center justify-between gap-2">
                   <Typography variant="caption">Variable Type</Typography>
@@ -1132,7 +1158,7 @@ export default function WhatsAppTemplateCreate({
 
             <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 text-sm">
               <p className="font-medium text-primary">
-                Follow WhatsApp&apos;s template guidelines
+                Follow WhatsApp&apos;s Template Guidelines
               </p>
               <p className="mt-1 text-muted-foreground">
                 Templates will be reviewed by Meta before they can be used to
@@ -1144,12 +1170,18 @@ export default function WhatsAppTemplateCreate({
                 rel="noopener noreferrer"
                 className="mt-2 inline-block font-medium text-primary hover:underline"
               >
-                Learn more →
+                Learn More →
               </a>
             </div>
           </div>
         </div>
       )}
+
+      <UnsavedChangesDialog
+        isDirty={isDirty}
+        isSaving={submitting}
+        onSave={save}
+      />
     </div>
   );
 }

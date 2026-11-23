@@ -26,6 +26,11 @@ import type {
 export type RequestAccess = {
   isStaff: boolean;
   storeCodes: string[] | null;
+  /**
+   * A support agent's user id: they only see the chats and tickets assigned
+   * to them or to nobody. `null` for every other role (sees everything).
+   */
+  queueUserId: number | null;
 };
 
 /** The session identity fields these rules read. */
@@ -35,6 +40,9 @@ export type SessionIdentity = {
   company_code?: string | null;
   accessible_stores?: AccessibleStore[];
   permissions?: PermissionMap;
+  user_id?: number | null;
+  managed_roles?: StaffRole[];
+  queue_only?: boolean;
 };
 
 // A company code IS a Postgres schema identifier and goes straight into a raw
@@ -82,6 +90,8 @@ export function buildAccess(identity: SessionIdentity): RequestAccess {
   return {
     isStaff: Boolean(identity.is_staff),
     storeCodes: unrestricted ? null : stores.map((s) => s.code),
+    // Django decides who is queue-only; with no id they get only the queue.
+    queueUserId: identity.queue_only ? (identity.user_id ?? -1) : null,
   };
 }
 

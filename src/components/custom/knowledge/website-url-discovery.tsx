@@ -1,12 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  IconExternalLink,
-  IconRefresh,
-  IconSearch,
-  IconWorldSearch,
-} from "@tabler/icons-react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { IconRefresh, IconSearch } from "@tabler/icons-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,7 +13,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { isValidWebsiteUrl, normalizeUrl } from "@/lib/url";
+import { normalizeUrl } from "@/lib/url";
 import { cn } from "@/lib/utils";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
@@ -30,7 +25,7 @@ import {
 
 /** The path + query of a page URL (e.g. `/pages/shipping`), which is easier
  * to scan in a table than the full address. */
-export function pageEndpoint(url: string): string {
+function pageEndpoint(url: string): string {
   try {
     const parsed = new URL(url);
     return `${parsed.pathname || "/"}${parsed.search}`;
@@ -46,6 +41,11 @@ function hostOf(url: string): string {
   } catch {
     return "";
   }
+}
+
+/** A page to add whose address matches a knowledge category. */
+function isMatched(page: DiscoveredPage): boolean {
+  return page.categoryIds.length > 0 && !isDisabledPage(page);
 }
 
 /** Pages never selectable: ones the store already has (the backend rejects a
@@ -73,8 +73,15 @@ type WebsiteUrlDiscoveryProps = {
   /** The most pages that can be indexed in one request. */
   maxSelection: number;
   error?: string;
-  /** The site to scan as soon as this opens (the store's own); it can be changed. */
-  defaultUrl?: string;
+  /** The site to scan; it is scanned as soon as this opens. To scan another
+   * site, mount it again (e.g. with a new `key`). */
+  websiteUrl?: string;
+  /** Instead of a site: the specific pages to check. They are checked as soon
+   * as this opens, and the ones that can be read start out ticked. */
+  pageUrls?: string[];
+  /** Something to show with each page that can be added, ticked or not, e.g. a
+   * field of its own. */
+  renderPageExtra?: (page: DiscoveredPage) => ReactNode;
 };
 
 export function WebsiteUrlDiscovery({
@@ -83,8 +90,12 @@ export function WebsiteUrlDiscovery({
   onSelectedUrlsChange,
   maxSelection,
   error,
-  defaultUrl = "",
+  websiteUrl = "",
+  pageUrls,
+  renderPageExtra,
 }: WebsiteUrlDiscoveryProps) {
+  const checkingPages = Boolean(pageUrls);
+  const pagesKey = pageUrls?.join("\n") ?? "";
   const dispatch = useAppDispatch();
   const {
     DiscoverWebsiteUrlsIsLoading: isLoading,
@@ -94,6 +105,7 @@ export function WebsiteUrlDiscovery({
     DiscoverWebsiteUrlsTruncated: truncated,
     DiscoverWebsiteUrlsMinWords: minWords,
     DiscoverWebsiteUrlsWebsiteUrl: scannedUrl,
+    DiscoverWebsiteUrlsUnreadable: unreadable,
     DiscoverWebsiteUrlsThrottled: throttled,
     DiscoverWebsiteUrlsDetailsIsLoading: detailsLoading,
   } = useAppSelector(
@@ -123,10 +135,6 @@ export function WebsiteUrlDiscovery({
   );
   const [throttledRounds, setThrottledRounds] = useState(0);
 
-  const [websiteUrl, setWebsiteUrl] = useState(defaultUrl);
-  // The address box is hidden while the default site is being used.
-  const [changingSite, setChangingSite] = useState(!defaultUrl);
-  const [inputError, setInputError] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
 
   const selected = useMemo(() => new Set(selectedUrls), [selectedUrls]);
@@ -206,8 +214,13 @@ export function WebsiteUrlDiscovery({
 
   // Only pages we've actually read are listed: one whose title/word count
   // couldn't be read (yet) stays out of the table instead of showing blanks.
+  // The pages that match a knowledge category and can be added come first (the
+  // sort is stable, so each group keeps the order the site listed them in).
   const readablePages = useMemo(
-    () => pages.filter((page) => page.wordCount !== null),
+    () =>
+      pages
+        .filter((page) => page.wordCount !== null)
+        .sort((a, b) => Number(isMatched(b)) - Number(isMatched(a))),
     [pages],
   );
 
@@ -222,6 +235,35 @@ export function WebsiteUrlDiscovery({
   }, [readablePages, filter]);
 
   const atCap = selectedUrls.length >= maxSelection;
+
+  // Pages that match a knowledge category (their category is already filled
+  // in) start out ticked, as soon as they are listed. Each is ticked once, so
+  // unticking one stands, and pages read later are ticked as they arrive.
+  const autoTickedMatches = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    // Pages the user listed are all ticked by the effect further down.
+    if (checkingPages) return;
+    const fresh = readablePages.filter(
+      (page) => isMatched(page) && !autoTickedMatches.current.has(page.url),
+    );
+    if (fresh.length === 0) return;
+    for (const page of fresh) autoTickedMatches.current.add(page.url);
+
+    const room = Math.max(maxSelection - selectedUrls.length, 0);
+    const additions = fresh
+      .filter((page) => !selected.has(page.url))
+      .slice(0, room)
+      .map((page) => page.url);
+    if (additions.length > 0)
+      onSelectedUrlsChange([...selectedUrls, ...additions]);
+  }, [
+    checkingPages,
+    readablePages,
+    selected,
+    selectedUrls,
+    maxSelection,
+    onSelectedUrlsChange,
+  ]);
 
   /** Why a page's checkbox is disabled (shown on hover), or null if it isn't. */
   const disabledReason = (
@@ -249,41 +291,50 @@ export function WebsiteUrlDiscovery({
 
   const scan = async (url = websiteUrl) => {
     if (!storeCode || busy) return;
-    if (!url.trim()) {
-      setInputError("Enter your website URL");
-      return;
-    }
-    if (!isValidWebsiteUrl(url)) {
-      setInputError("Enter a valid website URL, e.g. https://company.com");
-      return;
-    }
-    setInputError(null);
     setFilter("");
     onSelectedUrlsChange([]);
+    autoTickedMatches.current = new Set();
     detailsRequest.current?.abort();
     setDetailAttempts({});
     setThrottledRounds(0);
     const request = dispatch(
-      DiscoverWebsiteUrls({
-        storeCode,
-        websiteUrl: normalizeUrl(url),
-      }),
+      DiscoverWebsiteUrls(
+        pageUrls
+          ? { storeCode, pageUrls }
+          : { storeCode, websiteUrl: normalizeUrl(url) },
+      ),
     );
     scanRequest.current = request;
     await request;
     if (scanRequest.current === request) scanRequest.current = null;
-    setChangingSite(false);
   };
 
-  // Scan the default site as soon as the view opens, once.
-  const autoScanned = useRef(false);
+  // Scan the site as soon as the view opens. (Not guarded by a "done once"
+  // flag: when React re-runs effects in development, the first scan is
+  // cancelled by the unmount above and this has to start it again.)
   useEffect(() => {
-    if (autoScanned.current || !storeCode || !defaultUrl) return;
-    autoScanned.current = true;
-    void scan(defaultUrl);
-    // Runs once, with whatever the store and default address are by then.
+    if (!storeCode || (!websiteUrl && !pagesKey)) return;
+    // Started from a timer so a dev-mode double run starts only one scan.
+    const timer = setTimeout(() => void scan(websiteUrl), 0);
+    return () => clearTimeout(timer);
+    // Runs for the site (or pages) and store this opened with.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storeCode, defaultUrl]);
+  }, [storeCode, websiteUrl, pagesKey]);
+
+  // Pages the user listed themselves are wanted, so once they have been checked
+  // every one that can be added starts out ticked (once; after that the user's
+  // own choices stand).
+  const autoSelected = useRef(false);
+  useEffect(() => {
+    if (!checkingPages || !hasScanned || autoSelected.current) return;
+    autoSelected.current = true;
+    onSelectedUrlsChange(
+      pages
+        .filter((page) => !isDisabledPage(page))
+        .slice(0, maxSelection)
+        .map((page) => page.url),
+    );
+  }, [checkingPages, hasScanned, pages, maxSelection, onSelectedUrlsChange]);
 
   const togglePage = (page: DiscoveredPage, checked: boolean) => {
     if (checked) {
@@ -308,120 +359,86 @@ export function WebsiteUrlDiscovery({
     onSelectedUrlsChange([...selectedUrls, ...additions]);
   };
 
-  const shownError = inputError ?? scanError;
+  const shownError = scanError;
   const scannedHost = hostOf(scannedUrl || websiteUrl);
   const newPages = selectablePages.length;
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <p className="text-sm font-semibold">
-          {scannedHost ? `Found on ${scannedHost}` : "Scan a website"}
-        </p>
-        <div className="flex items-center gap-1">
-          {!changingSite && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="text-primary"
-              onClick={() => setChangingSite(true)}
-            >
-              Change site
-            </Button>
-          )}
-          {scannedUrl && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="text-primary"
-              disabled={busy}
-              onClick={() => void scan(scannedUrl)}
-            >
-              <IconRefresh className="size-4" />
-              Scan again
-            </Button>
-          )}
-        </div>
+        {/* Not offered while a scan or check is still running. */}
+        {!checkingPages && (scannedUrl || scanError) && !busy && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="ml-auto text-primary"
+            onClick={() => void scan(scannedUrl || websiteUrl)}
+          >
+            <IconRefresh className="size-4" />
+            {scanError ? "Try Again" : "Scan Again"}
+          </Button>
+        )}
       </div>
 
-      {changingSite && (
-        <div className="flex flex-col gap-1.5">
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Input
-              placeholder="https://company.com"
-              autoComplete="off"
-              aria-label="Website to scan"
-              value={websiteUrl}
-              onChange={(event) => setWebsiteUrl(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  void scan();
-                }
-              }}
-              aria-invalid={Boolean(shownError)}
-            />
-            <Button
-              type="button"
-              variant="outline"
-              className="shrink-0"
-              disabled={busy || !storeCode}
-              onClick={() => void scan()}
-            >
-              {isLoading ? (
-                <>
-                  <Spinner data-icon="inline-start" />
-                  Scanning…
-                </>
-              ) : (
-                <>
-                  <IconWorldSearch className="size-4" />
-                  Scan website
-                </>
-              )}
-            </Button>
-          </div>
-          {!shownError && (
-            <p className="text-xs text-muted-foreground">
-              We&apos;ll find the pages on this site so you can choose which
-              ones to add.
-            </p>
-          )}
-        </div>
-      )}
       {shownError && <p className="text-xs text-destructive">{shownError}</p>}
 
       {isLoading && (
         <p className="flex items-center gap-2 text-sm text-muted-foreground">
           <Spinner className="size-4" />
-          Looking for pages on {scannedHost || "your site"}…
+          {checkingPages
+            ? `Checking ${pageUrls?.length === 1 ? "your page" : `${pageUrls?.length} pages`}…`
+            : `Looking for pages on ${scannedHost || "your site"}…`}
         </p>
       )}
 
-      {!isLoading && hasScanned && pages.length === 0 && (
+      {!isLoading && hasScanned && !checkingPages && pages.length === 0 && (
         <p className="rounded-lg border border-dashed border-border/60 px-4 py-6 text-center text-sm text-muted-foreground">
-          No pages were found on this website.
+          No help or policy pages were found. We look in the website for pages
+          about shipping, returns, payment, privacy, terms, FAQ, contact and
+          similar topics. You can still add any page by pasting its link.
         </p>
+      )}
+
+      {!isLoading && checkingPages && unreadable.length > 0 && (
+        <div
+          role="alert"
+          className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-destructive"
+        >
+          <p className="font-medium">
+            {unreadable.length === 1
+              ? "1 page couldn't be read, so it can't be added:"
+              : `${unreadable.length} pages couldn't be read, so they can't be added:`}
+          </p>
+          <ul className="mt-1 list-disc pl-4 break-all">
+            {unreadable.map((url) => (
+              <li key={url}>{url}</li>
+            ))}
+          </ul>
+          <p className="mt-1">
+            Check the address. The page must be public and be a web page.
+          </p>
+        </div>
       )}
 
       {!isLoading && readablePages.length > 0 && (
         <div className="flex flex-col gap-3">
-          <div className="relative">
-            <IconSearch className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              className="pl-8"
-              placeholder="Filter by title or address…"
-              autoComplete="off"
-              aria-label="Filter pages"
-              value={filter}
-              onChange={(event) => setFilter(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") event.preventDefault();
-              }}
-            />
-          </div>
+          {!checkingPages && (
+            <div className="relative">
+              <IconSearch className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                className="pl-8"
+                placeholder="Filter by title or address…"
+                autoComplete="off"
+                aria-label="Filter pages"
+                value={filter}
+                onChange={(event) => setFilter(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") event.preventDefault();
+                }}
+              />
+            </div>
+          )}
 
           <div className="flex items-center justify-between gap-3 text-sm">
             <label className="flex items-center gap-2 font-medium">
@@ -437,7 +454,7 @@ export function WebsiteUrlDiscovery({
                 disabled={newPages === 0}
                 onCheckedChange={(checked) => toggleAll(checked === true)}
               />
-              Select all new pages
+              Select All New Pages
             </label>
             <span className="text-xs text-muted-foreground">
               {selectedUrls.length} of {newPages} selected
@@ -459,7 +476,7 @@ export function WebsiteUrlDiscovery({
                   key={page.url}
                   data-state={isSelected ? "selected" : undefined}
                   className={cn(
-                    "flex items-center gap-3 px-3 py-2.5",
+                    "flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2.5",
                     isDisabledPage(page) && "bg-muted/30",
                   )}
                 >
@@ -488,14 +505,22 @@ export function WebsiteUrlDiscovery({
                       }
                     />
                   )}
-                  <div className="min-w-0 flex-1">
+                  <div className="flex min-w-0 flex-1 basis-48 flex-col gap-0.5">
                     <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium">
-                      <span className="truncate">
-                        {page.title || pageEndpoint(page.url)}
-                      </span>
+                      {/* The title opens the page itself in a new tab. */}
+                      <a
+                        href={page.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={page.url}
+                        className="min-w-0 truncate underline-offset-2 hover:underline focus-visible:underline"
+                      >
+                        {page.title ||
+                          `${hostOf(page.url)}${pageEndpoint(page.url)}`}
+                      </a>
                       {page.alreadyAdded ? (
                         <Badge variant="secondary" className="font-normal">
-                          Already added
+                          Already Added
                         </Badge>
                       ) : (
                         !page.hasEnoughContent && (
@@ -504,31 +529,20 @@ export function WebsiteUrlDiscovery({
                             className="font-normal"
                             title={`Fewer than ${minWords} words — not enough content to index`}
                           >
-                            Not enough content
+                            Not Enough Content
                           </Badge>
                         )
                       )}
                     </p>
-                    <p
-                      className="truncate text-xs text-muted-foreground"
-                      title={page.url}
-                    >
-                      {hostOf(page.url)}
-                      {pageEndpoint(page.url)}
+                    <p className="truncate text-xs text-muted-foreground">
+                      {page.url}
                     </p>
                   </div>
-                  <span className="hidden shrink-0 text-xs text-muted-foreground tabular-nums sm:inline">
-                    {(page.wordCount ?? 0).toLocaleString()} words
-                  </span>
-                  <a
-                    href={page.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    aria-label={`Open ${page.title || page.url} in a new tab`}
-                    className="shrink-0 text-muted-foreground hover:text-foreground"
-                  >
-                    <IconExternalLink className="size-4" />
-                  </a>
+                  {!isDisabledPage(page) && renderPageExtra && (
+                    <div className="w-full pl-7 sm:w-72 sm:shrink-0 sm:pl-0">
+                      {renderPageExtra(page)}
+                    </div>
+                  )}
                 </li>
               );
             })}

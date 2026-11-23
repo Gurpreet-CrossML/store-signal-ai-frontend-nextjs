@@ -1,14 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   IconArrowLeft,
   IconExternalLink,
   IconPencil,
   IconSend,
-  IconTrash,
 } from "@tabler/icons-react";
 
 import {
@@ -26,14 +24,19 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { useCan } from "@/hooks/use-can";
-import { isValidUrl, normalizeUrl } from "@/lib/url";
+import { useIsBelowLg } from "@/hooks/use-narrow-viewport";
+import { limitAttemptHandlers, limitReachedMessage } from "@/lib/input-limit";
+import {
+  FAQ_QUESTION_MAX_LENGTH,
+  faqAnswerProblem,
+  faqQuestionProblem,
+} from "@/lib/faq-validation";
+import { isValidWebsiteUrl, normalizeUrl } from "@/lib/url";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
-  DeleteKnowledgeItem,
   FetchKnowledgeItem,
   PublishKnowledgeItems,
   UpdateKnowledgeItem,
-  UpdateKnowledgeItemsScope,
   type KnowledgeItem,
 } from "@/redux/api-slice/knowledge-rag-slice";
 
@@ -45,13 +48,26 @@ import {
 } from "@/components/custom/knowledge/knowledge-badges";
 import { timeAgo } from "@/components/custom/knowledge/knowledge-list";
 import {
+  UnsavedChangesDialog,
+  type UnsavedChangesDialogHandle,
+} from "@/components/custom/unsaved-changes-dialog";
+import {
   FAQ_ANSWER_MAX_LENGTH,
   isKnowledgeItemEditable,
   KNOWLEDGE_SOURCE_LABEL,
 } from "@/components/custom/knowledge/knowledge-meta";
+import {
+  KnowledgeCategoriesField,
+  useKnowledgeCategoryOptions,
+} from "@/components/custom/knowledge/knowledge-category-picker";
 import { KnowledgeScopePanel } from "@/components/custom/knowledge/knowledge-scope-panel";
 import {
+  KnowledgeSettingsButton,
+  KnowledgeSettingsDrawer,
+} from "@/components/custom/knowledge/knowledge-settings-drawer";
+import {
   scopeOfItem,
+  scopeToPayload,
   validateScope,
   type KnowledgeScope,
 } from "@/components/custom/knowledge/knowledge-scope";
@@ -66,14 +82,22 @@ const formatDate = (value: string) =>
 
 const wordCount = (text: string) => text.split(/\s+/).filter(Boolean).length;
 
-/** `shipping_policy` as "Shipping policy". */
-const humanize = (value: string) => {
-  const text = value.replace(/[_-]+/g, " ").trim();
-  return text.charAt(0).toUpperCase() + text.slice(1);
-};
-
-const sameScope = (a: string[], b: string[]) =>
+const sameSet = (a: (string | number)[], b: (string | number)[]) =>
   a.length === b.length && a.every((entry) => b.includes(entry));
+
+const idsOf = (entries: { id: string }[] | undefined) =>
+  (entries ?? []).map((entry) => entry.id);
+
+/** Whether where an item applies (the whole store, or its products, categories
+ * or collections) differs from what it was saved with. */
+const appliesToChanged = (scope: KnowledgeScope, saved: KnowledgeItem) =>
+  scopeToPayload(scope).type !== saved.type ||
+  !sameSet(idsOf(scope.products), idsOf(saved.products)) ||
+  !sameSet(idsOf(scope.categories), idsOf(saved.categories)) ||
+  !sameSet(idsOf(scope.collections), idsOf(saved.collections));
+
+const categoryIdsOf = (item: KnowledgeItem) =>
+  (item.knowledgeCategories ?? []).map((category) => category.id);
 
 function Stat({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -144,16 +168,28 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
   // What is being edited, while editing; `null` otherwise.
   const [editing, setEditing] = useState(false);
   const [scope, setScope] = useState<KnowledgeScope | null>(null);
+  const [knowledgeCategories, setKnowledgeCategories] = useState<number[]>([]);
+  const { options: categoryOptions, isLoading: categoriesLoading } =
+    useKnowledgeCategoryOptions();
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
   const [url, setUrl] = useState("");
   const [showErrors, setShowErrors] = useState(false);
+  // A field's problem shows once it was left, or once saving was tried.
+  const [questionTouched, setQuestionTouched] = useState(false);
+  const [answerTouched, setAnswerTouched] = useState(false);
+  // Set when someone tries to type past a limit; shown until they edit or
+  // leave the field.
+  const [questionLimitHit, setQuestionLimitHit] = useState(false);
+  const [answerLimitHit, setAnswerLimitHit] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   const [publishOpen, setPublishOpen] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+  // On a tablet or phone the usage and details panel is a drawer, opened
+  // from the header.
+  const belowLg = useIsBelowLg();
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
     if (!storeCode) return;
@@ -174,6 +210,7 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
         }
         setItem(loaded);
         setScope(scopeOfItem(loaded));
+        setKnowledgeCategories(categoryIdsOf(loaded));
         setQuestion(loaded.question ?? "");
         setAnswer(loaded.answer ?? "");
         setUrl(loaded.url ?? "");
@@ -196,80 +233,92 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
 
   const reload = () => setReloads((count) => count + 1);
 
+  // Back asks first when there are edits that are not saved.
+  const unsavedChanges = useRef<UnsavedChangesDialogHandle>(null);
+  const goBack = () =>
+    unsavedChanges.current?.confirmLeave(() => router.back());
+
   const cancelEdit = () => {
     if (!item) return;
     setScope(scopeOfItem(item));
+    setKnowledgeCategories(categoryIdsOf(item));
     setQuestion(item.question ?? "");
     setAnswer(item.answer ?? "");
     setUrl(item.url ?? "");
     setShowErrors(false);
+    setQuestionTouched(false);
+    setAnswerTouched(false);
     setEditing(false);
   };
 
+  // Only what changed is sent. A changed website address is the one edit that
+  // sends the item through processing again; the question and answer are
+  // embedded again by the backend; everything else (categories, where it
+  // applies, which AI use it) updates the database and the stored vectors in
+  // place.
+  const scopeChanged =
+    item !== null &&
+    scope !== null &&
+    (!sameSet(scope.aiScope, item.aiScope) || appliesToChanged(scope, item));
+  const categoriesChanged =
+    item !== null && !sameSet(knowledgeCategories, categoryIdsOf(item));
+  const faqChanged =
+    item?.source === "faq" &&
+    (question.trim() !== item.question || answer.trim() !== item.answer);
+  const urlChanged = item?.source === "url" && normalizeUrl(url) !== item.url;
+  const isDirty =
+    editing && (scopeChanged || categoriesChanged || faqChanged || urlChanged);
+
+  /** Saves the edits; resolves true once they are saved. */
   const handleSave = async () => {
-    if (!item || !scope || !storeCode) return;
+    if (!item || !scope || !storeCode) return false;
 
     setShowErrors(true);
     const faqInvalid =
-      item.source === "faq" && (!question.trim() || !answer.trim());
+      item.source === "faq" &&
+      Boolean(faqQuestionProblem(question) || faqAnswerProblem(answer));
     const urlInvalid =
-      item.source === "url" && (!url.trim() || !isValidUrl(url));
-    if (validateScope(scope).aiScope || faqInvalid || urlInvalid) return;
+      item.source === "url" && (!url.trim() || !isValidWebsiteUrl(url));
+    const scopeErrors = validateScope(scope);
+    if (
+      scopeErrors.aiScope ||
+      scopeErrors.selection ||
+      faqInvalid ||
+      urlInvalid
+    )
+      return false;
 
-    const scopeChanged = !sameScope(scope.aiScope, item.aiScope);
-    const contentChanged =
-      (item.source === "faq" &&
-        (question.trim() !== item.question || answer.trim() !== item.answer)) ||
-      (item.source === "url" && normalizeUrl(url) !== item.url);
-    if (!scopeChanged && !contentChanged) {
+    if (!scopeChanged && !categoriesChanged && !faqChanged && !urlChanged) {
       setEditing(false);
-      return;
+      return true;
     }
 
     setIsSaving(true);
-    // Who uses it goes first, on its own: it needs no processing and reaches the
-    // stored vectors straight away. Changing the text or address afterwards
-    // sends the item through processing again, which keeps that scope.
-    if (scopeChanged) {
-      const result = await dispatch(
-        UpdateKnowledgeItemsScope({
-          ids: [item.id],
-          aiScope: scope.aiScope,
-          storeCode,
-          silent: !contentChanged,
-        }),
-      );
-      if (!UpdateKnowledgeItemsScope.fulfilled.match(result)) {
-        setIsSaving(false);
-        return;
-      }
-    }
-    if (contentChanged) {
-      const result = await dispatch(
-        UpdateKnowledgeItem({
-          id: item.id,
-          storeCode,
-          patch: {
-            type: item.type,
-            source: item.source,
-            aiScope: scope.aiScope,
-            ...(item.source === "faq"
-              ? { question: question.trim(), answer: answer.trim() }
-              : { url: normalizeUrl(url) }),
-          },
-        }),
-      );
-      if (!UpdateKnowledgeItem.fulfilled.match(result)) {
-        setIsSaving(false);
-        reload();
-        return;
-      }
+    const result = await dispatch(
+      UpdateKnowledgeItem({
+        id: item.id,
+        storeCode,
+        patch: {
+          source: item.source,
+          ...scopeToPayload(scope),
+          knowledgeCategoryIds: knowledgeCategories,
+          ...(faqChanged
+            ? { question: question.trim(), answer: answer.trim() }
+            : {}),
+          ...(urlChanged ? { url: normalizeUrl(url) } : {}),
+        },
+      }),
+    );
+    setIsSaving(false);
+    if (!UpdateKnowledgeItem.fulfilled.match(result)) {
+      reload();
+      return false;
     }
 
-    setIsSaving(false);
     setShowErrors(false);
     setEditing(false);
     reload();
+    return true;
   };
 
   const handlePublish = async () => {
@@ -279,20 +328,6 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
     setIsPublishing(false);
     setPublishOpen(false);
     reload();
-  };
-
-  const handleDelete = async () => {
-    if (!storeCode) return;
-    setIsDeleting(true);
-    const result = await dispatch(
-      DeleteKnowledgeItem({ id: itemId, storeCode }),
-    );
-    if (DeleteKnowledgeItem.fulfilled.match(result)) {
-      router.push("/knowledge");
-      return;
-    }
-    setIsDeleting(false);
-    setDeleteOpen(false);
   };
 
   if (loadState === "loading") {
@@ -311,25 +346,88 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
         <p className="text-sm text-muted-foreground">
           It may have been deleted, or it belongs to another store.
         </p>
-        <Button asChild variant="outline">
-          <Link href="/knowledge">Back to Knowledge</Link>
+        <Button variant="outline" onClick={() => router.back()}>
+          Back To Knowledge
         </Button>
       </div>
     );
   }
 
-  const isInProgress = item.status === "processing";
   const extension = (fileExtension(item) ?? "").toUpperCase();
   const scopeErrors = showErrors ? validateScope(scope) : {};
+  const questionProblem = questionLimitHit
+    ? limitReachedMessage(FAQ_QUESTION_MAX_LENGTH)
+    : showErrors || questionTouched
+      ? faqQuestionProblem(question)
+      : undefined;
+  const answerProblem = answerLimitHit
+    ? limitReachedMessage(FAQ_ANSWER_MAX_LENGTH)
+    : showErrors || answerTouched
+      ? faqAnswerProblem(answer)
+      : undefined;
+
+  const settingsPanel = (
+    <>
+      <KnowledgeCategoriesField
+        options={categoryOptions}
+        isLoading={categoriesLoading}
+        value={knowledgeCategories}
+        onChange={setKnowledgeCategories}
+        disabled={!editing}
+        hint="Helps you find and group this in Knowledge."
+      />
+
+      <hr />
+
+      <KnowledgeScopePanel
+        value={scope}
+        onChange={setScope}
+        bordered={false}
+        appliesToLocked={!editing}
+        usedByLocked={!editing}
+        showErrors={Boolean(scopeErrors.aiScope || scopeErrors.selection)}
+        description={
+          editing
+            ? "Choose where it applies and which AI use it, then save."
+            : "Press Edit to change where it applies and who uses it."
+        }
+      />
+
+      <hr />
+
+      <section className="flex flex-col gap-2 text-xs">
+        <h2 className="text-sm font-semibold">Details</h2>
+        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5">
+          <dt className="text-muted-foreground">Source</dt>
+          <dd>{KNOWLEDGE_SOURCE_LABEL[item.source]}</dd>
+          <dt className="text-muted-foreground">Status</dt>
+          <dd>
+            <KnowledgeStatusBadge status={item.status} />
+          </dd>
+          {item.createdBy && (
+            <>
+              <dt className="text-muted-foreground">Added By</dt>
+              <dd>{item.createdBy}</dd>
+            </>
+          )}
+          <dt className="text-muted-foreground">Added</dt>
+          <dd>{formatDate(item.createdAt)}</dd>
+          <dt className="text-muted-foreground">Last Updated</dt>
+          <dd>
+            {formatDate(item.updatedAt)}
+            {item.updatedBy ? ` by ${item.updatedBy}` : ""}
+          </dd>
+        </dl>
+      </section>
+    </>
+  );
 
   return (
     <div className="flex min-h-full flex-col">
       <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b px-4 py-2.5">
-        <Button asChild variant="ghost" size="sm" className="-ml-2">
-          <Link href="/knowledge">
-            <IconArrowLeft className="size-4" />
-            Knowledge
-          </Link>
+        <Button variant="ghost" size="sm" className="-ml-2" onClick={goBack}>
+          <IconArrowLeft className="size-4" />
+          Knowledge
         </Button>
 
         <div className="flex min-w-0 flex-1 basis-48 items-center gap-2.5">
@@ -344,6 +442,12 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
         </div>
 
         <div className="ml-auto flex items-center gap-2">
+          {belowLg && (
+            <KnowledgeSettingsButton
+              invalid={Boolean(scopeErrors.aiScope || scopeErrors.selection)}
+              onClick={() => setSettingsOpen(true)}
+            />
+          )}
           {editing ? (
             <>
               <Button
@@ -362,7 +466,7 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
                 onClick={() => void handleSave()}
               >
                 {isSaving && <Spinner data-icon="inline-start" />}
-                Save changes
+                Save Changes
               </Button>
             </>
           ) : (
@@ -396,28 +500,10 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
               )}
             </>
           )}
-          {canEdit && !editing && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="text-destructive hover:text-destructive"
-              disabled={isInProgress}
-              title={
-                isInProgress
-                  ? "Item is in progress and cannot be deleted"
-                  : undefined
-              }
-              onClick={() => setDeleteOpen(true)}
-            >
-              <IconTrash className="size-4" />
-              <span className="max-sm:hidden">Delete</span>
-            </Button>
-          )}
         </div>
       </header>
 
-      <div className="grid flex-1 lg:grid-cols-[minmax(0,1fr)_20rem]">
+      <div className="grid flex-1 desktop:grid-cols-[minmax(0,1fr)_20rem]">
         <main className="flex min-w-0 flex-col gap-5 p-4 sm:p-6">
           <dl
             className={cn(
@@ -447,12 +533,12 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
               <Stat
                 label="Type"
                 value={
-                  item.source === "faq" ? "Question & answer" : "Website page"
+                  item.source === "faq" ? "Question & Answer" : "Website Page"
                 }
               />
             )}
             <Stat label="Added" value={formatDate(item.createdAt)} />
-            <Stat label="Last updated" value={formatDate(item.updatedAt)} />
+            <Stat label="Last Updated" value={formatDate(item.updatedAt)} />
           </dl>
 
           {item.status === "failed" && (
@@ -467,7 +553,7 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
 
           {item.source === "faq" && (
             <section className="flex flex-col gap-3">
-              <h2 className="text-sm font-semibold">Question and answer</h2>
+              <h2 className="text-sm font-semibold">Question And Answer</h2>
               {editing ? (
                 <div className="flex flex-col gap-4 rounded-xl border p-4">
                   <div className="flex flex-col gap-1.5">
@@ -475,43 +561,85 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
                       htmlFor="faq-question"
                       className="text-xs font-medium"
                     >
-                      Customer asks
+                      Customer Asks
                     </label>
                     <Input
                       id="faq-question"
                       value={question}
-                      maxLength={500}
+                      maxLength={FAQ_QUESTION_MAX_LENGTH}
                       autoComplete="off"
-                      onChange={(event) => setQuestion(event.target.value)}
-                      aria-invalid={showErrors && !question.trim()}
+                      onChange={(event) => {
+                        setQuestion(event.target.value);
+                        setQuestionLimitHit(false);
+                      }}
+                      {...limitAttemptHandlers<HTMLInputElement>(
+                        FAQ_QUESTION_MAX_LENGTH,
+                        () => setQuestionLimitHit(true),
+                      )}
+                      onBlur={() => {
+                        setQuestionTouched(true);
+                        setQuestionLimitHit(false);
+                      }}
+                      aria-invalid={Boolean(questionProblem)}
                     />
-                    {showErrors && !question.trim() && (
-                      <p className="text-xs text-destructive">
-                        Question is required
-                      </p>
-                    )}
+                    <div className="flex items-center justify-between gap-2">
+                      {questionProblem ? (
+                        <p className="text-xs text-destructive">
+                          {questionProblem}
+                        </p>
+                      ) : (
+                        <span />
+                      )}
+                      <span
+                        className={cn(
+                          "text-xs text-muted-foreground",
+                          question.length >= FAQ_QUESTION_MAX_LENGTH &&
+                            "text-destructive",
+                        )}
+                      >
+                        {question.length.toLocaleString()} /{" "}
+                        {FAQ_QUESTION_MAX_LENGTH.toLocaleString()}
+                      </span>
+                    </div>
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label htmlFor="faq-answer" className="text-xs font-medium">
-                      Your answer
+                      Your Answer
                     </label>
                     <Textarea
                       id="faq-answer"
                       className="max-h-96 min-h-28 resize-y"
                       value={answer}
                       maxLength={FAQ_ANSWER_MAX_LENGTH}
-                      onChange={(event) => setAnswer(event.target.value)}
-                      aria-invalid={showErrors && !answer.trim()}
+                      onChange={(event) => {
+                        setAnswer(event.target.value);
+                        setAnswerLimitHit(false);
+                      }}
+                      {...limitAttemptHandlers<HTMLTextAreaElement>(
+                        FAQ_ANSWER_MAX_LENGTH,
+                        () => setAnswerLimitHit(true),
+                      )}
+                      onBlur={() => {
+                        setAnswerTouched(true);
+                        setAnswerLimitHit(false);
+                      }}
+                      aria-invalid={Boolean(answerProblem)}
                     />
                     <div className="flex items-center justify-between gap-2">
-                      {showErrors && !answer.trim() ? (
+                      {answerProblem ? (
                         <p className="text-xs text-destructive">
-                          Answer is required
+                          {answerProblem}
                         </p>
                       ) : (
                         <span />
                       )}
-                      <span className="text-xs text-muted-foreground">
+                      <span
+                        className={cn(
+                          "text-xs text-muted-foreground",
+                          answer.length >= FAQ_ANSWER_MAX_LENGTH &&
+                            "text-destructive",
+                        )}
+                      >
                         {answer.length.toLocaleString()} /{" "}
                         {FAQ_ANSWER_MAX_LENGTH.toLocaleString()}
                       </span>
@@ -538,15 +666,15 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
           {item.source === "url" &&
             (editing ? (
               <section className="flex flex-col gap-2">
-                <h2 className="text-sm font-semibold">Page address</h2>
+                <h2 className="text-sm font-semibold">Page Address</h2>
                 <Input
                   value={url}
                   autoComplete="off"
                   aria-label="Page address"
                   onChange={(event) => setUrl(event.target.value)}
-                  aria-invalid={showErrors && !isValidUrl(url)}
+                  aria-invalid={showErrors && !isValidWebsiteUrl(url)}
                 />
-                {showErrors && !isValidUrl(url) ? (
+                {showErrors && !isValidWebsiteUrl(url) ? (
                   <p className="text-xs text-destructive">
                     Enter a valid page address
                   </p>
@@ -562,7 +690,7 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
                   label="Page"
                   href={item.url}
                   text={item.url}
-                  action="Open page"
+                  action="Open Page"
                 />
               )
             ))}
@@ -572,61 +700,25 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
               label="Document"
               href={item.fileUrl}
               text={item.fileName || item.title}
-              action="View document"
+              action="View Document"
             />
           )}
         </main>
 
-        <aside className="flex flex-col gap-5 border-t p-4 lg:border-t-0 lg:border-l">
-          <KnowledgeScopePanel
-            value={scope}
-            onChange={setScope}
-            bordered={false}
-            // Where it applies is fixed once added; who uses it can be edited.
-            appliesToLocked
-            usedByLocked={!editing}
-            showErrors={Boolean(scopeErrors.aiScope)}
-            description={
-              editing
-                ? "Choose which AI use it, then save."
-                : "Press Edit to change who uses it."
-            }
-          />
-
-          <hr />
-
-          <section className="flex flex-col gap-2 text-xs">
-            <h2 className="text-sm font-semibold">Details</h2>
-            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5">
-              <dt className="text-muted-foreground">Source</dt>
-              <dd>{KNOWLEDGE_SOURCE_LABEL[item.source]}</dd>
-              {item.category && (
-                <>
-                  <dt className="text-muted-foreground">KB type</dt>
-                  <dd>{humanize(item.category)}</dd>
-                </>
-              )}
-              <dt className="text-muted-foreground">Status</dt>
-              <dd>
-                <KnowledgeStatusBadge status={item.status} />
-              </dd>
-              {item.createdBy && (
-                <>
-                  <dt className="text-muted-foreground">Added by</dt>
-                  <dd>{item.createdBy}</dd>
-                </>
-              )}
-              <dt className="text-muted-foreground">Added</dt>
-              <dd>{formatDate(item.createdAt)}</dd>
-              <dt className="text-muted-foreground">Last updated</dt>
-              <dd>
-                {formatDate(item.updatedAt)}
-                {item.updatedBy ? ` by ${item.updatedBy}` : ""}
-              </dd>
-            </dl>
-          </section>
-        </aside>
+        {!belowLg && (
+          <aside className="flex flex-col gap-5 border-l p-4">
+            {settingsPanel}
+          </aside>
+        )}
       </div>
+
+      <KnowledgeSettingsDrawer
+        open={settingsOpen && belowLg}
+        onOpenChange={setSettingsOpen}
+        description="Which assistants use this, where it applies, and when it was added."
+      >
+        {settingsPanel}
+      </KnowledgeSettingsDrawer>
 
       <AlertDialog
         open={publishOpen}
@@ -636,10 +728,12 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Publish this knowledge?</AlertDialogTitle>
+            <AlertDialogTitle>Publish This Knowledge?</AlertDialogTitle>
             <AlertDialogDescription>
-              &quot;{item.title}&quot; is processed and goes live in your
-              assistant once that finishes.
+              <strong className="font-semibold break-words text-foreground">
+                {item.title}
+              </strong>{" "}
+              is processed and goes live in your assistant once that finishes.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -666,42 +760,12 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog
-        open={deleteOpen}
-        onOpenChange={(open) => {
-          if (!isDeleting) setDeleteOpen(open);
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete this knowledge?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently remove &quot;{item.title}&quot;. This action
-              cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-white hover:bg-destructive/90"
-              disabled={isDeleting}
-              onClick={(event) => {
-                event.preventDefault();
-                void handleDelete();
-              }}
-            >
-              {isDeleting ? (
-                <>
-                  <Spinner data-icon="inline-start" />
-                  Deleting…
-                </>
-              ) : (
-                "Delete"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <UnsavedChangesDialog
+        ref={unsavedChanges}
+        isDirty={isDirty}
+        isSaving={isSaving}
+        onSave={handleSave}
+      />
     </div>
   );
 }

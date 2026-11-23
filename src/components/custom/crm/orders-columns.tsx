@@ -148,10 +148,10 @@ export function getOrderColumns(): ColumnDef<OrderListRow>[] {
         // not send total_outstanding.)
         const moneyNotes = [
           refunded > 0
-            ? `${formatPrice(refunded, order.currency)} refunded`
+            ? `${formatPrice(refunded, order.currency)} Refunded`
             : null,
           partiallyPaid && paid > 0
-            ? `${formatPrice(paid, order.currency)} paid of ${formatPrice(
+            ? `${formatPrice(paid, order.currency)} Paid Of ${formatPrice(
                 order.total_price,
                 order.currency,
               )}`
@@ -191,7 +191,7 @@ export function getOrderColumns(): ColumnDef<OrderListRow>[] {
                 as="p"
                 className="text-orange-600 dark:text-orange-400"
               >
-                {formatRelativeTime(order.created_at)} waiting
+                {formatRelativeTime(order.created_at)} Waiting
               </Typography>
             ) : null}
           </div>

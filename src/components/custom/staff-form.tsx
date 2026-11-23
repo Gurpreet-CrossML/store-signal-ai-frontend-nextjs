@@ -28,6 +28,7 @@ import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { formikErrorsFromZod, applyServerFieldErrors } from "@/lib/form-errors";
 import { CreateStaff } from "@/redux/api-slice/tenancy-slice";
 import { ASSIGNABLE_ROLES, ROLE_LABELS } from "@/lib/staff-roles";
+import { useManagedRoles } from "@/hooks/use-managed-roles";
 import { InfoIcon } from "@/components/custom/info-icon";
 
 // Mirrors the server's rule for staff names: letters and spaces only.
@@ -67,6 +68,11 @@ export default function StaffForm({
   onSaved,
 }: StaffFormProps) {
   const dispatch = useAppDispatch();
+  // Only the roles this user may give (a manager: agent, content manager).
+  const managedRoles = useManagedRoles();
+  const roleOptions = ASSIGNABLE_ROLES.filter((role) =>
+    managedRoles.includes(role.value),
+  );
   const { staffSaving } = useAppSelector((state) => state.GetTenancyReducer);
 
   const formik = useFormik<StaffFormValues>({
@@ -95,6 +101,9 @@ export default function StaffForm({
       applyServerFieldErrors(formik, result.payload);
     },
   });
+
+  // Create Staff stays off until every field is valid.
+  const isComplete = validationSchema.safeParse(formik.values).success;
 
   useEffect(() => {
     if (open) formik.resetForm();
@@ -132,6 +141,8 @@ export default function StaffForm({
                   name={f.name}
                   type={f.type}
                   autoComplete="off"
+                  // Locked while the account is being created.
+                  disabled={staffSaving}
                   aria-invalid={Boolean(
                     formik.touched[f.name] && formik.errors[f.name],
                   )}
@@ -152,7 +163,7 @@ export default function StaffForm({
                 <InfoIcon
                   text={
                     <ul className="flex max-w-xs flex-col gap-1">
-                      {ASSIGNABLE_ROLES.map((role) => (
+                      {roleOptions.map((role) => (
                         <li key={role.value}>
                           <span className="font-semibold">
                             {ROLE_LABELS[role.value]}:
@@ -166,6 +177,7 @@ export default function StaffForm({
               </div>
               <Select
                 value={formik.values.role}
+                disabled={staffSaving}
                 onValueChange={(value) => {
                   formik.setFieldValue("role", value);
                   formik.setFieldTouched("role", true, false);
@@ -181,7 +193,7 @@ export default function StaffForm({
                   <SelectValue placeholder="Choose a role" />
                 </SelectTrigger>
                 <SelectContent>
-                  {ASSIGNABLE_ROLES.map((role) => (
+                  {roleOptions.map((role) => (
                     <SelectItem key={role.value} value={role.value}>
                       {ROLE_LABELS[role.value]}
                     </SelectItem>
@@ -203,7 +215,7 @@ export default function StaffForm({
           </FieldGroup>
 
           <SheetFooter>
-            <Button type="submit" disabled={staffSaving || !formik.dirty}>
+            <Button type="submit" disabled={staffSaving || !isComplete}>
               {staffSaving ? (
                 <>
                   <Spinner data-icon="inline-start" />

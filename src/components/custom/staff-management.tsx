@@ -21,9 +21,17 @@ import {
 } from "@/redux/api-slice/tenancy-slice";
 import StaffForm from "@/components/custom/staff-form";
 import { ASSIGNABLE_ROLES, ROLE_LABELS } from "@/lib/staff-roles";
+import { useManagedRoles } from "@/hooks/use-managed-roles";
 import type { StaffRole } from "@/lib/tenant-types";
 import { StaffDataTable } from "@/components/custom/staff-data-table";
-import { getStaffColumns } from "@/components/custom/staff-columns";
+import {
+  StaffMemberCell,
+  StaffRoleBadge,
+  StaffRowMenu,
+  StaffStatusBadge,
+  getStaffColumns,
+  type StaffRowActions,
+} from "@/components/custom/staff-columns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -68,11 +76,15 @@ export default function StaffManagement({
     setStatusFilter("all");
   };
 
+  // The owner is not listed: nobody here can change them.
+  const members = useMemo(
+    () => (staff ?? []).filter((member) => !member.is_staff),
+    [staff],
+  );
   // Staff lists are small (one company), so filtering client-side is fine.
   const filteredStaff = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return (staff ?? []).filter((member) => {
-      if (member.is_staff) return;
+    return members.filter((member) => {
       if (roleFilter !== "all" && member.role !== roleFilter) return false;
       if (
         statusFilter !== "all" &&
@@ -86,24 +98,27 @@ export default function StaffManagement({
         .toLowerCase()
         .includes(query);
     });
-  }, [staff, search, roleFilter, statusFilter]);
+  }, [members, search, roleFilter, statusFilter]);
 
   useEffect(() => {
     dispatch(FetchStaff());
   }, [dispatch]);
 
-  const columns = useMemo(
-    () =>
-      getStaffColumns({
-        onChangeRole: (member) => {
-          setRoleTarget(member);
-          setRoleDraft(member.role);
-        },
-        onResetPassword: setResetTarget,
-        onToggleActive: setToggleTarget,
-      }),
-    [],
+  // A manager may change only agents and content managers (Django decides).
+  const managedRoles = useManagedRoles();
+  const rowActions = useMemo<StaffRowActions>(
+    () => ({
+      canManage: (member) => managedRoles.includes(member.role),
+      onChangeRole: (member) => {
+        setRoleTarget(member);
+        setRoleDraft(member.role);
+      },
+      onResetPassword: setResetTarget,
+      onToggleActive: setToggleTarget,
+    }),
+    [managedRoles],
   );
+  const columns = useMemo(() => getStaffColumns(rowActions), [rowActions]);
 
   if (staffLoading && !staff) {
     return <LoadingState />;
@@ -112,16 +127,33 @@ export default function StaffManagement({
   return (
     <div className={cn("flex w-full flex-col gap-4", className)}>
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative w-full sm:w-64">
+        <div className="relative w-full sm:w-80">
           <IconSearch className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search by name or email…"
+            placeholder="Search by name or email"
             className="pl-8"
             aria-label="Search staff"
           />
         </div>
+
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger
+            aria-label="Filter by status"
+            className={cn(
+              "w-fit",
+              statusFilter !== ALL_FILTER_VALUE && ACTIVE_FILTER_STYLE,
+            )}
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Statuses</SelectItem>
+            <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="inactive">Inactive</SelectItem>
+          </SelectContent>
+        </Select>
 
         <Select value={roleFilter} onValueChange={setRoleFilter}>
           <SelectTrigger
@@ -140,23 +172,6 @@ export default function StaffManagement({
                 {ROLE_LABELS[role.value]}
               </SelectItem>
             ))}
-          </SelectContent>
-        </Select>
-
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger
-            aria-label="Filter by status"
-            className={cn(
-              "w-fit",
-              statusFilter !== ALL_FILTER_VALUE && ACTIVE_FILTER_STYLE,
-            )}
-          >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
-            <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="inactive">Inactive</SelectItem>
           </SelectContent>
         </Select>
 
@@ -184,6 +199,20 @@ export default function StaffManagement({
           columns={columns}
           data={filteredStaff}
           isLoading={staffLoading}
+          isFiltered={hasActiveFilters}
+          totalMembers={members.length}
+          renderCard={(member) => (
+            <div className="flex items-start gap-2">
+              <div className="min-w-0 flex-1 space-y-1.5">
+                <StaffMemberCell staff={member} />
+                <div className="flex flex-wrap gap-1.5 pl-11">
+                  <StaffRoleBadge role={member.role} />
+                  <StaffStatusBadge active={member.is_active} />
+                </div>
+              </div>
+              <StaffRowMenu staff={member} actions={rowActions} />
+            </div>
+          )}
         />
       </div>
 
@@ -200,7 +229,7 @@ export default function StaffManagement({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Change role</AlertDialogTitle>
+            <AlertDialogTitle>Change Role</AlertDialogTitle>
             <AlertDialogDescription>
               Choose what {roleTarget?.email} can do. The role applies to every
               store and takes effect within a minute.
@@ -215,7 +244,9 @@ export default function StaffManagement({
                 <SelectValue placeholder="Choose a role" />
               </SelectTrigger>
               <SelectContent>
-                {ASSIGNABLE_ROLES.map((role) => (
+                {ASSIGNABLE_ROLES.filter((role) =>
+                  managedRoles.includes(role.value),
+                ).map((role) => (
                   <SelectItem key={role.value} value={role.value}>
                     {ROLE_LABELS[role.value]}
                   </SelectItem>
@@ -236,7 +267,7 @@ export default function StaffManagement({
                 setRoleTarget(null);
               }}
             >
-              Save role
+              Save Role
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -249,7 +280,7 @@ export default function StaffManagement({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Reset password?</AlertDialogTitle>
+            <AlertDialogTitle>Reset Password?</AlertDialogTitle>
             <AlertDialogDescription>
               A new temporary password will be generated and emailed to{" "}
               {resetTarget?.email}. Their current password will stop working.
@@ -269,7 +300,7 @@ export default function StaffManagement({
                 setResetTarget(null);
               }}
             >
-              Reset &amp; email
+              Reset &amp; Email
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -283,7 +314,7 @@ export default function StaffManagement({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {toggleTarget?.is_active ? "Deactivate" : "Activate"} staff user?
+              {toggleTarget?.is_active ? "Deactivate" : "Activate"} Staff User?
             </AlertDialogTitle>
             <AlertDialogDescription>
               {toggleTarget?.is_active

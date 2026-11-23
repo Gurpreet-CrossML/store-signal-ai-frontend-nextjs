@@ -46,9 +46,9 @@ import { CreateTicketAction } from "@/components/custom/helpdesk/create-ticket-a
 /**
  * One screen inside a multi-screen area.
  *
- * `description` is the short line on the area's menu card; `pageDescription`
- * is the longer one under the screen's own heading, falling back to the
- * short one when a screen doesn't need the distinction.
+ * `description` is the short line; `pageDescription` is the longer one under
+ * the screen's own heading, which falls back to the short one when a screen
+ * doesn't need the distinction.
  */
 export type AreaSection = {
   href: string;
@@ -57,6 +57,8 @@ export type AreaSection = {
   pageDescription?: string;
   icon: Icon;
   items?: AreaSection[];
+  /** Only the store owner sees it (billing-like pages), like Django's untagged views. */
+  ownerOnly?: boolean;
 };
 
 export type NavArea = {
@@ -70,8 +72,9 @@ export type NavArea = {
 };
 
 /**
- * THE source for every multi-screen area: its menu page, its sub-sidebar,
- * and each screen's own heading all read from here.
+ * THE source for every multi-screen area: its sub-sidebar, where its own
+ * address redirects (the first screen), and each screen's own heading all
+ * read from here.
  *
  * Adding a screen is one entry plus a page file — previously its title,
  * description and icon had to be repeated in the landing array, the page
@@ -131,7 +134,7 @@ export const NAV_AREAS = {
       },
       {
         href: "/helpdesk?filter=assigned_to_me",
-        title: "Assigned to me",
+        title: "Assigned To Me",
         description: "Tickets you are working on.",
         icon: IconUserCheck,
       },
@@ -168,9 +171,9 @@ export const NAV_AREAS = {
         href: "/settings/general",
         title: "General",
         description: "Company profile — name, logo, and identity details.",
-        pageDescription:
-          "Your company's contact details, logo, and address. The name and code are managed by the platform operator.",
+        pageDescription: "Your company's contact details, logo, and address.",
         icon: IconBuildingSkyscraper,
+        ownerOnly: true,
       },
       {
         href: "/settings/staff-management",
@@ -225,6 +228,7 @@ export const NAV_AREAS = {
         pageDescription:
           "AI credit usage for this store by day and capability.",
         icon: IconChartBar,
+        ownerOnly: true,
       },
       {
         href: "/settings/social-ai",
@@ -282,7 +286,7 @@ export const NAV_AREAS = {
       },
       {
         href: "/settings/workflows",
-        title: "AI workflows",
+        title: "AI Workflows",
         description: "Turn the AI's workflows on or off for this store.",
         pageDescription:
           "Everything your Sales AI and Support AI can do for your customers. Turn one off and the AI stops answering those questions for this store only; workflows that depend on it turn off with it.",

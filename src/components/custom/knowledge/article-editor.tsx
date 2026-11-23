@@ -83,13 +83,13 @@ const SLASH_ITEMS: SlashItem[] = [
     run: (editor) => editor.chain().focus().setHeading({ level: 3 }).run(),
   },
   {
-    label: "Bulleted list",
+    label: "Bulleted List",
     hint: "Simple list",
     icon: IconList,
     run: (editor) => editor.chain().focus().toggleBulletList().run(),
   },
   {
-    label: "Numbered list",
+    label: "Numbered List",
     hint: "Steps in order",
     icon: IconListNumbers,
     run: (editor) => editor.chain().focus().toggleOrderedList().run(),
@@ -119,8 +119,24 @@ const SLASH_ITEMS: SlashItem[] = [
   },
 ];
 
-/** The text after a "/" that starts an empty-ish line, and where to draw the menu. */
-type SlashState = { query: string; top: number; left: number } | null;
+/**
+ * The text after a "/" that starts an empty-ish line, and where the caret is
+ * (its top and bottom edge, in the viewport) so the menu can sit by it.
+ */
+type SlashState = {
+  query: string;
+  top: number;
+  bottom: number;
+  left: number;
+} | null;
+
+// Room kept between the "/" menu and the edge of the screen, the gap between
+// the menu and the caret, and the least height worth showing the menu at.
+const SLASH_MENU_MARGIN = 12;
+const SLASH_MENU_GAP = 6;
+const SLASH_MENU_MIN_HEIGHT = 120;
+// About what the full menu needs (7 entries), to decide whether it fits below.
+const SLASH_MENU_FULL_HEIGHT = 360;
 
 function readSlashState(editor: Editor): SlashState {
   const { selection } = editor.state;
@@ -133,7 +149,12 @@ function readSlashState(editor: Editor): SlashState {
   if (!text.startsWith("/") || /\s/.test(text)) return null;
 
   const coords = editor.view.coordsAtPos(selection.from);
-  return { query: text.slice(1), top: coords.bottom + 6, left: coords.left };
+  return {
+    query: text.slice(1),
+    top: coords.top,
+    bottom: coords.bottom,
+    left: coords.left,
+  };
 }
 
 function ToolbarButton({
@@ -245,7 +266,7 @@ function LinkButton({ editor }: { editor: Editor }) {
             </Button>
           )}
           <Button type="button" size="sm" onClick={apply}>
-            {isLink ? "Update" : "Add link"}
+            {isLink ? "Update" : "Add Link"}
           </Button>
         </div>
       </PopoverContent>
@@ -358,14 +379,14 @@ function Toolbar({ editor, words }: { editor: Editor; words: number }) {
       <Divider />
 
       <ToolbarButton
-        label="Bulleted list"
+        label="Bulleted List"
         active={state.bulletList}
         onClick={() => editor.chain().focus().toggleBulletList().run()}
       >
         <IconList className="size-4" />
       </ToolbarButton>
       <ToolbarButton
-        label="Numbered list"
+        label="Numbered List"
         active={state.orderedList}
         onClick={() => editor.chain().focus().toggleOrderedList().run()}
       >
@@ -401,7 +422,7 @@ function Toolbar({ editor, words }: { editor: Editor; words: number }) {
       </ToolbarButton>
 
       <span className="ml-auto shrink-0 pl-3 text-xs whitespace-nowrap text-muted-foreground">
-        {words.toLocaleString()} {words === 1 ? "word" : "words"}
+        {words.toLocaleString()} {words === 1 ? "Word" : "Words"}
         <span className="hidden sm:inline">
           {" · Type "}
           <kbd className="rounded border px-1 font-mono">/</kbd>
@@ -420,13 +441,11 @@ function Toolbar({ editor, words }: { editor: Editor; words: number }) {
 export function ArticleEditor({
   initialHtml,
   onChange,
-  onReady,
   disabled = false,
 }: {
   /** Read once, when the editor is created. */
   initialHtml: string;
   onChange: (html: string) => void;
-  onReady?: (editor: Editor) => void;
   disabled?: boolean;
 }) {
   // Latest list and highlighted entry, for the key handler below, which the
@@ -478,12 +497,6 @@ export function ArticleEditor({
   });
 
   useEffect(() => {
-    if (editor) onReady?.(editor);
-    // Handing the editor up once it exists is all this does.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editor]);
-
-  useEffect(() => {
     // `false`: changing editability is not an edit, so it must not emit an update.
     editor?.setEditable(!disabled, false);
   }, [editor, disabled]);
@@ -492,7 +505,10 @@ export function ArticleEditor({
     editor,
     selector: ({ editor: e }) => (e ? readSlashState(e) : null),
     equalityFn: (a, b) =>
-      a?.query === b?.query && a?.top === b?.top && a?.left === b?.left,
+      a?.query === b?.query &&
+      a?.top === b?.top &&
+      a?.bottom === b?.bottom &&
+      a?.left === b?.left,
   });
   const words = useEditorState({
     editor,
@@ -521,6 +537,14 @@ export function ArticleEditor({
     item.run(editor);
   };
 
+  // Keep the entry picked with the arrow keys in view when the menu scrolls.
+  const menuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    menuRef.current
+      ?.querySelector('[aria-selected="true"]')
+      ?.scrollIntoView({ block: "nearest" });
+  }, [index, query]);
+
   useEffect(() => {
     slashRef.current = slash
       ? {
@@ -534,23 +558,48 @@ export function ArticleEditor({
 
   if (!editor) return <div className="min-h-80" aria-busy />;
 
+  // The menu opens below the line being typed on; near the bottom of the
+  // screen, where it would be cut off, it opens above instead. Either way it
+  // is held to the room on that side and scrolls if it is taller.
+  const spaceBelow =
+    slash === null
+      ? 0
+      : window.innerHeight - slash.bottom - SLASH_MENU_GAP - SLASH_MENU_MARGIN;
+  const spaceAbove =
+    slash === null ? 0 : slash.top - SLASH_MENU_GAP - SLASH_MENU_MARGIN;
+  const opensAbove =
+    spaceBelow < Math.min(SLASH_MENU_FULL_HEIGHT, items.length * 52) &&
+    spaceAbove > spaceBelow;
+  const menuMaxHeight = Math.max(
+    SLASH_MENU_MIN_HEIGHT,
+    opensAbove ? spaceAbove : spaceBelow,
+  );
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <Toolbar editor={editor} words={words ?? 0} />
-      <div className="px-4 py-6 sm:px-8">
+      {/* The page is one screen tall, so the text scrolls here while the
+          title and toolbar stay put. */}
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6 sm:px-8">
         <EditorContent editor={editor} />
       </div>
 
       {slash && items.length > 0 && (
         <div
+          ref={menuRef}
           role="listbox"
           aria-label="Blocks"
           style={{
             position: "fixed",
-            top: slash.top,
+            ...(opensAbove
+              ? {
+                  bottom: window.innerHeight - slash.top + SLASH_MENU_GAP,
+                }
+              : { top: slash.bottom + SLASH_MENU_GAP }),
             left: Math.min(slash.left, window.innerWidth - 240),
+            maxHeight: menuMaxHeight,
           }}
-          className="z-50 w-56 rounded-lg border bg-popover p-1 shadow-md"
+          className="z-50 w-56 overflow-y-auto rounded-lg border bg-popover p-1 shadow-md"
         >
           {items.map((item, itemIndex) => (
             <button

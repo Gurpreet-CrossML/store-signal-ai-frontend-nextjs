@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import {
   IconCloudUpload,
   IconFileTypeDocx,
@@ -69,6 +69,7 @@ export function MultiFileUploadDropzone({
   errors,
   maxFiles,
   maxFileSizeBytes = KNOWLEDGE_FILE_MAX_SIZE_BYTES,
+  renderFileExtra,
 }: {
   files: File[];
   onFilesSelected: (files: File[]) => void;
@@ -77,6 +78,8 @@ export function MultiFileUploadDropzone({
   maxFiles?: number;
   /** Per-file size limit; larger files are rejected with a toast. */
   maxFileSizeBytes?: number;
+  /** Something to show in each selected file's row, e.g. a field of its own. */
+  renderFileExtra?: (file: File, index: number) => ReactNode;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -107,7 +110,9 @@ export function MultiFileUploadDropzone({
 
     let newFiles = incoming.filter((f) => {
       const key = `${f.name}|${f.size}|${f.lastModified}`;
-      return !existingKeys.has(key);
+      if (existingKeys.has(key)) return false;
+      existingKeys.add(key);
+      return true;
     });
 
     if (newFiles.length === 0) return;
@@ -208,16 +213,19 @@ export function MultiFileUploadDropzone({
       {files.length > 0 && (
         <div className="mt-2 flex flex-col gap-2">
           <p className="text-xs font-medium text-muted-foreground">
-            {files.length} {files.length === 1 ? "file" : "files"}
+            {files.length} {files.length === 1 ? "File" : "Files"}
           </p>
           {files.map((file, index) => (
-            <div key={`${file.name}-${index}`} className="flex flex-col gap-1">
-              <div className="flex items-center gap-3 rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5">
+            <div
+              key={`${file.name}|${file.size}|${file.lastModified}`}
+              className="flex flex-col gap-1"
+            >
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5">
                 <FileTypeIcon
                   fileType={file.type}
                   className="size-5 shrink-0 text-muted-foreground"
                 />
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0 flex-1 basis-40">
                   <Typography variant="small" as="p" className="truncate">
                     {file.name}
                   </Typography>
@@ -225,12 +233,19 @@ export function MultiFileUploadDropzone({
                     {formatBytes(file.size)}
                   </Typography>
                 </div>
+                {/* At the right of the file on wider screens; on a phone it
+                    drops to its own line under the name, below the remove button. */}
+                {renderFileExtra && (
+                  <div className="order-last w-full sm:order-none sm:w-56 sm:shrink-0 lg:w-64">
+                    {renderFileExtra(file, index)}
+                  </div>
+                )}
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon-sm"
                   onClick={() => onRemoveFile(index)}
-                  aria-label="Remove file"
+                  aria-label={`Remove ${file.name}`}
                 >
                   <IconX className="size-4" />
                 </Button>

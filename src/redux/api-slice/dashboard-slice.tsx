@@ -32,6 +32,8 @@ export type FeedbackInsightsResponse = {
 
 export type EngagementResponse = {
   total_threads: number;
+  active_threads: number;
+  closed_threads: number;
   total_threads_trend: MetricTrend;
   sessions_resolved: number;
   avg_response_time_seconds: number;

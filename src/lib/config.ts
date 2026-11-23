@@ -74,6 +74,8 @@ export const ENDPOINTS = {
   fetchCompanyProfile: () => "/tenancy/company/",
   updateCompanyProfile: () => "/tenancy/company/",
   fetchStaff: () => "/tenancy/staff/",
+  // Active support agents and store managers: who chats and tickets go to.
+  fetchAssignableStaff: () => "/tenancy/staff/?assignable=true",
   createStaff: () => "/tenancy/staff/",
   updateStaff: (id: number) => `/tenancy/staff/${id}/`,
   resetStaffPassword: (id: number) => `/tenancy/staff/${id}/reset-password/`,
@@ -179,6 +181,9 @@ export const ENDPOINTS = {
   fetchThreadTagOptions: () => "/analytics/threads/tags",
   fetchAIInsight: (threadId: string) =>
     `/analytics/threads/${threadId}/ai-insights`,
+  // POST — run the AI analysis for an ended thread, on the merchant's request.
+  generateAIInsight: (threadId: string) =>
+    createAPIUrl(`/analytics/threads/${threadId}/ai-insights/`, "django"),
   fetchCartData: (threadId: string) =>
     `/analytics/threads/${threadId}/cart-data`,
   // Support tickets (Django). Same payload from both, so the caller only
@@ -211,6 +216,17 @@ export const ENDPOINTS = {
     `/knowledge/knowledge-items/${id}/publish/`,
   // Vector storage (used / limit / by kind, in bytes) and item counts. Django.
   fetchKnowledgeStats: () => `/knowledge/knowledge-items/stats/`,
+  // The knowledge categories with how many items are filed under each. Django.
+  fetchKnowledgeCategories: () => `/knowledge/knowledge-items/categories/`,
+  // The sample customer questions a store owner can try on their AI (the same
+  // list for every store), and the questions the AI couldn't answer. Django.
+  fetchTestQuestions: () => `/knowledge/test-questions/`,
+  fetchUnansweredQuestions: () => `/chat/unanswered-questions/`,
+  // The workflows that left customer questions unanswered, with how many each left.
+  fetchUnansweredWorkflows: () => `/chat/unanswered-questions/workflows/`,
+  // The Test AI chat: POST a question to have the AI answer it from the
+  // store's knowledge. Nothing is saved. Django.
+  testAnswer: () => `/knowledge/test-answer/`,
   // Website URL discovery: POST a site URL, get back the pages found on it
   // (url, title, word count) so the user can pick which to index. Django.
   discoverKnowledgeUrls: () => `/knowledge/knowledge-items/discover-urls/`,
@@ -385,6 +401,8 @@ export const ENDPOINTS = {
   notifications: () => createAPIUrl("/support/notifications/", "django"),
   notificationCounts: () =>
     createAPIUrl("/support/notifications/counts/", "django"),
+  notificationsMarkAllRead: () =>
+    createAPIUrl("/support/notifications/mark/read/", "django"),
   notificationMarkRead: (notification_id: number) =>
     createAPIUrl(
       `/support/notifications/${notification_id}/mark/read/`,
@@ -751,9 +769,9 @@ export const REGIONAL_SPELLING_CHOICES: readonly DescribedOption[] = [
 // Mirrors `onboarding_step` on the session user (Django user_context), in
 // the order the user walks through them.
 export const ONBOARDING_STEPS = [
-  { value: "store_setup", label: "Connect the store" },
-  { value: "go_live", label: "Go live on store" },
-  { value: "brand_voice", label: "Set up brand voice" },
+  { value: "store_setup", label: "Connect The Store" },
+  { value: "go_live", label: "Go Live On Store" },
+  { value: "brand_voice", label: "Set Up Brand Voice" },
 ] as const;
 
 export type OnboardingStep = (typeof ONBOARDING_STEPS)[number]["value"];
@@ -777,10 +795,10 @@ export const WIDGET_INSTALL_STEPS = {
 } as const;
 
 export const SHOPIFY_CONNECT_STEPS = [
-  "Checking permissions",
-  "Fetching connected store details",
-  "Subscribing to store updates",
-  "Setting things up",
+  "Checking Permissions",
+  "Fetching Connected Store Details",
+  "Subscribing To Store Updates",
+  "Setting Things Up",
   "Done",
 ] as const;
 
@@ -866,6 +884,13 @@ export const ACTIVE_QUEUE_STYLE =
 export const ACTIVE_ASSIGNEE_STYLE =
   "border-sky-300 bg-sky-50 text-sky-700 hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-950/30 dark:text-sky-300 dark:hover:bg-sky-950/50";
 export const ALL_FILTER_VALUE = "all" as const;
+/**
+ * date-fns format of the plain dates the date pickers emit and the APIs take
+ * as `from`/`to`. Everything that writes or reads those values uses it.
+ */
+export const API_DATE_FORMAT = "yyyy-MM-dd";
+/** date-fns format a picked day is shown in. */
+export const DISPLAY_DATE_FORMAT = "MMM dd, yyyy";
 export const ANY_FILTER_VALUE = "any" as const;
 export const DEFAULT_HELPDESK_QUEUE = "open" as const;
 export const DEFAULT_CUSTOMER_ORDERING = "-total_spent" as const;
@@ -887,3 +912,123 @@ export const GMAIL_STEPS = [
   'Confirm it in Gmail, then select "Forward a copy of incoming mail to" the new address and Save Changes.',
   "Come back here and send the test email.",
 ];
+
+// Knowledge storage: the share of the plan's vector storage used from which
+// the library shows a warning (yellow here, red once it is full).
+export const KNOWLEDGE_STORAGE_WARNING_SHARE = 0.9;
+
+// Knowledge limits, the same as the backend's `KNOWLEDGE_TITLE_MIN_LENGTH`,
+// `KNOWLEDGE_TITLE_MAX_LENGTH` and `KNOWLEDGE_ARTICLE_MAX_LENGTH`. The title is the same for every URL and
+// article; the article body counts visible text only.
+export const KNOWLEDGE_TITLE_MIN_LENGTH = 3;
+export const KNOWLEDGE_TITLE_MAX_LENGTH = 100;
+export const ARTICLE_BODY_MAX_LENGTH = 30_000;
+
+// The "category" of the knowledge that is filed under no knowledge category: its
+// value in the knowledge API's `knowledge_category` filter (the backend's
+// `KNOWLEDGE_UNCATEGORIZED_FILTER`), and the name it goes by in the page URL
+// (/knowledge/categories/uncategorized).
+export const KNOWLEDGE_UNCATEGORIZED_FILTER = "none";
+export const KNOWLEDGE_UNCATEGORIZED_ROUTE = "uncategorized";
+
+// The list of all the store's knowledge, whatever its category
+// (/knowledge/categories/all). With `?approval_waiting=true` it shows only the
+// pages the automatic import saved as drafts that wait for the user to publish
+// (the knowledge API's `approval_waiting` filter); the checklist drawer links there.
+export const KNOWLEDGE_ALL_ROUTE = "all";
+export const KNOWLEDGE_APPROVAL_WAITING_PARAM = "approval_waiting";
+export const KNOWLEDGE_APPROVAL_WAITING_HREF = `/knowledge/categories/${KNOWLEDGE_ALL_ROUTE}?${KNOWLEDGE_APPROVAL_WAITING_PARAM}=true`;
+
+// The Test AI page, opened by the Test AI button on the Knowledge screen: the
+// AI test chat on the left and, on the right, a panel with these two tabs.
+export const KNOWLEDGE_TEST_AI_HREF = "/knowledge/test-ai";
+export const KNOWLEDGE_TEST_AI_TABS = {
+  questions: "questions",
+  unanswered: "unanswered",
+} as const;
+export type KnowledgeTestAiTab =
+  (typeof KNOWLEDGE_TEST_AI_TABS)[keyof typeof KNOWLEDGE_TEST_AI_TABS];
+// How long a question typed into the Test AI chat may be. A typed test question
+// is short; the Ask buttons on the lists skip this limit, so a longer customer
+// question can still be asked (the backend accepts up to 500 characters).
+export const KNOWLEDGE_TEST_QUESTION_MIN_LENGTH = 3;
+export const KNOWLEDGE_TEST_QUESTION_MAX_LENGTH = 100;
+// What a Test AI answer says its products came from. Shopify is the only
+// platform a store can be connected with today.
+export const KNOWLEDGE_TEST_PRODUCT_SOURCE_LABEL = "Shopify Products";
+// AI credits one Test AI answer costs when the AI model runs.
+export const KNOWLEDGE_TEST_ANSWER_CREDITS = 1;
+// Said under the Test AI chat: it is never saved.
+export const KNOWLEDGE_TEST_CHAT_NOTICE =
+  "This chat isn't saved. It will be cleared when you switch pages or reload.";
+// Who wrote a Test AI chat message.
+export const KNOWLEDGE_TEST_SENDERS = { user: "user", ai: "ai" } as const;
+export type KnowledgeTestSender =
+  (typeof KNOWLEDGE_TEST_SENDERS)[keyof typeof KNOWLEDGE_TEST_SENDERS];
+export const KNOWLEDGE_UNANSWERED_PAGE_SIZE = 25;
+export const KNOWLEDGE_TEST_QUESTIONS_PAGE_SIZE = 25;
+// How many items of each kind a category holds, as the knowledge API's
+// `source_counts` keys it, in the order they are listed ("2 website pages ·
+// 1 document"), with the words for one and for several.
+export const KNOWLEDGE_SOURCE_COUNT_LABELS = [
+  { key: "urls", one: "website page", many: "website pages" },
+  { key: "documents", one: "document", many: "documents" },
+  { key: "articles", one: "article", many: "articles" },
+  { key: "faqs", one: "FAQ", many: "FAQs" },
+] as const;
+export const KNOWLEDGE_ALL_NAME = "All Knowledge";
+export const KNOWLEDGE_ALL_DESCRIPTION =
+  "Everything your assistant knows, across every category";
+export const KNOWLEDGE_APPROVAL_WAITING_NAME = "Waiting For Your Approval";
+export const KNOWLEDGE_APPROVAL_WAITING_DESCRIPTION =
+  "Pages found on your website that are saved as drafts. Check them and publish the ones your assistant should use.";
+
+// The Add knowledge screen's limits. The caps match the backend's
+// `KNOWLEDGE_MAX_FAQS_PER_REQUEST`, `KNOWLEDGE_MAX_URLS_PER_REQUEST` and
+// `KNOWLEDGE_DISCOVERY_MAX_SPECIFIC_PAGES`; the address length is its URL field's
+// `max_length`.
+export const KNOWLEDGE_FAQ_CAP = 20;
+// Pages and links that can be added in one request.
+export const KNOWLEDGE_WEBSITE_URL_CAP = 100;
+// Specific pages that can be listed in the field at once.
+export const KNOWLEDGE_SPECIFIC_PAGE_CAP = 20;
+export const KNOWLEDGE_FILE_CAP = 15;
+export const KNOWLEDGE_URL_MAX_LENGTH = 2048;
+// How long the pages field waits after typing stops before it is read.
+export const KNOWLEDGE_URL_INPUT_DELAY_MS = 500;
+
+// What knowledge filed under no knowledge category is called, and what its card
+// says about it.
+export const KNOWLEDGE_UNCATEGORIZED_NAME = "No Category";
+export const KNOWLEDGE_UNCATEGORIZED_DESCRIPTION =
+  "Knowledge that isn't filed under any category yet";
+
+// Progress of the automatic import of a new store's policy and help pages, as the
+// dashboard checklist's knowledge step reports it ("" when it never ran).
+export const KNOWLEDGE_SCAN_STATUS = {
+  QUEUED: "queued",
+  RUNNING: "running",
+  DONE: "done",
+  FAILED: "failed",
+} as const;
+export type KnowledgeScanStatus =
+  | ""
+  | (typeof KNOWLEDGE_SCAN_STATUS)[keyof typeof KNOWLEDGE_SCAN_STATUS];
+// The statuses in which the import is not complete yet.
+export const KNOWLEDGE_SCAN_ACTIVE_STATUSES: readonly KnowledgeScanStatus[] = [
+  KNOWLEDGE_SCAN_STATUS.QUEUED,
+  KNOWLEDGE_SCAN_STATUS.RUNNING,
+];
+// How often the checklist is re-read while the import is not complete.
+export const KNOWLEDGE_SCAN_POLL_MS = 5000;
+
+// The Help Desk ticket's language dropdown footer while no agent has changed
+// the language. Once one has, it says who changed it instead.
+export const LANGUAGE_DETECTED_NOTE =
+  "Detected by AI from the customer's messages. “Send in customer's language” uses this.";
+
+// The longest chat message, the same as the customer widget's
+// MAX_MESSAGE_LENGTH: Live Chat stops typing at it and turns Send off.
+export const MAX_MESSAGE_LENGTH = 1000;
+export const MESSAGE_TOO_LONG_TEXT =
+  "Your message is too long. Please shorten it and try again.";

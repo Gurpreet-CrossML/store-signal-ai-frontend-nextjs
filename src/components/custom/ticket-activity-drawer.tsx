@@ -6,8 +6,10 @@ import {
   IconArrowRight,
   IconCircleCheck,
   IconHistory,
+  IconPencil,
   IconPlus,
   IconRefresh,
+  IconTag,
   IconUserCheck,
   type Icon,
 } from "@tabler/icons-react";
@@ -32,7 +34,9 @@ import { TICKET_STATUS_TONES } from "@/components/custom/support-ticket-card";
 import { cn } from "@/lib/utils";
 import { Typography } from "@/components/ui/typography";
 import { capitalizeText, formatDate } from "@/lib/helpers";
+import { isTicketChange, ticketChangeTitle } from "@/lib/ticket-options";
 import {
+  SUPPORT_TICKET_CHANGE_TYPES,
   SupportTicketActivityFetch,
   type SupportTicketActivityItem,
 } from "@/redux/api-slice/support-ticket-slice";
@@ -42,7 +46,7 @@ import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 const CREATED_BY_LABEL: Record<string, string> = {
   ai: "AI",
   agent: "an agent",
-  rule: "a rule",
+  email: "an email",
 };
 
 function statusTone(status: string | null): BadgeTone {
@@ -100,6 +104,18 @@ function present(item: SupportTicketActivityItem): {
           <StatusPill status={to} />
         </span>
       ),
+      by: item.actor,
+    };
+  }
+
+  if (isTicketChange(item)) {
+    return {
+      icon:
+        item.type === SUPPORT_TICKET_CHANGE_TYPES.TAG_ADDED ||
+        item.type === SUPPORT_TICKET_CHANGE_TYPES.TAG_REMOVED
+          ? IconTag
+          : IconPencil,
+      title: ticketChangeTitle(item),
       by: item.actor,
     };
   }
@@ -241,7 +257,7 @@ export function TicketActivityDrawer({
           className="w-full gap-0 p-0 data-[side=right]:sm:max-w-md"
         >
           <SheetHeader className="border-b">
-            <SheetTitle>Ticket activities</SheetTitle>
+            <SheetTitle>Ticket Activities</SheetTitle>
             <SheetDescription className="sr-only">
               Creation, status changes and assignments for this ticket.
             </SheetDescription>

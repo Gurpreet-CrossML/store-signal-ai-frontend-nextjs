@@ -12,6 +12,7 @@ import type {
   SupportTicketFilterCounts,
   SupportTicket,
   SupportTicketFilters,
+  SupportTicketStatus,
 } from "@/redux/api-slice/support-ticket-slice";
 
 /**
@@ -25,6 +26,15 @@ import type {
  * This file is the one place that turns a `filter` into a ticket list query
  * and into the panel's rows, so the two cannot drift apart.
  */
+
+/**
+ * The statuses the list's tabs show. The panel's counts always cover these,
+ * plus any resolved or closed ones picked in the filter.
+ */
+export const HELPDESK_ACTIVE_STATUSES: SupportTicketStatus[] = [
+  "open",
+  "reopen",
+];
 
 const FIXED_VIEWS: Record<
   string,
@@ -141,7 +151,7 @@ const COUNT_GROUPS: {
  * menu) keep in the URL. They narrow whichever view is open, so moving to
  * another view carries them along.
  */
-export const HELPDESK_LIST_PARAMS = ["priority", "sort"] as const;
+export const HELPDESK_LIST_PARAMS = ["priority", "status", "sort"] as const;
 
 /**
  * `href`, if it is a help desk view, with the list params of `search`
@@ -218,13 +228,13 @@ export function ticketBelongsToHelpdeskFilter(
  * menu list them, each with the colour of its dot.
  */
 export const HELPDESK_VIEWS = [
-  { filter: "", label: "All inboxes", dot: "bg-primary" },
-  { filter: "assigned_to_me", label: "Assigned to me", dot: "bg-blue-500" },
+  { filter: "", label: "All Inboxes", dot: "bg-primary" },
+  { filter: "assigned_to_me", label: "Assigned To Me", dot: "bg-blue-500" },
   { filter: "unassigned", label: "Unassigned", dot: "bg-zinc-400" },
   { filter: "unread", label: "Unread", dot: "bg-violet-600" },
   {
     filter: "negative_sentiment",
-    label: "Negative sentiment",
+    label: "Negative Sentiment",
     dot: "bg-orange-500",
   },
 ] as const;
@@ -232,7 +242,7 @@ export const HELPDESK_VIEWS = [
 /** How the left panel names a channel: the web widget is a live chat. */
 export const HELPDESK_CHANNEL_LABELS: Partial<
   Record<SupportTicketChannel, string>
-> = { web: "Web chat" };
+> = { web: "Web Chat" };
 
 /** The ring colour of a channel's mark in the left panel. */
 export const HELPDESK_CHANNEL_RINGS: Partial<
@@ -308,7 +318,7 @@ export function helpdeskViewLabel(
       value
     );
   }
-  return "All inboxes";
+  return "All Inboxes";
 }
 
 /** The ticket count of the fixed view a sidebar url points at, if it is one. */

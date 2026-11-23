@@ -9,6 +9,7 @@ import {
 } from "@tabler/icons-react";
 
 import { Button } from "@/components/ui/button";
+import { capitalizeText } from "@/lib/helpers";
 import { cn } from "@/lib/utils";
 import {
   Select,
@@ -24,19 +25,26 @@ interface DataTablePaginationProps<TData> {
   table: Table<TData>;
   totalCount: number;
   noun?: string;
+  /** Plural of `noun` when it is not just noun + "s" (policy → policies). */
+  nounPlural?: string;
   /**
    * On a phone, lay the bar out in two rows instead of stacking every part:
    * the total and the rows-per-page picker, then previous, the page
    * indicator and next. Other screens keep the stacked layout.
    */
   compactOnMobile?: boolean;
+  /** The count before search and filters. When the list is narrowed, the
+   * total reads "Showing 3 Of 26 Members" instead of "3 Members Total". */
+  outOf?: number;
 }
 
 export function DataTablePagination<TData>({
   table,
   totalCount,
   noun = "thread",
+  nounPlural = `${noun}s`,
   compactOnMobile = false,
+  outOf,
 }: DataTablePaginationProps<TData>) {
   // TanStack hands back the same `table` object on every render and changes
   // its state in place, so the React Compiler would cache what is read from
@@ -76,7 +84,9 @@ export function DataTablePagination<TData>({
           compactOnMobile && "max-sm:whitespace-normal",
         )}
       >
-        {totalCount} {totalCount === 1 ? noun : `${noun}s`} total
+        {outOf !== undefined && outOf !== totalCount
+          ? `Showing ${totalCount} Of ${outOf} ${capitalizeText(outOf === 1 ? noun : nounPlural)}`
+          : `${totalCount} ${capitalizeText(totalCount === 1 ? noun : nounPlural)} Total`}
       </div>
 
       {/* In the compact layout this wrapper (and the nav one below) vanish,
@@ -95,7 +105,7 @@ export function DataTablePagination<TData>({
               "max-sm:col-span-2 max-sm:col-start-2 max-sm:row-start-1 max-sm:justify-self-end",
           )}
         >
-          <p className="text-sm font-medium whitespace-nowrap">Rows per page</p>
+          <p className="text-sm font-medium whitespace-nowrap">Rows Per Page</p>
           <Select
             value={`${pageSize}`}
             onValueChange={(value) => handlePageSizeChange(Number(value))}

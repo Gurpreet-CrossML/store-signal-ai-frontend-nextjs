@@ -5,10 +5,17 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { IconCheck, IconX } from "@tabler/icons-react";
+import {
+  IconArrowRight,
+  IconCheck,
+  IconClock,
+  IconFileText,
+  IconX,
+} from "@tabler/icons-react";
 
 import { StoreSnippet } from "@/components/custom/go-live-card";
 import { useMetaOAuth } from "@/components/custom/settings/social-ai/use-meta-oauth";
+import { useCan } from "@/hooks/use-can";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -27,6 +34,9 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { SidebarMenuButton } from "@/components/ui/sidebar";
 import {
+  KNOWLEDGE_APPROVAL_WAITING_HREF,
+  KNOWLEDGE_SCAN_ACTIVE_STATUSES,
+  KNOWLEDGE_SCAN_POLL_MS,
   ONBOARDING_STEPS,
   SocialAIPlatformOptions,
   STORE_PLATFORMS,
@@ -35,25 +45,25 @@ import {
 import { cn } from "@/lib/utils";
 import {
   FetchDashboardChecklist,
+  type ChecklistStep,
   type ChecklistStepKey,
 } from "@/redux/api-slice/dashboard-checklist-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 
-// TODO: the knowledge base sync step (in the design) goes before "social"
-// once it is built.
 const STEP_ORDER: ChecklistStepKey[] = [
   "connected",
   "widget_live",
   "brand_voice",
+  "knowledge",
   "social",
 ];
 
 // The first three are the steps the onboarding wizard walks through, under
 // its own key names — this maps the checklist's keys onto those so the
 // title text has one source instead of two copies that can drift apart.
-// Social is checklist-only, so it has no wizard step.
+// Knowledge and social are checklist-only, so they have no wizard step.
 const ONBOARDING_STEP_KEY: Record<
-  Exclude<ChecklistStepKey, "social">,
+  Exclude<ChecklistStepKey, "knowledge" | "social">,
   OnboardingStep
 > = {
   connected: "store_setup",
@@ -61,9 +71,14 @@ const ONBOARDING_STEP_KEY: Record<
   brand_voice: "brand_voice",
 };
 
+const CHECKLIST_ONLY_TITLE: Record<"knowledge" | "social", string> = {
+  knowledge: "Add Knowledge",
+  social: "Connect Social Accounts",
+};
+
 const stepTitle = (key: ChecklistStepKey) =>
-  key === "social"
-    ? "Connect social accounts"
+  key === "knowledge" || key === "social"
+    ? CHECKLIST_ONLY_TITLE[key]
     : ONBOARDING_STEPS.find((step) => step.value === ONBOARDING_STEP_KEY[key])!
         .label;
 
@@ -75,6 +90,8 @@ const STEP_DESCRIPTION: Record<
     "Paste the widget script into your Shopify theme (layout/theme.liquid, just before </body>) so the chat widget shows on your storefront.",
   brand_voice:
     "Name your assistant and pick how it sounds. Until then it uses the default name and the Customer Support preset.",
+  knowledge:
+    "Add website pages, documents or questions and answers so your assistant can answer shoppers about your policies, shipping and returns.",
   social:
     "Sign in with Meta to connect Facebook, Instagram and WhatsApp. You choose which accounts to connect in the Meta window.",
 };
@@ -86,8 +103,66 @@ const STEP_DONE_DETAIL: Record<
 > = {
   widget_live: "Widget detected on your storefront",
   brand_voice: "Name and tone saved",
+  knowledge: "Knowledge added to your assistant",
   social: "Social accounts connected",
 };
+
+/**
+ * What the automatic import of the store's policy pages did, under the
+ * knowledge step: still scanning, or how many pages it published and how many
+ * wait for the user's approval, with a button to review those. Nothing for a
+ * store that was never scanned.
+ */
+function KnowledgeImportNote({
+  step,
+  onNavigate,
+}: {
+  step: ChecklistStep;
+  onNavigate: () => void;
+}) {
+  const published = step.auto_published ?? 0;
+  const waiting = step.approval_waiting ?? 0;
+  const pages = (count: number) => `${count} ${count === 1 ? "Page" : "Pages"}`;
+
+  if (step.scan && KNOWLEDGE_SCAN_ACTIVE_STATUSES.includes(step.scan)) {
+    return (
+      <p className="mt-1 text-xs font-medium text-primary">
+        Scanning your website for policy and help pages…
+      </p>
+    );
+  }
+  if (published === 0 && waiting === 0) return null;
+
+  return (
+    <>
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl bg-primary/5 px-4 py-3 text-sm">
+        {published > 0 && (
+          <span className="flex items-center gap-2 font-bold text-primary">
+            <IconFileText className="size-4" />
+            {pages(published)} Added
+          </span>
+        )}
+        {published > 0 && waiting > 0 && (
+          <span aria-hidden className="h-5 w-px bg-border" />
+        )}
+        {waiting > 0 && (
+          <span className="flex items-center gap-2 font-medium">
+            <IconClock className="size-4 text-primary" />
+            {pages(waiting)} Waiting For Approval
+          </span>
+        )}
+      </div>
+      {waiting > 0 && (
+        <Button type="button" size="sm" className="mt-3" asChild>
+          <Link href={KNOWLEDGE_APPROVAL_WAITING_HREF} onClick={onNavigate}>
+            Review {pages(waiting)} For Approval
+            <IconArrowRight />
+          </Link>
+        </Button>
+      )}
+    </>
+  );
+}
 
 /**
  * The social step's chips and buttons. Its own component so the Meta popup
@@ -131,7 +206,7 @@ function ConnectSocialActions({
           disabled={isStarting}
           onClick={() => void startMetaOAuth()}
         >
-          Connect with Meta
+          Connect With Meta
         </Button>
         <Button
           type="button"
@@ -140,7 +215,7 @@ function ConnectSocialActions({
           className="border-primary text-primary hover:bg-primary/5 hover:text-primary"
           onClick={onSkip}
         >
-          Skip for now
+          Skip For Now
         </Button>
       </div>
     </div>
@@ -206,7 +281,7 @@ function ProgressRing({
 }
 
 /**
- * The "x/4" ring in the sidebar rail and its right-hand checklist drawer —
+ * The "x/5" ring in the sidebar rail and its right-hand checklist drawer —
  * the dashboard's persistent reminder of onboarding steps the wizard lets a
  * merchant click through (or skip) without actually finishing. Independent
  * of that wizard: it reflects each step's real, current state for whichever
@@ -217,6 +292,9 @@ function ProgressRing({
  */
 export function DashboardSetupChecklist() {
   const dispatch = useAppDispatch();
+  // Store setup progress is for the store owner and manager only; agents
+  // and content managers neither fetch it nor see the ring.
+  const canSetup = useCan("setup");
   const [open, setOpen] = useState(false);
   const [scriptOpen, setScriptOpen] = useState(false);
 
@@ -246,8 +324,10 @@ export function DashboardSetupChecklist() {
   // the moment you're back, instead of needing a hard refresh — the
   // sidebar that renders this never unmounts between pages.
   useEffect(() => {
-    if (selectedStore) void dispatch(FetchDashboardChecklist(selectedStore));
+    if (canSetup && selectedStore)
+      void dispatch(FetchDashboardChecklist(selectedStore));
   }, [
+    canSetup,
     dispatch,
     selectedStore,
     pathname,
@@ -259,13 +339,26 @@ export function DashboardSetupChecklist() {
   // The widget goes live in another tab (the storefront), so check again
   // when the merchant comes back to this one.
   useEffect(() => {
-    if (!selectedStore) return;
+    if (!canSetup || !selectedStore) return;
     const refetch = () => void dispatch(FetchDashboardChecklist(selectedStore));
     window.addEventListener("focus", refetch);
     return () => window.removeEventListener("focus", refetch);
-  }, [dispatch, selectedStore]);
+  }, [canSetup, dispatch, selectedStore]);
 
-  // The ring hides at 4/4, so say so when the last step is finished — only
+  // The import of the store's pages runs in the background, so check again
+  // every few seconds until it is complete (queued or running).
+  const scan = checklist?.steps.knowledge.scan;
+  const scanning = !!scan && KNOWLEDGE_SCAN_ACTIVE_STATUSES.includes(scan);
+  useEffect(() => {
+    if (!selectedStore || !scanning) return;
+    const timer = window.setInterval(
+      () => void dispatch(FetchDashboardChecklist(selectedStore)),
+      KNOWLEDGE_SCAN_POLL_MS,
+    );
+    return () => window.clearInterval(timer);
+  }, [dispatch, selectedStore, scanning]);
+
+  // The ring hides at all steps done, so say so when the last step is finished — only
   // on that change for the same store, not on load or a store switch.
   const previous = useRef<{ code: string; pending: number } | null>(null);
   useEffect(() => {
@@ -284,8 +377,9 @@ export function DashboardSetupChecklist() {
     previous.current = { code, pending };
   }, [checklist]);
 
-  // Nothing left to finish → no ring and no drawer.
-  if (!checklist || checklist.pending.length === 0) return null;
+  // Nothing left to finish, or a role that does not set the store up → no
+  // ring and no drawer.
+  if (!canSetup || !checklist || checklist.pending.length === 0) return null;
 
   const percent = Math.round((checklist.completed / checklist.total) * 100);
   const platformLabel =
@@ -298,7 +392,7 @@ export function DashboardSetupChecklist() {
   return (
     <>
       <SidebarMenuButton
-        tooltip="Finish setting up StoreSignal"
+        tooltip="Finish Setting Up StoreSignal"
         className="relative justify-center overflow-visible"
         aria-label={`Setup ${checklist.completed} of ${checklist.total} complete`}
         onClick={() => setOpen(true)}
@@ -319,7 +413,7 @@ export function DashboardSetupChecklist() {
               checklist.pending[0] === "social" ? (
                 <div>
                   <DrawerTitle className="text-xl font-semibold">
-                    Almost done
+                    Almost Done
                   </DrawerTitle>
                   <DrawerDescription>
                     Your assistant is live on your store. Connect your social
@@ -329,7 +423,7 @@ export function DashboardSetupChecklist() {
               ) : (
                 <div>
                   <DrawerTitle className="text-xl font-semibold">
-                    Finish setting up StoreSignal
+                    Finish Setting Up StoreSignal
                   </DrawerTitle>
                   <DrawerDescription>
                     Your assistant won&apos;t reach shoppers until these steps
@@ -349,7 +443,7 @@ export function DashboardSetupChecklist() {
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">
-                {checklist.completed} of {checklist.total} complete
+                {checklist.completed} Of {checklist.total} Complete
               </span>
               <span className="text-sm font-semibold text-primary tabular-nums">
                 {percent}%
@@ -399,7 +493,7 @@ export function DashboardSetupChecklist() {
                         )}
                         {!step.done && key === "widget_live" && (
                           <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-bold text-destructive">
-                            Widget not detected
+                            Widget Not Detected
                           </span>
                         )}
                         {!step.done && step.skipped && (
@@ -413,6 +507,12 @@ export function DashboardSetupChecklist() {
                           ? `Connect your ${platformLabel} store so the assistant can read your products, orders and customers.`
                           : STEP_DESCRIPTION[key]}
                       </p>
+                      {key === "knowledge" && (
+                        <KnowledgeImportNote
+                          step={step}
+                          onNavigate={() => setOpen(false)}
+                        />
+                      )}
                       {step.done && (
                         <p className="mt-1 text-xs font-medium text-muted-foreground">
                           {key === "connected"
@@ -436,7 +536,7 @@ export function DashboardSetupChecklist() {
                         className={doneActionClass}
                         onClick={() => setScriptOpen(true)}
                       >
-                        View script
+                        View Script
                       </button>
                     )}
                     {step.done && key === "brand_voice" && (
@@ -446,6 +546,15 @@ export function DashboardSetupChecklist() {
                         onClick={() => setOpen(false)}
                       >
                         Edit
+                      </Link>
+                    )}
+                    {step.done && key === "knowledge" && (
+                      <Link
+                        href="/knowledge"
+                        className={doneActionClass}
+                        onClick={() => setOpen(false)}
+                      >
+                        Manage
                       </Link>
                     )}
                     {step.done && key === "social" && (
@@ -472,7 +581,17 @@ export function DashboardSetupChecklist() {
                           size="sm"
                           onClick={() => setScriptOpen(true)}
                         >
-                          Get widget script
+                          Get Widget Script
+                        </Button>
+                      )}
+                      {key === "knowledge" && (
+                        <Button type="button" size="sm" asChild>
+                          <Link
+                            href="/knowledge/new"
+                            onClick={() => setOpen(false)}
+                          >
+                            Add Knowledge
+                          </Link>
                         </Button>
                       )}
                       {key === "brand_voice" && (
@@ -494,8 +613,8 @@ export function DashboardSetupChecklist() {
                             onClick={() => setOpen(false)}
                           >
                             {step.persona_done
-                              ? "Pick a tone preset"
-                              : "Set up brand voice"}
+                              ? "Pick A Tone Preset"
+                              : "Set Up Brand Voice"}
                           </Link>
                         </Button>
                       )}

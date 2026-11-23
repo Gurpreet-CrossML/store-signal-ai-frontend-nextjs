@@ -101,7 +101,7 @@ export function LoginForm({
       <FieldGroup className="gap-5">
         <div className="flex flex-col gap-2">
           <Typography variant="h1" className="text-2xl font-bold sm:text-3xl">
-            Welcome back 👋
+            Welcome Back 👋
           </Typography>
           <Typography variant="p" className="text-muted-foreground">
             Log in to your StoreSignal account to continue
@@ -140,7 +140,7 @@ export function LoginForm({
               href="/forgot-password"
               className="text-sm font-medium text-primary hover:underline"
             >
-              Forgot password?
+              Forgot Password?
             </Link>
           </div>
           <InputGroup>
@@ -189,7 +189,7 @@ export function LoginForm({
             className="relative"
           >
             {isLoading && <Spinner data-icon="inline-start" />}
-            {isLoading ? "Logging in..." : "Log in"}
+            {isLoading ? "Logging In..." : "Log In"}
             {!isLoading && <IconArrowRight className="absolute right-4" />}
           </Button>
         </Field>
@@ -199,7 +199,7 @@ export function LoginForm({
             href="/signup"
             className="font-medium text-primary hover:underline"
           >
-            Create one
+            Create One
           </Link>
         </Typography>
       </FieldGroup>

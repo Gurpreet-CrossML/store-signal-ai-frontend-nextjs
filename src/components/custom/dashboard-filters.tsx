@@ -1,14 +1,18 @@
 "use client";
 
 import { IconRefresh } from "@tabler/icons-react";
-import { format, parseISO, subDays } from "date-fns";
+import { format, parse, subDays } from "date-fns";
 
 import { DateRangePicker } from "@/components/custom/date-range-picker";
 import {
   CHANNEL_OPTIONS,
   FilterSelect,
 } from "@/components/custom/thread-filteration";
-import { ACTIVE_FILTER_STYLE } from "@/lib/config";
+import {
+  ACTIVE_FILTER_STYLE,
+  API_DATE_FORMAT,
+  DISPLAY_DATE_FORMAT,
+} from "@/lib/config";
 import { Button } from "@/components/ui/button";
 
 export type DashboardFilterState = {
@@ -28,15 +32,17 @@ export const DEFAULT_DASHBOARD_FILTERS: DashboardFilterState = {
 
 const RANGE_OPTIONS = [
   { value: "today", label: "Today" },
-  { value: "7d", label: "Last 7 days" },
-  { value: "30d", label: "Last 30 days" },
-  { value: "custom", label: "Custom range" },
+  { value: "7d", label: "Last 7 Days" },
+  { value: "30d", label: "Last 30 Days" },
+  { value: "custom", label: "Custom Range" },
 ];
 
 // Days back from today — the same window the APIs default to for 30 days.
 const PRESET_DAYS = { today: 0, "7d": 7, "30d": 30 };
 
-const toISODate = (date: Date) => format(date, "yyyy-MM-dd");
+const toISODate = (date: Date) => format(date, API_DATE_FORMAT);
+const fromISODate = (value: string) =>
+  parse(value, API_DATE_FORMAT, new Date());
 
 /** The from/to (YYYY-MM-DD) every dashboard API is called with. */
 export function resolveDashboardRange(filters: DashboardFilterState) {
@@ -53,7 +59,7 @@ export function resolveDashboardRange(filters: DashboardFilterState) {
 /** The selected period in words, e.g. "Last 7 days" or "Oct 01, 2026 – Oct 10, 2026". */
 export function dashboardRangeLabel(filters: DashboardFilterState) {
   if (filters.range === "custom") {
-    return `${format(parseISO(filters.from), "MMM dd, yyyy")} – ${format(parseISO(filters.to), "MMM dd, yyyy")}`;
+    return `${format(fromISODate(filters.from), DISPLAY_DATE_FORMAT)} – ${format(fromISODate(filters.to), DISPLAY_DATE_FORMAT)}`;
   }
   return RANGE_OPTIONS.find((option) => option.value === filters.range)!.label;
 }
@@ -62,9 +68,12 @@ export function dashboardRangeLabel(filters: DashboardFilterState) {
 export function DashboardRangeFilter({
   filters,
   onChange,
+  numberOfMonths,
 }: {
   filters: DashboardFilterState;
   onChange: (filters: DashboardFilterState) => void;
+  /** Months the custom picker shows side by side; one fits a narrow screen. */
+  numberOfMonths?: 1 | 2;
 }) {
   return (
     <>
@@ -80,11 +89,8 @@ export function DashboardRangeFilter({
           })
         }
         options={RANGE_OPTIONS}
-        activeClassName={
-          filters.range !== DEFAULT_DASHBOARD_FILTERS.range
-            ? ACTIVE_FILTER_STYLE
-            : undefined
-        }
+        // A period is always applied, including the default.
+        activeClassName={ACTIVE_FILTER_STYLE}
       />
       {filters.range === "custom" && (
         <DateRangePicker
@@ -92,7 +98,7 @@ export function DashboardRangeFilter({
           to={filters.to}
           onRangeChange={(from, to) => onChange({ ...filters, from, to })}
           disabled={{ after: new Date() }}
-          className={ACTIVE_FILTER_STYLE}
+          numberOfMonths={numberOfMonths}
         />
       )}
     </>

@@ -11,6 +11,7 @@ import type { TicketLanguage, TicketSentiment } from "@/lib/ticket-options";
 import { toast } from "sonner";
 import { isAxiosError } from "axios";
 import { OrderData } from "@/redux/api-slice/thread-slice";
+import type { CustomerSegment } from "@/redux/api-slice/customer-slice";
 import type {
   CopilotAction,
   CopilotActions,
@@ -62,7 +63,7 @@ export type SupportSocketPayload = {
 export type SupportTicketOrdering = "newest" | "oldest" | "last_updated";
 
 export type SupportTicketFilters = {
-  status?: SupportTicketStatus;
+  status?: SupportTicketStatus | SupportTicketStatus[];
   ordering?: SupportTicketOrdering;
   search?: string;
   channel?: SupportTicketChannel[];
@@ -74,6 +75,10 @@ export type SupportTicketFilters = {
   assigned_to_me?: boolean;
   is_assigned?: boolean;
   is_snoozed?: boolean;
+  /** Created on or after this ISO instant. */
+  created_from?: string;
+  /** Created on or before this ISO instant. */
+  created_to?: string;
 };
 
 type GetSupportTicketsArgs = {
@@ -233,7 +238,7 @@ export type SupportTicketDraftMessage = {
 };
 
 /** Who or what opened a ticket. */
-export type SupportTicketCreatedBy = "agent" | "ai" | "rule";
+export type SupportTicketCreatedBy = "agent" | "ai" | "email";
 
 export type SupportTicket = {
   id: number;
@@ -250,6 +255,8 @@ export type SupportTicket = {
   customer: string | SupportTicketCustomer | null;
   /** The customer's full name; sent by the ticket list only. */
   customer_name?: string | null;
+  /** The customer's segment when the ticket was opened; kept after. */
+  customer_segment?: CustomerSegment;
   /** The chat the ticket was raised from; sent by the ticket's details. */
   thread?: string | null;
   /** Whether that chat is still open; null when there is none. */
@@ -387,11 +394,11 @@ export const FetchSupportTickets = createAsyncThunk<
 // the panel simply shows no numbers when it fails.
 export const FetchSupportTicketFilterCounts = createAsyncThunk<
   SupportTicketFilterCounts,
-  { storeCode: string; status?: SupportTicketStatus }
+  { storeCode: string; status?: SupportTicketStatus[] }
 >("FetchSupportTicketFilterCounts", async ({ storeCode, status }, thunkAPI) => {
   try {
     const params = new URLSearchParams({ store_code: storeCode });
-    if (status) params.set("status", status);
+    if (status?.length) params.set("status", status.join(","));
 
     const response = await axiosInstance.get(
       `${ENDPOINTS.fetchSupportTicketFilterCounts()}?${params.toString()}`,
@@ -1119,14 +1126,26 @@ export const SupportTicketPriorityUpdate = createAsyncThunk(
   },
 );
 
-/** One line of a ticket's history: its creation, a status change or an assignment. */
+/** A change to a ticket's priority, language, sentiment or tags. */
+export const SUPPORT_TICKET_CHANGE_TYPES = {
+  PRIORITY_CHANGED: "priority_changed",
+  LANGUAGE_CHANGED: "language_changed",
+  SENTIMENT_CHANGED: "sentiment_changed",
+  TAG_ADDED: "tag_added",
+  TAG_REMOVED: "tag_removed",
+} as const;
+
+export type SupportTicketChangeType =
+  (typeof SUPPORT_TICKET_CHANGE_TYPES)[keyof typeof SUPPORT_TICKET_CHANGE_TYPES];
+
+/** One line of a ticket's history: its creation, a status change, an assignment or another change. */
 export type SupportTicketActivityItem = {
-  type: "created" | "status_changed" | "assigned";
+  type: "created" | "status_changed" | "assigned" | SupportTicketChangeType;
   /** Who did it, or null when the system did (creation) or the name is unknown. */
   actor: string | null;
-  /** Previous status or agent; for "created" always null. */
+  /** Previous status, agent or value; for "created" and "tag_added" always null. */
   from_value: string | null;
-  /** New status or agent; for "created" who opened it (ai, agent, rule). */
+  /** New status, agent or value; for "created" who opened it (ai, agent, rule); for "tag_removed" null. */
   to_value: string | null;
   created_at: string;
 };

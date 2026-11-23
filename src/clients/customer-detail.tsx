@@ -17,6 +17,7 @@ import {
 } from "@tabler/icons-react";
 
 import { CustomerAvatar } from "@/components/custom/customer-avatar";
+import { CustomerSegmentBadge } from "@/components/custom/customer-segment-badge";
 import { LoadingState } from "@/components/custom/loading-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -126,13 +127,13 @@ function AddressCard({ address }: { address: CustomerAddress }) {
           {address.default_shipping ? (
             <Badge variant="outline" className={BADGE_TONE_STYLES.accent}>
               <IconTruck />
-              Default shipping
+              Default Shipping
             </Badge>
           ) : null}
           {address.default_billing ? (
             <Badge variant="outline" className={BADGE_TONE_STYLES.accent}>
               <IconWallet />
-              Default billing
+              Default Billing
             </Badge>
           ) : null}
         </div>
@@ -182,7 +183,7 @@ function ConsentRow({
           granted ? BADGE_TONE_STYLES.success : BADGE_TONE_STYLES.neutral
         }
       >
-        {granted ? "Opted in" : "Not opted in"}
+        {granted ? "Opted In" : "Not Opted In"}
       </Badge>
     </div>
   );
@@ -222,7 +223,7 @@ export default function CustomerDetail({ customerId }: { customerId: number }) {
         <Button variant="outline" asChild>
           <Link href="/crm/customers">
             <IconArrowLeft />
-            Back to Customers
+            Back To Customers
           </Link>
         </Button>
       </Empty>
@@ -269,6 +270,7 @@ export default function CustomerDetail({ customerId }: { customerId: number }) {
                 Verified
               </Badge>
             ) : null}
+            <CustomerSegmentBadge segment={customer.segment} />
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1">
             {customer.email ? (
@@ -301,7 +303,7 @@ export default function CustomerDetail({ customerId }: { customerId: number }) {
           value={formatPrice(spent, currency)}
           hint={
             orders > 0
-              ? `${formatPrice(spent / orders, currency)} per order`
+              ? `${formatPrice(spent / orders, currency)} Per Order`
               : undefined
           }
         />
@@ -345,7 +347,7 @@ export default function CustomerDetail({ customerId }: { customerId: number }) {
                     variant="outline"
                     className={BADGE_TONE_STYLES.neutral}
                   >
-                    From their latest order
+                    From Their Latest Order
                   </Badge>
                   <address className="text-sm leading-6 text-foreground not-italic">
                     {[
@@ -403,7 +405,7 @@ export default function CustomerDetail({ customerId }: { customerId: number }) {
               />
               <ConsentRow
                 icon={IconMessage}
-                channel="SMS and WhatsApp"
+                channel="SMS And WhatsApp"
                 granted={customer.accepts_sms_marketing}
               />
             </CardContent>
@@ -433,7 +435,7 @@ export default function CustomerDetail({ customerId }: { customerId: number }) {
                     : "—",
                 },
                 {
-                  label: "Last changed",
+                  label: "Last Changed",
                   value: customer.modified_at
                     ? formatDateTime(customer.modified_at)
                     : "—",

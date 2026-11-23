@@ -64,7 +64,7 @@ export function CreateTicketAction({
           onClick={() => setOpen(true)}
         >
           <IconPlus data-icon="inline-start" />
-          Create ticket
+          Create Ticket
         </Button>
       )}
       <CreateTicketDialog

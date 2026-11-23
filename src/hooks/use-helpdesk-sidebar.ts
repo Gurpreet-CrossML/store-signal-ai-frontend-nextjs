@@ -1,16 +1,28 @@
 import { useCallback, useEffect, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 
-import { withHelpdeskCounts } from "@/lib/helpdesk-filters";
+import {
+  HELPDESK_ACTIVE_STATUSES,
+  withHelpdeskCounts,
+} from "@/lib/helpdesk-filters";
 import { sidebarMenus, type SubSidebarMenuItem } from "@/lib/sidebar-navs";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { FetchSupportTicketFilterCounts } from "@/redux/api-slice/support-ticket-slice";
+import {
+  FetchSupportTicketFilterCounts,
+  type SupportTicketStatus,
+} from "@/redux/api-slice/support-ticket-slice";
+
+// The statuses the list's filter can add (`?status=`); anything else in the
+// URL is ignored.
+const FILTER_STATUSES: SupportTicketStatus[] = ["resolved", "closed"];
 
 /**
  * The sub-sidebar to show, with the help desk's views counted.
  *
  * Any other area's sub-sidebar comes back untouched and nothing is fetched.
- * The counts are those of the status tab the list is on, and are fetched
- * again when the store or tab changes and whenever a ticket changes.
+ * The counts cover the open and reopened tickets the tabs show, plus any
+ * resolved or closed ones picked in the list's filter, and are fetched again
+ * when the store or those statuses change and whenever a ticket changes.
  */
 export function useHelpdeskSidebar(
   sidebar: SubSidebarMenuItem | null,
@@ -22,9 +34,6 @@ export function useHelpdeskSidebar(
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
   );
-  const queue = useAppSelector(
-    (state) => state.GetSupportTicketsReducer.HelpdeskQueue,
-  );
   const refreshKey = useAppSelector(
     (state) => state.GetSupportTicketsReducer.FilterCountsRefreshKey,
   );
@@ -33,11 +42,23 @@ export function useHelpdeskSidebar(
       state.GetSupportTicketsReducer.FetchSupportTicketFilterCountsState,
   );
 
+  // A plain string, so a change to another param doesn't refetch.
+  const statusParam = useSearchParams()?.get("status") ?? "";
+
   const refreshCounts = useCallback(() => {
     if (!isHelpdesk || !storeCode) return;
 
-    void dispatch(FetchSupportTicketFilterCounts({ storeCode, status: queue }));
-  }, [dispatch, isHelpdesk, storeCode, queue]);
+    const picked = statusParam.split(",") as SupportTicketStatus[];
+    void dispatch(
+      FetchSupportTicketFilterCounts({
+        storeCode,
+        status: [
+          ...HELPDESK_ACTIVE_STATUSES,
+          ...FILTER_STATUSES.filter((status) => picked.includes(status)),
+        ],
+      }),
+    );
+  }, [dispatch, isHelpdesk, storeCode, statusParam]);
 
   // `refreshKey` is not read: a change to it is the reason to fetch again.
   useEffect(() => refreshCounts(), [refreshCounts, refreshKey]);

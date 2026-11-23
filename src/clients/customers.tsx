@@ -28,16 +28,16 @@ import {
   type CustomerOrdering,
 } from "@/redux/api-slice/customer-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { ACTIVE_FILTER_STYLE, DEFAULT_CUSTOMER_ORDERING } from "@/lib/config";
+import { ACTIVE_FILTER_STYLE } from "@/lib/config";
 import { cn } from "@/lib/utils";
 
 const PER_PAGE = 25;
 
 const SORT_OPTIONS: { value: CustomerOrdering; label: string }[] = [
-  { value: "-total_spent", label: "Top spenders" },
-  { value: "-orders_count", label: "Most orders" },
-  { value: "-registered_at", label: "Newest customers" },
-  { value: "registered_at", label: "Oldest customers" },
+  { value: "-total_spent", label: "Top Spenders" },
+  { value: "-orders_count", label: "Most Orders" },
+  { value: "-registered_at", label: "Newest Customers" },
+  { value: "registered_at", label: "Oldest Customers" },
   { value: "first_name", label: "Name (A–Z)" },
 ];
 
@@ -171,10 +171,8 @@ export default function Customers() {
             }}
           >
             <SelectTrigger
-              className={cn(
-                "w-44",
-                ordering !== DEFAULT_CUSTOMER_ORDERING && ACTIVE_FILTER_STYLE,
-              )}
+              // A sort order is always applied, including the default.
+              className={cn("w-44", ACTIVE_FILTER_STYLE)}
               aria-label="Sort customers"
             >
               <SelectValue />
@@ -223,7 +221,7 @@ export default function Customers() {
         isLoading={FetchCustomersIsLoading}
         noun="customer"
         onRowClick={(customer) => router.push(`/crm/customers/${customer.id}`)}
-        emptyTitle={hasQuery ? "No matching customers" : "No customers yet"}
+        emptyTitle={hasQuery ? "No Matching Customers" : "No Customers Yet"}
         emptyDescription={
           hasQuery
             ? "Try a different search or loosen the filters."
