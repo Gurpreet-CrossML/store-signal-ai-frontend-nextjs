@@ -56,7 +56,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { Badge } from "@/components/ui/badge";
+import { TagBadge } from "@/components/custom/helpdesk/tag-badge";
 import { Button } from "@/components/ui/button";
 import { CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -887,8 +887,6 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
               <dd>{closeReason}</dd>
             </>
           ) : null}
-          <dt className="text-muted-foreground">Category</dt>
-          <dd>{threadTagLabels[0] ?? "—"}</dd>
           {feedback ? (
             <>
               <dt className="text-muted-foreground">User Feedback</dt>
@@ -947,13 +945,8 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
               <div className="min-w-0">
                 <h1 className="truncate text-2xl font-bold">{customerName}</h1>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
-                  {threadTagLabels.map((tag) => (
-                    <Badge
-                      key={tag}
-                      className="bg-primary/10 text-primary hover:bg-primary/10"
-                    >
-                      {tag}
-                    </Badge>
+                  {(threadTags as ThreadTagData[]).map((tag) => (
+                    <TagBadge key={tag.name} tag={tag} />
                   ))}
                 </div>
               </div>
