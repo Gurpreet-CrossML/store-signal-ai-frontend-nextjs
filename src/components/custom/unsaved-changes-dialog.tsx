@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useImperativeHandle, useState, type Ref } from "react";
+import {
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+  type Ref,
+} from "react";
 import { flushSync } from "react-dom";
 import { useRouter } from "next/navigation";
 import { IconDeviceFloppy } from "@tabler/icons-react";
@@ -29,6 +35,13 @@ type UnsavedChangesDialogProps = {
   isSaving: boolean;
   /** Saves the edits; resolves true only once they are saved. */
   onSave: () => Promise<boolean>;
+  /**
+   * For a page that saves its edits by itself (an editor with autosave).
+   * Leaving with edits not yet saved first tries this; when it saves, the
+   * page is left with no prompt, and the prompt only opens when it can't
+   * (it resolves false). Without it the prompt always opens.
+   */
+  autoSave?: () => Promise<boolean>;
   /** For a way off the page that is not a link: a back button calling
    *  `router.push`, or a picker that reloads the form. */
   ref?: Ref<UnsavedChangesDialogHandle>;
@@ -38,28 +51,49 @@ type UnsavedChangesDialogProps = {
  * The one "Unsaved changes" prompt of the app. While the page is dirty, a
  * link to another page opens it (reloading or closing the tab gets the
  * browser's own prompt), and so does whatever the page routes through
- * `confirmLeave`. Save Changes leaves once the save went through, Discard
+ * `confirmLeave` (or, with `autoSave`, saves first and only asks when that
+ * can't be done). Save Changes leaves once the save went through (if it
+ * fails it closes the prompt and stays, so the error can be seen), Discard
  * Changes leaves as is, Cancel stays.
  */
 export function UnsavedChangesDialog({
   isDirty,
   isSaving,
   onSave,
+  autoSave,
   ref,
 }: UnsavedChangesDialogProps) {
   const router = useRouter();
   // What the user tried to do with edits unsaved. Set = dialog open.
   const [pendingLeave, setPendingLeave] = useState<(() => void) | null>(null);
 
-  // A state setter given a function calls it, so the action is wrapped.
-  useImperativeHandle(ref, () => ({
-    confirmLeave: (leave) => {
-      if (isDirty) setPendingLeave(() => leave);
-      else leave();
-    },
-  }));
+  // Set while `autoSave` runs, so a second click doesn't leave twice.
+  const isAutoSaving = useRef(false);
+
+  const requestLeave = (leave: () => void) => {
+    if (!isDirty) {
+      leave();
+      return;
+    }
+    // A state setter given a function calls it, so the action is wrapped.
+    const askFirst = () => setPendingLeave(() => leave);
+    if (!autoSave) {
+      askFirst();
+      return;
+    }
+    if (isAutoSaving.current) return;
+    isAutoSaving.current = true;
+    void autoSave()
+      .then((saved) => (saved ? leave() : askFirst()))
+      .catch(askFirst)
+      .finally(() => {
+        isAutoSaving.current = false;
+      });
+  };
+
+  useImperativeHandle(ref, () => ({ confirmLeave: requestLeave }));
   useUnsavedChangesGuard(isDirty, (href) =>
-    setPendingLeave(() => () => router.push(href)),
+    requestLeave(() => router.push(href)),
   );
 
   // Closing or reloading the tab while this is open hands over to the
@@ -73,8 +107,12 @@ export function UnsavedChangesDialog({
 
   /** Runs the blocked leave, after saving first when asked to. */
   const leave = async (save: boolean) => {
-    // A failed save keeps the dialog open; the page already said why.
-    if (save && !(await onSave())) return;
+    // A failed save closes the dialog and stays on the page, so the error
+    // (shown on the page or as a toast) is in view rather than behind it.
+    if (save && !(await onSave())) {
+      setPendingLeave(null);
+      return;
+    }
     pendingLeave?.();
     setPendingLeave(null);
   };

@@ -52,7 +52,10 @@ import {
   type KnowledgeScope,
 } from "@/components/custom/knowledge/knowledge-scope";
 import { AI_SCOPE_META } from "@/components/custom/knowledge/knowledge-meta";
-import { UnsavedChangesDialog } from "@/components/custom/unsaved-changes-dialog";
+import {
+  UnsavedChangesDialog,
+  type UnsavedChangesDialogHandle,
+} from "@/components/custom/unsaved-changes-dialog";
 import {
   KnowledgeSettingsButton,
   KnowledgeSettingsDrawer,
@@ -62,7 +65,7 @@ import {
  * backend's `KNOWLEDGE_ARTICLE_MIN_LENGTH`). */
 const MIN_PUBLISH_LENGTH = 30;
 /** How long after the last edit a draft is saved by itself. */
-const AUTOSAVE_DELAY_MS = 1500;
+const AUTOSAVE_DELAY_MS = 800;
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 
@@ -328,6 +331,25 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debounced]);
 
+  // Back asks first when there are edits that are not saved.
+  const unsavedChanges = useRef<UnsavedChangesDialogHandle>(null);
+  const goBack = () =>
+    unsavedChanges.current?.confirmLeave(() => router.back());
+  // True from the moment leaving starts saving what is pending until it is
+  // done, so Back is off (and shows it is working) even before the request
+  // has started. It stays on once the save worked, as the page is going away.
+  const [isSavingToLeave, setIsSavingToLeave] = useState(false);
+  const saveBeforeLeaving = async () => {
+    setIsSavingToLeave(true);
+    let saved = false;
+    try {
+      saved = await save();
+    } finally {
+      if (!saved) setIsSavingToLeave(false);
+    }
+    return saved;
+  };
+
   // --- Publishing -----------------------------------------------------------
   const requestPublish = () => {
     setShowErrors(true);
@@ -471,9 +493,15 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
           variant="ghost"
           size="sm"
           className="-ml-2"
-          onClick={() => router.back()}
+          // Not while a save is on its way: leaving would cut it short.
+          disabled={saveState === "saving" || isSavingToLeave}
+          onClick={goBack}
         >
-          <IconArrowLeft className="size-4" />
+          {isSavingToLeave ? (
+            <Spinner className="size-4" />
+          ) : (
+            <IconArrowLeft className="size-4" />
+          )}
           Knowledge
         </Button>
 
@@ -542,7 +570,7 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
                 setTitle(event.target.value);
               }}
               disabled={isLocked}
-              placeholder="Article title"
+              placeholder="Article Title"
               aria-label="Article title"
               maxLength={KNOWLEDGE_TITLE_MAX_LENGTH}
               onBlur={() => setTitleTouched(true)}
@@ -586,7 +614,7 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
             {bodyLength.toLocaleString()} /{" "}
             {ARTICLE_BODY_MAX_LENGTH.toLocaleString()} characters
             {bodyLength < MIN_PUBLISH_LENGTH &&
-              ` · at least ${MIN_PUBLISH_LENGTH} to publish`}
+              ` · at least ${MIN_PUBLISH_LENGTH} characters to publish`}
             {bodyOver &&
               " · too long to save or publish, please shorten the article"}
           </p>
@@ -596,8 +624,7 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
               className="px-4 pb-6 text-xs text-destructive sm:px-8"
             >
               The article text needs at least {MIN_PUBLISH_LENGTH} characters
-              before it can be published ({bodyLength} so far). The title can be
-              as short as you like.
+              before it can be published ({bodyLength} so far).
             </p>
           )}
         </main>
@@ -687,7 +714,11 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
       </AlertDialog>
 
       <UnsavedChangesDialog
+        ref={unsavedChanges}
         isDirty={hasUnsavedEdits}
+        // The editor saves by itself, so leaving saves what is pending first
+        // and the prompt only opens when that can't be done.
+        autoSave={saveBeforeLeaving}
         isSaving={saveState === "saving"}
         onSave={() => {
           // A save it can't make (no title, too long) shows why on the page.

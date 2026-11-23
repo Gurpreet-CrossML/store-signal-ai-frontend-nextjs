@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   IconArrowLeft,
   IconExternalLink,
@@ -47,7 +47,10 @@ import {
   KnowledgeStatusBadge,
 } from "@/components/custom/knowledge/knowledge-badges";
 import { timeAgo } from "@/components/custom/knowledge/knowledge-list";
-import { UnsavedChangesDialog } from "@/components/custom/unsaved-changes-dialog";
+import {
+  UnsavedChangesDialog,
+  type UnsavedChangesDialogHandle,
+} from "@/components/custom/unsaved-changes-dialog";
 import {
   FAQ_ANSWER_MAX_LENGTH,
   isKnowledgeItemEditable,
@@ -229,6 +232,11 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
     canEdit && item !== null && isKnowledgeItemEditable(item.status);
 
   const reload = () => setReloads((count) => count + 1);
+
+  // Back asks first when there are edits that are not saved.
+  const unsavedChanges = useRef<UnsavedChangesDialogHandle>(null);
+  const goBack = () =>
+    unsavedChanges.current?.confirmLeave(() => router.back());
 
   const cancelEdit = () => {
     if (!item) return;
@@ -417,12 +425,7 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
   return (
     <div className="flex min-h-full flex-col">
       <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b px-4 py-2.5">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="-ml-2"
-          onClick={() => router.back()}
-        >
+        <Button variant="ghost" size="sm" className="-ml-2" onClick={goBack}>
           <IconArrowLeft className="size-4" />
           Knowledge
         </Button>
@@ -758,6 +761,7 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
       </AlertDialog>
 
       <UnsavedChangesDialog
+        ref={unsavedChanges}
         isDirty={isDirty}
         isSaving={isSaving}
         onSave={handleSave}
