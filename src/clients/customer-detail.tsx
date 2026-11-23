@@ -17,6 +17,7 @@ import {
 } from "@tabler/icons-react";
 
 import { CustomerAvatar } from "@/components/custom/customer-avatar";
+import { CustomerSegmentBadge } from "@/components/custom/customer-segment-badge";
 import { LoadingState } from "@/components/custom/loading-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -269,6 +270,7 @@ export default function CustomerDetail({ customerId }: { customerId: number }) {
                 Verified
               </Badge>
             ) : null}
+            <CustomerSegmentBadge segment={customer.segment} />
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1">
             {customer.email ? (
