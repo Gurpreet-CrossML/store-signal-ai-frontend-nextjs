@@ -303,11 +303,11 @@ export default function Dashboard() {
         (FetchEngagementData?.total_threads || 0) > 0
           ? [
               {
-                label: `${FetchEngagementData?.active_threads || 0} Active`,
+                label: `${FetchEngagementData?.active_threads || 0} Active Sessions`,
                 href: liveChatHref(),
               },
               {
-                label: `${FetchEngagementData?.closed_threads || 0} Closed`,
+                label: `${FetchEngagementData?.closed_threads || 0} Closed Sessions`,
                 href: threadsHref({ is_active: "false" }),
               },
             ]
