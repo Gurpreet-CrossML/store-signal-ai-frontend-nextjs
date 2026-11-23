@@ -955,7 +955,7 @@ export const KNOWLEDGE_TEST_QUESTION_MIN_LENGTH = 3;
 export const KNOWLEDGE_TEST_QUESTION_MAX_LENGTH = 100;
 // What a Test AI answer says its products came from. Shopify is the only
 // platform a store can be connected with today.
-export const KNOWLEDGE_TEST_PRODUCT_SOURCE_LABEL = "Shopify products";
+export const KNOWLEDGE_TEST_PRODUCT_SOURCE_LABEL = "Shopify Products";
 // AI credits one Test AI answer costs when the AI model runs.
 export const KNOWLEDGE_TEST_ANSWER_CREDITS = 1;
 // Said under the Test AI chat: it is never saved.

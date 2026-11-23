@@ -125,7 +125,7 @@ function AnswerMessage({ item }: { item: TestMessage }) {
                 rel="noopener noreferrer"
                 className="font-medium text-primary hover:underline"
               >
-                {source.title || "Knowledge item"}
+                {source.title || "Knowledge Item"}
               </Link>
             )),
             ...(hasProducts ? [KNOWLEDGE_TEST_PRODUCT_SOURCE_LABEL] : []),
@@ -173,11 +173,11 @@ export function TestChatPanel({
 
   return (
     <section
-      aria-label="AI test chat"
+      aria-label="AI Test Chat"
       className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border bg-card"
     >
       <header className="flex flex-col gap-0.5 border-b px-3 py-2.5 sm:px-4 sm:py-3">
-        <h3 className="text-sm font-semibold">AI test chat</h3>
+        <h3 className="text-sm font-semibold">AI Test Chat</h3>
         <p className="text-xs text-muted-foreground">
           Answers come from your knowledge and products.{" "}
           {KNOWLEDGE_TEST_CHAT_NOTICE}
@@ -194,7 +194,7 @@ export function TestChatPanel({
               <EmptyMedia variant="icon">
                 <IconSparkles />
               </EmptyMedia>
-              <EmptyTitle>Test your AI</EmptyTitle>
+              <EmptyTitle>Test Your AI</EmptyTitle>
               <EmptyDescription>
                 Pick a question from the list, or type your own below, to see
                 how your AI answers it from your knowledge and products.
