@@ -11,7 +11,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import { IconDotsVertical, IconSparkles } from "@tabler/icons-react";
+import {
+  IconArrowUpRight,
+  IconDotsVertical,
+  IconSparkles,
+} from "@tabler/icons-react";
 import {
   deleteMetaComment,
   fetchCommentTopics,
@@ -27,6 +31,7 @@ import {
 import { Typography } from "@/components/ui/typography";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 
 import { InfoIcon } from "@/components/custom/info-icon";
@@ -388,8 +393,35 @@ function CommentItem({
                 }
               />
             )}
-            {name}
-            {isSelf && <Badge variant="secondary">Author</Badge>}
+            {author?.customer ? (
+              <Link
+                href={`/crm/customers/${author.customer.id}`}
+                aria-label={`Open ${author.customer.name || author.customer.email}'s customer profile`}
+                title="Open customer profile"
+                className="inline-flex items-center gap-0.5 cursor-pointer hover:underline hover:underline-offset-2 focus-visible:underline focus-visible:underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
+              >
+                {name}
+                <IconArrowUpRight aria-hidden="true" className="size-3" />
+              </Link>
+            ) : (
+              name
+            )}
+            {author?.customer && (
+              <Badge
+                variant="outline"
+                className="rounded-full border-border bg-background px-2"
+              >
+                Customer
+              </Badge>
+            )}
+            {isSelf && (
+              <Badge
+                variant="outline"
+                className="rounded-full border-border bg-background px-2"
+              >
+                Author
+              </Badge>
+            )}
             {/* An auto-sent reply is posted under the page's own name, so
                 say which of the two wrote it. */}
             {comment.sender_type === "ai" && (
