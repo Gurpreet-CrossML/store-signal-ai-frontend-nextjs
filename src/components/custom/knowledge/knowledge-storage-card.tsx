@@ -1,8 +1,11 @@
 import { Skeleton } from "@/components/ui/skeleton";
-import type { KnowledgeVectorStorage } from "@/redux/api-slice/knowledge-rag-slice";
+import type {
+  KnowledgeCounts,
+  KnowledgeVectorStorage,
+} from "@/redux/api-slice/knowledge-rag-slice";
 
 type Segment = {
-  key: keyof KnowledgeVectorStorage;
+  key: keyof KnowledgeVectorStorage & keyof KnowledgeCounts;
   label: string;
   /** Tailwind background colour of the bar segment and legend dot. */
   color: string;
@@ -57,12 +60,15 @@ export function formatSize(bytes: number) {
 
 /**
  * How much of the plan's vector storage this store has used, as a bar split
- * by kind of knowledge, with what is left over shown as "Free".
+ * by kind of knowledge, with what is left over shown as "Free". Each kind
+ * also shows how many items it has, e.g. "Shopify Products 11.6 MB (1,175)".
  */
 export function KnowledgeStorageCard({
   storage,
+  counts,
 }: {
   storage: KnowledgeVectorStorage | null;
+  counts: KnowledgeCounts | null;
 }) {
   if (!storage) {
     return <Skeleton className="h-[88px] w-full rounded-xl" />;
@@ -112,7 +118,10 @@ export function KnowledgeStorageCard({
           <li key={key} className="flex items-center gap-1.5">
             <span className={`size-2 rounded-full ${color}`} />
             {label}
-            <span>{formatSize(storage[key])}</span>
+            <span>
+              {formatSize(storage[key])}
+              {counts && ` (${counts[key].toLocaleString()})`}
+            </span>
           </li>
         ))}
         <li className="flex items-center gap-1.5">

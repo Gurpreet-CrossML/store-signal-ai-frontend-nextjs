@@ -15,7 +15,6 @@ export function AskQuestionButton({
 }) {
   return (
     <Button
-      variant="outline"
       size="sm"
       className="shrink-0"
       disabled={disabled}

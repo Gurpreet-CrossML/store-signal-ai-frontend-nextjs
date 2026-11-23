@@ -34,6 +34,8 @@ import HoverZoomImage from "@/components/custom/hover-zoom-image";
 import { ProductCarousel } from "@/components/custom/product-carousel";
 import { ProductStrip } from "@/components/custom/product-strip";
 import { getInitials } from "@/components/custom/customer-avatar";
+import { InfoIcon } from "@/components/custom/info-icon";
+import { cn } from "@/lib/utils";
 import { Spinner } from "../ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
@@ -158,6 +160,47 @@ function HandlerEventGroupRow({
             />
           ))
         : null}
+    </div>
+  );
+}
+
+/**
+ * The quick replies the AI offered the customer under its answer. The
+ * customer taps one in the chat widget; here they are only shown, so they
+ * are plain chips, not buttons, with a note saying what they are.
+ *
+ * Args:
+ *   suggestions: The reply texts from the message, if any.
+ *   alignEnd: Line up on the right, under an AI message in Live Chat.
+ */
+function SuggestedReplies({
+  suggestions,
+  alignEnd = false,
+}: {
+  suggestions?: string[] | null;
+  alignEnd?: boolean;
+}) {
+  if (!suggestions?.length) return null;
+
+  return (
+    <div
+      className={cn(
+        "mt-2 flex flex-wrap items-center gap-2",
+        alignEnd ? "justify-end" : "justify-start",
+      )}
+    >
+      <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
+        Suggested Replies
+        <InfoIcon text="Quick replies the AI offered the customer. The customer can tap one in the chat widget to send it." />
+      </span>
+      {suggestions.map((suggestion, index) => (
+        <span
+          key={index}
+          className="inline-flex h-7 items-center rounded-full border border-border bg-background px-3 text-sm text-foreground"
+        >
+          {suggestion}
+        </span>
+      ))}
     </div>
   );
 }
@@ -317,15 +360,16 @@ export function MessagePan({
             message.agent_name || message.messaged_by,
           );
           const isCustomer = message.role === "user";
+          // Not the customer and not a person: the AI.
           const senderLabel = isCustomer
             ? customerName || "Guest"
-            : message.role === "assistant" && !message.agent_name
+            : !isAgentMessage
               ? "AI Assistant"
               : message.messaged_by_email &&
                   me &&
                   message.messaged_by_email.toLowerCase() === me.toLowerCase()
                 ? "You"
-                : message.messaged_by || message.role;
+                : message.messaged_by || message.agent_name || "Agent";
           // Bot responses normally carry the display name "StoreSignal AI".
           // That is not a human assignment, and should still receive the
           // distinct AI avatar, confidence, and source treatment.
@@ -695,28 +739,11 @@ export function MessagePan({
                         </div>
                       )}
 
-                    {message.role === "assistant" &&
-                      message.json_content?.suggestions &&
-                      message.json_content.suggestions.length > 0 && (
-                        <div className="mt-2 flex justify-start">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-sm text-muted-foreground">
-                              Suggested Replies:
-                            </span>
-                            {message.json_content.suggestions.map(
-                              (s: string, idx: number) => (
-                                <Button
-                                  key={idx}
-                                  variant="outline"
-                                  className="h-7 rounded-full px-3 text-sm font-normal hover:border-primary hover:bg-primary/25 hover:text-primary"
-                                >
-                                  {s}
-                                </Button>
-                              ),
-                            )}
-                          </div>
-                        </div>
-                      )}
+                    {message.role === "assistant" && (
+                      <SuggestedReplies
+                        suggestions={message.json_content?.suggestions}
+                      />
+                    )}
 
                     {message.image_url && (
                       <div className="mt-2 flex flex-wrap justify-end gap-2 md:justify-start">
@@ -911,17 +938,21 @@ export function LiveMessagePan({
           const isAgentMessage = Boolean(
             message.agent_name || message.messaged_by,
           );
-          // A customer shows by name; without one they are a guest.
+          // A customer shows by name; without one they are a guest. Anything
+          // else not sent by a person is the AI — including a follow-up
+          // nudge, which arrives over the socket with no role at all. A
+          // message an agent sent during this session carries only
+          // `messaged_by` (no `agent_name`), so either one marks a person.
           const senderLabel =
             message.role === "user"
               ? customerName || "Guest"
-              : message.role === "assistant" && !message.agent_name
+              : !isAgentMessage
                 ? "AI Assistant"
                 : message.messaged_by_email &&
                     me &&
                     message.messaged_by_email.toLowerCase() === me.toLowerCase()
                   ? "You"
-                  : message.messaged_by || message.role;
+                  : message.messaged_by || message.agent_name || "Agent";
           const showReplyWithAI =
             isLastMessage && message.role === "user" && !!onReplyWithAI;
           const isCustomer = message.role === "user";
@@ -1258,25 +1289,12 @@ export function LiveMessagePan({
                         </div>
                       )}
 
-                    {message.role === "assistant" &&
-                      message.json_content?.suggestions &&
-                      message.json_content.suggestions.length > 0 && (
-                        <div className="flex justify-end mt-2">
-                          <div className="flex flex-wrap gap-2">
-                            {message.json_content.suggestions.map(
-                              (s: string, idx: number) => (
-                                <Button
-                                  key={idx}
-                                  variant="outline"
-                                  className="text-xs hover:bg-primary/25 hover:text-primary hover:border-primary rounded-full"
-                                >
-                                  {s}
-                                </Button>
-                              ),
-                            )}
-                          </div>
-                        </div>
-                      )}
+                    {message.role === "assistant" && (
+                      <SuggestedReplies
+                        suggestions={message.json_content?.suggestions}
+                        alignEnd
+                      />
+                    )}
 
                     {message.image_url && (
                       <div

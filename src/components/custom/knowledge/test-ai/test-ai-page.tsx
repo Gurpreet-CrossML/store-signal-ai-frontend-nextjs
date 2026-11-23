@@ -19,7 +19,7 @@ import { useIsBelowLg } from "@/hooks/use-narrow-viewport";
 import { KNOWLEDGE_TEST_AI_TABS, type KnowledgeTestAiTab } from "@/lib/config";
 import {
   AskTestQuestion,
-  FetchTestMessages,
+  ResetTestChat,
 } from "@/redux/api-slice/knowledge-test-ai-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 
@@ -29,8 +29,8 @@ import { useAppDispatch, useAppSelector } from "@/redux/hooks";
  * Questions" and "Unanswered Questions". On a phone or tablet the chat fills
  * the screen, and a button at the top right opens the same panel in a drawer
  * from the right. Every question has an Ask button, and the user can type their
- * own question; the AI answers in the chat, where each answer is shown and
- * saved. While it answers, the input and every Ask button are off.
+ * own question; the AI answers in the chat, which is not saved and is
+ * cleared when the user leaves the page. While it answers, the input and every Ask button are off.
  */
 export function TestAiPage() {
   const dispatch = useAppDispatch();
@@ -49,8 +49,12 @@ export function TestAiPage() {
   // A question is being answered until it succeeds or fails.
   const isAsking = pendingQuestion !== null && error === null;
 
+  // The chat is not saved: it ends when the user leaves the page or switches
+  // store, so the next visit starts empty.
   useEffect(() => {
-    if (storeCode) dispatch(FetchTestMessages({ storeCode }));
+    return () => {
+      dispatch(ResetTestChat());
+    };
   }, [dispatch, storeCode]);
 
   const handleAsk = (question: string) => {
@@ -112,7 +116,7 @@ export function TestAiPage() {
       </div>
 
       <Sheet open={isBelowLg && drawerOpen} onOpenChange={setDrawerOpen}>
-        <SheetContent className="w-full gap-0 sm:max-w-md">
+        <SheetContent className="gap-0 data-[side=right]:w-full data-[side=right]:sm:max-w-xl">
           <SheetHeader className="border-b pr-14">
             <SheetTitle>Questions</SheetTitle>
             <SheetDescription>
