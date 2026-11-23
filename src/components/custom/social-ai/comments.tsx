@@ -11,7 +11,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import { IconDotsVertical, IconSparkles } from "@tabler/icons-react";
+import {
+  IconArrowUpRight,
+  IconDotsVertical,
+  IconSparkles,
+} from "@tabler/icons-react";
 import {
   deleteMetaComment,
   fetchCommentTopics,
@@ -389,17 +393,20 @@ function CommentItem({
                 }
               />
             )}
-            {name}
-            {author?.customer && (
+            {author?.customer ? (
               <Link
                 href={`/crm/customers/${author.customer.id}`}
-                className="hover:opacity-80"
+                aria-label={`Open ${author.customer.name || author.customer.email}'s customer profile`}
+                title="Open customer profile"
+                className="inline-flex items-center gap-0.5 cursor-pointer underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
               >
-                <Badge variant="outline">
-                  Customer: {author.customer.name || author.customer.email}
-                </Badge>
+                {name}
+                <IconArrowUpRight aria-hidden="true" className="size-3" />
               </Link>
+            ) : (
+              name
             )}
+            {author?.customer && <Badge variant="secondary">Customer</Badge>}
             {isSelf && <Badge variant="secondary">Author</Badge>}
             {/* An auto-sent reply is posted under the page's own name, so
                 say which of the two wrote it. */}
