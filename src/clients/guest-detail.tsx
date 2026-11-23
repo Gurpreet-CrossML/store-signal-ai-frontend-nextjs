@@ -7,19 +7,20 @@ import {
   IconArrowRight,
   IconCalendarPlus,
   IconClock,
-  IconCreditCard,
   IconDeviceDesktop,
-  IconEye,
   IconMessage,
-  IconPackage,
   IconRepeat,
   IconShoppingBag,
-  IconShoppingCart,
-  IconShoppingCartPlus,
   IconUserQuestion,
 } from "@tabler/icons-react";
 
 import { StatTile } from "@/clients/customer-detail";
+import {
+  InterestCard,
+  ProductViewsCard,
+  RhythmCard,
+  VisitTimeline,
+} from "@/components/custom/crm/guest-journey";
 import {
   GuestStatusBadge,
   guestCustomerName,
@@ -50,23 +51,8 @@ import {
   formatPrice,
   formatRelativeDateTime,
 } from "@/lib/helpers";
-import {
-  FetchGuestDetails,
-  type GuestEventType,
-} from "@/redux/api-slice/guest-slice";
+import { FetchGuestDetails } from "@/redux/api-slice/guest-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-
-/** How each bot event reads on the guest's activity list. */
-const EVENT_LABELS: Record<
-  GuestEventType,
-  { label: string; icon: typeof IconEye }
-> = {
-  view_product: { label: "Shown a product", icon: IconEye },
-  add_to_cart: { label: "Added to cart", icon: IconShoppingCartPlus },
-  checkout_link: { label: "Got a checkout link", icon: IconCreditCard },
-  view_cart: { label: "Viewed their cart", icon: IconShoppingCart },
-  view_order: { label: "Looked up an order", icon: IconPackage },
-};
 
 /** One label / value line in a side card. */
 function FactRow({ label, value }: { label: string; value: string | null }) {
@@ -192,102 +178,23 @@ export default function GuestDetail({ guestId }: { guestId: number }) {
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
-        <div className="flex flex-col gap-6">
-          <Card size="sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <IconMessage className="size-4" />
-                Chats
-              </CardTitle>
-              <CardDescription>
-                Every chat this guest opened, newest first.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-2">
-              {guest.chats.length === 0 ? (
-                <Typography variant="muted">No chats yet.</Typography>
-              ) : (
-                guest.chats.map((chat) => (
-                  <Link
-                    key={chat.id}
-                    href={`/threads/${chat.id}`}
-                    className="flex items-center gap-3 rounded-lg border border-border px-3 py-2 transition-colors hover:bg-muted/60"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <Typography variant="small" as="p" className="truncate">
-                        {chat.name || "Untitled chat"}
-                      </Typography>
-                      <Typography variant="muted">
-                        {formatDateTime(chat.created_at)} ·{" "}
-                        {chat.messages_count} messages
-                      </Typography>
-                    </div>
-                    <Badge
-                      variant="outline"
-                      className={
-                        chat.is_active
-                          ? BADGE_TONE_STYLES.success
-                          : BADGE_TONE_STYLES.neutral
-                      }
-                    >
-                      {chat.is_active ? "Open" : "Closed"}
-                    </Badge>
-                    <IconArrowRight className="size-4 text-muted-foreground" />
-                  </Link>
-                ))
-              )}
-            </CardContent>
-          </Card>
+      <InterestCard journey={guest.journey} />
+      <RhythmCard journey={guest.journey} />
 
-          <Card size="sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <IconEye className="size-4" />
-                Activity
-              </CardTitle>
-              <CardDescription>
-                What the AI showed them and what they did, newest first.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-3">
-              {guest.activity.length === 0 ? (
-                <Typography variant="muted">No activity yet.</Typography>
-              ) : (
-                guest.activity.map((event) => {
-                  const { label, icon: Icon } = EVENT_LABELS[
-                    event.event_type
-                  ] ?? { label: event.event_type, icon: IconEye };
-                  return (
-                    <div key={event.id} className="flex items-start gap-3">
-                      <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                      <div className="min-w-0 flex-1">
-                        <Typography variant="small" as="p" className="truncate">
-                          {label}
-                          {event.product_name ? `: ${event.product_name}` : ""}
-                        </Typography>
-                      </div>
-                      <Typography
-                        variant="muted"
-                        as="span"
-                        className="shrink-0"
-                      >
-                        {formatRelativeDateTime(event.created_at)}
-                      </Typography>
-                    </div>
-                  );
-                })
-              )}
-            </CardContent>
-          </Card>
-        </div>
+      <div className="grid items-start gap-6 lg:grid-cols-[2fr_1fr]">
+        <VisitTimeline timeline={guest.journey.timeline} />
 
         <div className="flex flex-col gap-6">
-          {/* The thread page's own card, so a product reads the same in both
-              places; its bottom rule is for the thread side panel. */}
-          <div className="overflow-hidden rounded-xl border border-border [&>section]:border-b-0">
-            <ViewedProductsCard viewedProducts={guest.viewed_products} />
-          </div>
+          {guest.journey.product_views.length > 0 ? (
+            <ProductViewsCard productViews={guest.journey.product_views} />
+          ) : (
+            // Guests seen before view counts were kept: the plain list from
+            // their chats (the thread page's own card; its bottom rule is for
+            // the thread side panel).
+            <div className="overflow-hidden rounded-xl border border-border [&>section]:border-b-0">
+              <ViewedProductsCard viewedProducts={guest.viewed_products} />
+            </div>
+          )}
 
           <Card size="sm">
             <CardHeader>

@@ -75,7 +75,7 @@ function formatCartPrice(price: string | null | undefined): string | null {
  * One product line — a cart item or a viewed page. A linked (viewed) row
  * wraps its name so the agent reads it whole; a cart line keeps to one.
  */
-function ProductRow({
+export function ProductRow({
   image,
   name,
   detail,

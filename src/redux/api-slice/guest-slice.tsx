@@ -82,12 +82,95 @@ export type GuestOrder = {
   created_at: string;
 };
 
+/** A product as the guest page shows it (catalog, else the name it was seen with). */
+export type GuestProduct = {
+  id: string;
+  name: string;
+  url: string | null;
+  image: string | null;
+  /** DecimalField — serialised as a string. */
+  price: string | null;
+  currency: string | null;
+};
+
+/** How often and when the guest opened one product page. */
+export type GuestProductView = {
+  product: GuestProduct;
+  view_count: number;
+  first_viewed_at: string;
+  last_viewed_at: string;
+  /** The newest view times, newest first (older ones still count). */
+  viewed_at: string[];
+};
+
+export type GuestVisit = { number: number; started_at: string };
+
+/** One dated thing on the guest's timeline; the fields depend on `type`. */
+export type GuestTimelineEvent =
+  | {
+      type: "product_view";
+      at: string;
+      product: GuestProduct;
+      /** Which view of this product it was (1 = first). */
+      view_number: number;
+    }
+  | {
+      type: GuestEventType;
+      at: string;
+      product: GuestProduct | null;
+      chat_id: string;
+    }
+  | {
+      type: "chat";
+      at: string;
+      chat: Pick<GuestChat, "id" | "name" | "messages_count" | "is_active">;
+    }
+  | {
+      type: "order";
+      at: string;
+      order: Pick<GuestOrder, "id" | "name" | "total_price" | "currency">;
+    };
+
+/** The events of one visit; `number` is null for activity before visits were recorded. */
+export type GuestTimelineVisit = {
+  number: number | null;
+  started_at: string | null;
+  ended_at: string | null;
+  events: GuestTimelineEvent[];
+};
+
+/** A product the guest likely wants: a 0-100 score from fixed rules, with its reasons. */
+export type GuestInterest = {
+  product: GuestProduct;
+  score: number;
+  views: number;
+  /** Different days it was viewed on. */
+  days: number;
+  in_cart: boolean;
+  shown_in_chat: boolean;
+  last_at: string | null;
+};
+
+export type GuestStage = "ordered" | "checkout" | "cart" | "browsing";
+
+/** Everything about the guest's browsing over time, built by the backend. */
+export type GuestJourney = {
+  product_views: GuestProductView[];
+  visits: GuestVisit[];
+  timeline: GuestTimelineVisit[];
+  interests: GuestInterest[];
+  stage: GuestStage;
+  top_category: string | null;
+  price_range: { min: string; max: string; currency: string } | null;
+};
+
 export type GuestDetail = GuestRecord & {
   chats: GuestChat[];
   /** Product pages they opened, matched to the store's catalog. */
   viewed_products: ViewedProduct[];
   activity: GuestActivity[];
   orders: GuestOrder[];
+  journey: GuestJourney;
 };
 
 export type GuestListResponse = {
