@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { IconArrowLeft, IconCloud, IconWorld } from "@tabler/icons-react";
@@ -351,7 +350,7 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
         PublishKnowledgeItems.fulfilled.match(result) &&
         result.payload.publishedIds.length > 0
       ) {
-        router.push("/knowledge");
+        router.back();
         return;
       }
     }
@@ -376,8 +375,8 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
         <p className="text-sm text-muted-foreground">
           It may have been deleted, or it belongs to another store.
         </p>
-        <Button asChild variant="outline">
-          <Link href="/knowledge">Back To Knowledge</Link>
+        <Button variant="outline" onClick={() => router.back()}>
+          Back To Knowledge
         </Button>
       </div>
     );
@@ -468,11 +467,14 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
     // The editor fills the screen and only the text scrolls.
     <div className="flex h-app-screen min-h-0 flex-col overflow-hidden">
       <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b px-4 py-2.5">
-        <Button asChild variant="ghost" size="sm" className="-ml-2">
-          <Link href="/knowledge">
-            <IconArrowLeft className="size-4" />
-            Knowledge
-          </Link>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="-ml-2"
+          onClick={() => router.back()}
+        >
+          <IconArrowLeft className="size-4" />
+          Knowledge
         </Button>
 
         <div className="flex min-w-0 flex-1 basis-40 items-center gap-2 text-sm">
