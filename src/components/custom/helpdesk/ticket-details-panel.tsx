@@ -901,6 +901,7 @@ function AssigneePicker({
       agents={staff.map((member) => ({
         email: member.email,
         name: `${member.first_name} ${member.last_name}`.trim() || member.email,
+        role: member.role,
       }))}
       currentAgent={assignee?.email ?? null}
       currentAgentName={assignee?.name}

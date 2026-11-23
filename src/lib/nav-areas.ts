@@ -171,8 +171,7 @@ export const NAV_AREAS = {
         href: "/settings/general",
         title: "General",
         description: "Company profile — name, logo, and identity details.",
-        pageDescription:
-          "Your company's contact details, logo, and address. The name and code are managed by the platform operator.",
+        pageDescription: "Your company's contact details, logo, and address.",
         icon: IconBuildingSkyscraper,
         ownerOnly: true,
       },
@@ -249,14 +248,14 @@ export const NAV_AREAS = {
               "Manage the Facebook and Instagram accounts connected to Store Signal AI.",
             icon: IconSocial,
           },
-          {
-            href: "/settings/social-ai/comment-handling",
-            title: "Comment Handling",
-            description: "How the AI reads, classifies and acts on comments.",
-            pageDescription:
-              "How the AI reads, classifies and acts on every comment on your posts and ads. Each comment is tagged by intent, then handled by the rule you set for that intent.",
-            icon: IconMessageCircle,
-          },
+          // {
+          //   href: "/settings/social-ai/comment-handling",
+          //   title: "Comment Handling",
+          //   description: "How the AI reads, classifies and acts on comments.",
+          //   pageDescription:
+          //     "How the AI reads, classifies and acts on every comment on your posts and ads. Each comment is tagged by intent, then handled by the rule you set for that intent.",
+          //   icon: IconMessageCircle,
+          // },
           // {
           //   href: "/settings/social-ai/dm-automation",
           //   title: "DM Automation",

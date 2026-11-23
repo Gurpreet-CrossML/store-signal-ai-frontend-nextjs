@@ -35,12 +35,15 @@ import { useIsBelowLg } from "@/hooks/use-narrow-viewport";
 import { ConversationRow } from "@/components/custom/conversation-row";
 import { AnimatePresence, motion } from "framer-motion";
 
+import { CheckboxMultiSelect } from "@/components/custom/checkbox-multi-select";
 import { CustomerAvatar } from "@/components/custom/customer-avatar";
+import { CustomerSegmentBadge } from "@/components/custom/customer-segment-badge";
 import {
   AdminBadge,
   AssigneeSelect,
   type AgentOption,
 } from "@/components/custom/assignee-select";
+import { StaffRoleBadge } from "@/components/custom/staff-columns";
 import {
   CustomerDetailsButton,
   CustomerDetailsPanel,
@@ -91,7 +94,10 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { FetchStaff } from "@/redux/api-slice/tenancy-slice";
+import {
+  FetchAssignableStaff,
+  FetchStaff,
+} from "@/redux/api-slice/tenancy-slice";
 import { type StaffMember } from "@/redux/api-slice/tenancy-slice";
 import {
   IconAlertTriangle,
@@ -117,7 +123,12 @@ import { useSession } from "next-auth/react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { toast } from "sonner";
-import { ACTIVE_FILTER_STYLE, ENDPOINTS } from "@/lib/config";
+import {
+  ACTIVE_FILTER_STYLE,
+  ENDPOINTS,
+  MAX_MESSAGE_LENGTH,
+  MESSAGE_TOO_LONG_TEXT,
+} from "@/lib/config";
 import { can } from "@/lib/access-rules";
 import type { ThreadCloseReason } from "@/lib/thread-options";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
@@ -273,6 +284,7 @@ function ThreadChatControls({
   userRole,
   canReassign = false,
   agents = [],
+  assignees = [],
   chatSocketReady,
   transitionState,
   composerMessage,
@@ -303,7 +315,10 @@ function ThreadChatControls({
   user: string | null;
   userRole?: string | null;
   canReassign?: boolean;
+  /** Everyone who may hold a chat: names and admin badges. */
   agents?: AgentOption[];
+  /** Who the chat can be given to: active support agents and store managers. */
+  assignees?: AgentOption[];
   chatSocketReady: boolean;
   transitionState: "idle" | "taking_over" | "returning_to_ai";
   composerMessage: string;
@@ -356,7 +371,15 @@ function ThreadChatControls({
   );
   const inputsDisabled = transitionState !== "idle" || isUploadingAttachments;
 
+  // The same limit as the customer's widget: typing stops at it, the box
+  // turns red, sending is off, and the reason shows under the box like a
+  // form field's error (no toast).
+  const tooLong = composerMessage.length >= MAX_MESSAGE_LENGTH;
+  const changeComposerMessage = (value: string) =>
+    setComposerMessage(value.slice(0, MAX_MESSAGE_LENGTH));
+
   const canSend =
+    !tooLong &&
     (composerMessage.trim().length > 0 ||
       attachments.length > 0 ||
       attachedProducts.length > 0) &&
@@ -365,7 +388,7 @@ function ThreadChatControls({
     !isUploadingAttachments &&
     !hasFailedAttachments;
   const canSaveInternalNote =
-    composerMessage.trim().length > 0 && transitionState === "idle";
+    !tooLong && composerMessage.trim().length > 0 && transitionState === "idle";
 
   const handleEmojiClick = (emojiData: EmojiClickData) => {
     onEmojiSelect(emojiData.emoji);
@@ -445,7 +468,7 @@ function ThreadChatControls({
               >
                 {canReassign && (
                   <AssigneeSelect
-                    agents={agents}
+                    agents={assignees}
                     currentAgent={null}
                     disabled={transitionState !== "idle" || !chatSocketReady}
                     onReassign={onReassign}
@@ -495,7 +518,12 @@ function ThreadChatControls({
             transition={{ duration: 0.2, ease: "easeOut" }}
             className="order-2 p-2 sm:p-2.5"
           >
-            <div className="overflow-hidden rounded-xl border border-amber-300/80 bg-amber-50 shadow-xs transition-shadow focus-within:border-amber-400 focus-within:shadow-sm dark:border-amber-700/70 dark:bg-amber-950/30">
+            <div
+              className={cn(
+                "overflow-hidden rounded-xl border border-amber-300/80 bg-amber-50 shadow-xs transition-shadow focus-within:border-amber-400 focus-within:shadow-sm dark:border-amber-700/70 dark:bg-amber-950/30",
+                tooLong && "border-red-600 focus-within:border-red-600",
+              )}
+            >
               <div className="flex items-start gap-2 bg-amber-50 px-3 py-1.5 text-xs leading-snug text-amber-800 sm:text-xsm dark:bg-amber-950/30 dark:text-amber-100">
                 <IconLock className="mt-0.5 size-3 shrink-0 text-amber-700 sm:size-3 dark:text-amber-300" />
                 <span>
@@ -509,11 +537,13 @@ function ThreadChatControls({
                   placeholder="Add a note for your team."
                   value={composerMessage}
                   disabled={isSavingInternalNote || transitionState !== "idle"}
-                  onChange={(event) => setComposerMessage(event.target.value)}
+                  onChange={(event) =>
+                    changeComposerMessage(event.target.value)
+                  }
                   onKeyDown={(event) => {
                     if (event.key === "Enter" && !event.shiftKey) {
                       event.preventDefault();
-                      onSendInternalNote();
+                      if (!tooLong) onSendInternalNote();
                     }
                   }}
                   className="min-h-12 max-h-20 w-full resize-none bg-transparent py-0.5 text-sm leading-6 outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60"
@@ -526,6 +556,7 @@ function ThreadChatControls({
                     size="sm"
                     onClick={onSendInternalNote}
                     disabled={
+                      tooLong ||
                       composerMessage.trim().length === 0 ||
                       isSavingInternalNote ||
                       transitionState !== "idle"
@@ -542,6 +573,11 @@ function ThreadChatControls({
                   </Button>
                 </div>
               </div>
+              {tooLong && (
+                <p className="px-3 pb-2 text-xs text-destructive">
+                  {MESSAGE_TOO_LONG_TEXT}
+                </p>
+              )}
             </div>
           </motion.div>
         )}
@@ -579,7 +615,7 @@ function ThreadChatControls({
             <div className="flex w-full min-w-0 shrink-0 flex-nowrap items-center justify-end gap-1.5 sm:ml-auto sm:w-auto sm:gap-3">
               {(canReassign || Boolean(connectedAgent)) && (
                 <AssigneeSelect
-                  agents={agents}
+                  agents={assignees}
                   currentAgent={connectedAgent}
                   currentAgentName={connectedAgentName}
                   disabled={
@@ -644,7 +680,7 @@ function ThreadChatControls({
             <div className="flex w-full min-w-0 shrink-0 items-center justify-end gap-1.5 sm:w-auto sm:gap-3">
               {(canReassign || Boolean(connectedAgent)) && (
                 <AssigneeSelect
-                  agents={agents}
+                  agents={assignees}
                   currentAgent={connectedAgent}
                   currentAgentName={connectedAgentName}
                   disabled={
@@ -681,7 +717,10 @@ function ThreadChatControls({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="order-2 m-2 overflow-hidden rounded-lg border border-border/60 bg-background shadow-xs transition-shadow focus-within:border-primary/50 focus-within:shadow-sm sm:m-2.5"
+            className={cn(
+              "order-2 m-2 overflow-hidden rounded-lg border border-border/60 bg-background shadow-xs transition-shadow focus-within:border-primary/50 focus-within:shadow-sm sm:m-2.5",
+              tooLong && "border-red-600 focus-within:border-red-600",
+            )}
           >
             {isEmojiPickerOpen && (
               <div className="border-b border-border/50 p-2">
@@ -824,11 +863,11 @@ function ThreadChatControls({
                 }
                 value={composerMessage}
                 disabled={inputsDisabled}
-                onChange={(event) => setComposerMessage(event.target.value)}
+                onChange={(event) => changeComposerMessage(event.target.value)}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" && !event.shiftKey) {
                     event.preventDefault();
-                    onSendAgentMessage();
+                    if (!tooLong) onSendAgentMessage();
                   }
                 }}
                 className="min-h-12 max-h-24 w-full resize-none bg-transparent py-0.5 text-xs leading-5 outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm sm:leading-6"
@@ -958,6 +997,11 @@ function ThreadChatControls({
                 </Button>
               </div>
             </div>
+            {tooLong && (
+              <p className="px-3 pb-2 text-xs text-destructive">
+                {MESSAGE_TOO_LONG_TEXT}
+              </p>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -1225,6 +1269,24 @@ export default function Support() {
     session?.user?.role,
   ]);
 
+  // Who a chat can be given to; the backend sends only active support
+  // agents and store managers.
+  const assignableStaff: StaffMember[] = useAppSelector(
+    (state) => state.GetTenancyReducer.assignableStaff,
+  );
+  const assignees = useMemo<AgentOption[]>(() => {
+    const myEmail = session?.user?.email ?? "";
+    return assignableStaff.map((member) => {
+      const name =
+        `${member.first_name} ${member.last_name}`.trim() || member.email;
+      return {
+        email: member.email,
+        name: member.email === myEmail ? `${name} (you)` : name,
+        role: member.role,
+      };
+    });
+  }, [assignableStaff, session?.user?.email]);
+
   const connectedAgentName = useMemo(() => {
     if (!connectedAgent) return null;
     if (connectedAgentServerName) return connectedAgentServerName;
@@ -1253,6 +1315,7 @@ export default function Support() {
   useEffect(() => {
     if (!canReassign) return;
     void dispatch(FetchStaff());
+    void dispatch(FetchAssignableStaff());
   }, [canReassign, dispatch]);
 
   const wsRef = useRef<WebSocket | null>(null);
@@ -1899,7 +1962,10 @@ export default function Support() {
   );
 
   const handleEmojiSelect = useCallback((emoji: string) => {
-    setComposerMessage((prev) => `${prev}${emoji}`);
+    // Past the message limit the emoji is not added, as typing stops there.
+    setComposerMessage((prev) =>
+      `${prev}${emoji}`.length > MAX_MESSAGE_LENGTH ? prev : `${prev}${emoji}`,
+    );
     setIsEmojiPickerOpen(false);
   }, []);
 
@@ -2669,28 +2735,37 @@ export default function Support() {
                       />
                     </fieldset>
 
-                    <fieldset>
-                      <legend className="mb-2">
-                        <Typography variant="small" as="span">
-                          Assignee
-                        </Typography>
-                      </legend>
-                      <MultiSelectCombobox
-                        options={agents.map((agent) => ({
-                          value: agent.email,
-                          label: agent.name,
-                        }))}
-                        value={draftThreadFilters.assignees}
-                        onValueChange={(assignees) =>
-                          setDraftThreadFilters((current) => ({
-                            ...current,
-                            assignees,
-                          }))
-                        }
-                        placeholder="Search assignees…"
-                        emptyMessage="No assignees found."
-                      />
-                    </fieldset>
+                    {/* Store owners and managers only: they hand chats out.
+                        The list is active support agents and store managers. */}
+                    {canReassign && (
+                      <fieldset>
+                        <legend className="mb-2">
+                          <Typography variant="small" as="span">
+                            Assignee
+                          </Typography>
+                        </legend>
+                        <CheckboxMultiSelect
+                          options={assignees.map((agent) => ({
+                            value: agent.email,
+                            label: agent.name,
+                            hint: agent.email,
+                            badge: agent.role && (
+                              <StaffRoleBadge role={agent.role} />
+                            ),
+                          }))}
+                          value={draftThreadFilters.assignees}
+                          onChange={(next) =>
+                            setDraftThreadFilters((current) => ({
+                              ...current,
+                              assignees: next,
+                            }))
+                          }
+                          placeholder="Choose assignees"
+                          searchPlaceholder="Search name or email"
+                          emptyMessage="No assignees found."
+                        />
+                      </fieldset>
+                    )}
                   </div>
                   <div className="flex justify-between border-t p-3">
                     {appliedThreadFilters.channels.length +
@@ -2877,6 +2952,10 @@ export default function Support() {
                             )}
                             {handlerLabel}
                           </Badge>
+                          <CustomerSegmentBadge
+                            segment={thread.customer_segment}
+                            className="rounded-md px-1.5"
+                          />
                           {waitingLabel && (
                             <Badge
                               variant="secondary"
@@ -2982,14 +3061,21 @@ export default function Support() {
                           talking to is what an agent needs from a header,
                           and who is handling the thread is already said by
                           the take-over banner above the composer. */}
-                      <CustomerContact
-                        email={selectedThread?.customer?.email}
-                        phone={selectedThread?.customer?.phone}
-                        // Orders keep the last thread's rows until the new
-                        // ones land; reading them sooner would show the
-                        // previous customer's phone.
-                        orders={FetchOrderDataIsLoading ? null : FetchOrderData}
-                      />
+                      <div className="flex min-w-0 items-center gap-2">
+                        <CustomerContact
+                          email={selectedThread?.customer?.email}
+                          phone={selectedThread?.customer?.phone}
+                          // Orders keep the last thread's rows until the new
+                          // ones land; reading them sooner would show the
+                          // previous customer's phone.
+                          orders={
+                            FetchOrderDataIsLoading ? null : FetchOrderData
+                          }
+                        />
+                        <CustomerSegmentBadge
+                          segment={selectedThread?.customer_segment}
+                        />
+                      </div>
                     </div>
                   </div>
 
@@ -3083,7 +3169,10 @@ export default function Support() {
                 ) : (
                   <div className="flex min-h-0 flex-1 flex-col">
                     <div className="min-h-0 flex-1 overflow-y-auto p-1 sm:p-3">
-                      {threadMessages.length > 0 ? (
+                      {/* Assignments and take-overs show even before the first
+                          message; "No Messages Yet" is only for a chat with
+                          nothing in it at all. */}
+                      {threadMessages.length > 0 || handlerEvents.length > 0 ? (
                         <LiveMessagePan
                           messages={threadMessages}
                           handlerEvents={handlerEvents}
@@ -3118,7 +3207,7 @@ export default function Support() {
                             {selectedThread?.chat_handler === "human" &&
                             selectedThread.chat_handler_user?.name
                               ? ` ${selectedThread.chat_handler_user.email?.toLowerCase() === session?.user?.email?.toLowerCase() ? "You" : selectedThread.chat_handler_user.name} will reply as soon as they do.`
-                              : "The AI Assistant will reply as soon as they do."}
+                              : " The AI Assistant will reply as soon as they do."}
                           </Typography>
                         </div>
                       )}
@@ -3168,6 +3257,7 @@ export default function Support() {
                         userRole={session?.user?.role}
                         canReassign={canReassign}
                         agents={agents}
+                        assignees={assignees}
                         chatSocketReady={chatSocketReady}
                         onReassign={handleReassign}
                         transitionState={transitionState}

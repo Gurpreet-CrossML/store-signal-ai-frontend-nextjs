@@ -236,6 +236,35 @@ export function WebsiteUrlDiscovery({
 
   const atCap = selectedUrls.length >= maxSelection;
 
+  // Pages that match a knowledge category (their category is already filled
+  // in) start out ticked, as soon as they are listed. Each is ticked once, so
+  // unticking one stands, and pages read later are ticked as they arrive.
+  const autoTickedMatches = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    // Pages the user listed are all ticked by the effect further down.
+    if (checkingPages) return;
+    const fresh = readablePages.filter(
+      (page) => isMatched(page) && !autoTickedMatches.current.has(page.url),
+    );
+    if (fresh.length === 0) return;
+    for (const page of fresh) autoTickedMatches.current.add(page.url);
+
+    const room = Math.max(maxSelection - selectedUrls.length, 0);
+    const additions = fresh
+      .filter((page) => !selected.has(page.url))
+      .slice(0, room)
+      .map((page) => page.url);
+    if (additions.length > 0)
+      onSelectedUrlsChange([...selectedUrls, ...additions]);
+  }, [
+    checkingPages,
+    readablePages,
+    selected,
+    selectedUrls,
+    maxSelection,
+    onSelectedUrlsChange,
+  ]);
+
   /** Why a page's checkbox is disabled (shown on hover), or null if it isn't. */
   const disabledReason = (
     page: DiscoveredPage,
@@ -264,6 +293,7 @@ export function WebsiteUrlDiscovery({
     if (!storeCode || busy) return;
     setFilter("");
     onSelectedUrlsChange([]);
+    autoTickedMatches.current = new Set();
     detailsRequest.current?.abort();
     setDetailAttempts({});
     setThrottledRounds(0);
@@ -336,20 +366,13 @@ export function WebsiteUrlDiscovery({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <p className="text-sm font-semibold">
-          {checkingPages
-            ? "Your Pages"
-            : scannedHost
-              ? `Found on ${scannedHost}`
-              : "Scan A Website"}
-        </p>
         {/* Not offered while a scan or check is still running. */}
         {!checkingPages && (scannedUrl || scanError) && !busy && (
           <Button
             type="button"
             variant="ghost"
             size="sm"
-            className="text-primary"
+            className="ml-auto text-primary"
             onClick={() => void scan(scannedUrl || websiteUrl)}
           >
             <IconRefresh className="size-4" />
@@ -371,8 +394,9 @@ export function WebsiteUrlDiscovery({
 
       {!isLoading && hasScanned && !checkingPages && pages.length === 0 && (
         <p className="rounded-lg border border-dashed border-border/60 px-4 py-6 text-center text-sm text-muted-foreground">
-          No help or policy pages were found in this website&apos;s sitemap. You
-          can still add specific pages by pasting their links.
+          No help or policy pages were found. We look in the website for pages
+          about shipping, returns, payment, privacy, terms, FAQ, contact and
+          similar topics. You can still add any page by pasting its link.
         </p>
       )}
 
