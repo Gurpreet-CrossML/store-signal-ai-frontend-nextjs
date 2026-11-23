@@ -232,13 +232,6 @@ export async function get_thread_counts(storeCode?: string) {
 }
 
 /** Threads the customer started in this store before this one. */
-/**
- * The segment a chat shows: its own copy (taken when the customer was
- * linked, so an October VIP chat stays VIP), else the customer's current
- * segment from the customer table. Same rule as Django's CustomerSegmentField.
- */
-const threadCustomerSegment = sql<string>`COALESCE(NULLIF(${chatThread.customerSegment}, ''), ${chatCustomer.segment}, '')`;
-
 const pastThreadsCount = sql<number>`CASE WHEN ${chatCustomer.id} IS NOT NULL THEN (SELECT COUNT(*)::int FROM ${chatThread} ct WHERE ct.customer_id = ${chatCustomer.id} AND ct.store_id = ${chatThread.storeId} AND ct.created_at < ${chatThread.createdAt}) ELSE 0 END`;
 
 /**
@@ -301,7 +294,9 @@ export async function list_threads(
       >`COALESCE((SELECT NULLIF(regexp_replace(${userMetadata.updatedCartData}->>'total', '[^0-9.]', '', 'g'), '')::numeric FROM ${userMetadata} WHERE ${userMetadata.threadId} = ${chatThread.id} LIMIT 1), 0)`,
       ended_at: chatThread.endedAt,
       customer_id: chatCustomer.id,
-      customer_segment: threadCustomerSegment,
+      // The chat's own copy, taken when it got its customer; never the
+      // customer's current segment, so old chats keep what they had.
+      customer_segment: chatThread.customerSegment,
       customer_first_name: chatCustomer.firstName,
       customer_last_name: chatCustomer.lastName,
       customer_email: chatCustomer.email,
@@ -332,7 +327,6 @@ export async function list_threads(
       chatCustomer.registeredAt,
       chatCustomer.totalSpent,
       chatCustomer.ordersCount,
-      chatCustomer.segment,
       authUser.id,
       authUser.firstName,
       authUser.lastName,
@@ -839,7 +833,9 @@ export async function get_thread_details(
       created_at: chatThread.createdAt,
       ended_at: chatThread.endedAt,
       customer_id: chatCustomer.id,
-      customer_segment: threadCustomerSegment,
+      // The chat's own copy, taken when it got its customer; never the
+      // customer's current segment, so old chats keep what they had.
+      customer_segment: chatThread.customerSegment,
       customer_first_name: chatCustomer.firstName,
       customer_last_name: chatCustomer.lastName,
       customer_email: chatCustomer.email,

@@ -29,9 +29,10 @@ export type CustomerAddress = {
 };
 
 /**
- * The segment the VIP segmentation pipeline gives a customer every day;
- * empty until they have a qualifying order. Mirrors the backend's
- * `chat.constants.CustomerSegment`.
+ * The segment the customer analysis pipeline gives a customer every day
+ * ("regular" until then). A chat or ticket copies it when it gets the
+ * customer, and is "" for a guest. Mirrors the backend's
+ * `chat.models.Customer.Segment`.
  */
 export type CustomerSegment =
   | "top_vip"

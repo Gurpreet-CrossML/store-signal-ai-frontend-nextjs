@@ -2644,6 +2644,7 @@ export const supportTicket = pgTable(
     }).notNull(),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
     customerId: bigint("customer_id", { mode: "number" }),
+    customerSegment: varchar("customer_segment", { length: 20 }).notNull(),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
     storeId: bigint("store_id", { mode: "number" }).notNull(),
     threadId: uuid("thread_id"),
@@ -3100,7 +3101,6 @@ export const storeCredentials = pgTable(
       withTimezone: true,
       mode: "string",
     }).notNull(),
-    customerSegment: varchar("customer_segment", { length: 20 }).notNull(),
     // You can use { mode: "bigint" } if numbers are exceeding js number limitations
     storeId: bigint("store_id", { mode: "number" }).notNull(),
     adminTokenExpiresAt: timestamp("admin_token_expires_at", {

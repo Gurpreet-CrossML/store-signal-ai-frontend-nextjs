@@ -1,5 +1,3 @@
-import { IconCrown } from "@tabler/icons-react";
-
 import { Badge } from "@/components/ui/badge";
 import { BADGE_TONE_STYLES } from "@/lib/badge-tones";
 import { cn } from "@/lib/utils";
