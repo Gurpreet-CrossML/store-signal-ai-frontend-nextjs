@@ -11,10 +11,11 @@ import { KnowledgeHeadingActions } from "@/components/custom/knowledge/knowledge
 import { KnowledgeStorageCard } from "@/components/custom/knowledge/knowledge-storage-card";
 import { KnowledgeStorageNotice } from "@/components/custom/knowledge/knowledge-storage-notice";
 import { useCan } from "@/hooks/use-can";
-import { KNOWLEDGE_ALL_ROUTE } from "@/lib/config";
+import { KNOWLEDGE_ALL_ROUTE, KNOWLEDGE_STATUS_POLL_MS } from "@/lib/config";
 import { cn } from "@/lib/utils";
 import {
   FetchKnowledgeCategories,
+  FetchKnowledgeItems,
   FetchKnowledgeStats,
 } from "@/redux/api-slice/knowledge-rag-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
@@ -39,12 +40,34 @@ export default function KnowledgeOverview() {
   } = useAppSelector(
     (state) => state.GetKnowledgeRagReducer.FetchKnowledgeCategoriesState,
   );
+  const knowledgeItems = useAppSelector(
+    (state) =>
+      state.GetKnowledgeRagReducer.FetchKnowledgeItemsState
+        .FetchKnowledgeItemsListData.results,
+  );
 
   useEffect(() => {
     if (!storeCode) return;
     dispatch(FetchKnowledgeStats({ storeCode }));
     dispatch(FetchKnowledgeCategories({ storeCode }));
+    dispatch(FetchKnowledgeItems({ storeCode, pageSize: 100 }));
   }, [dispatch, storeCode]);
+
+  const hasProcessingKnowledge = knowledgeItems.some(
+    (item) => item.status === "pending" || item.status === "processing",
+  );
+
+  useEffect(() => {
+    if (!storeCode || !hasProcessingKnowledge) return;
+
+    const poll = window.setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      dispatch(FetchKnowledgeItems({ storeCode, pageSize: 100, silent: true }));
+      dispatch(FetchKnowledgeStats({ storeCode, silent: true }));
+    }, KNOWLEDGE_STATUS_POLL_MS);
+
+    return () => window.clearInterval(poll);
+  }, [dispatch, storeCode, hasProcessingKnowledge]);
 
   // Nothing added yet: offer the ways to start instead of a grid of zeros.
   const isEmptyLibrary = stats !== null && stats.counts.knowledge_items === 0;
