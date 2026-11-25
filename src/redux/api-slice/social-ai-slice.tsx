@@ -202,6 +202,8 @@ export type CommentTopic = {
  */
 export type SocialLinkedCustomer = {
   id: number;
+  /** `id` encrypted by the backend, for page URLs. */
+  url_id: string;
   /** The shopper's id on the commerce platform. */
   customer_id?: string;
   name: string;
@@ -423,6 +425,8 @@ export type WhatsAppTemplate = {
   // The template's LOCAL id — every route that acts on one is keyed by
   // this rather than by Meta's id.
   id: number;
+  /** `id` encrypted by the backend, for page URLs. */
+  url_id: string;
   meta_template_id: string | null;
   name: string;
   // Readable name for the dashboard; blank when none was set.

@@ -206,12 +206,12 @@ export function ViewedProductsCard({
 export function SessionDataCard({
   userMetadata,
   customer,
-  currentThreadId,
+  currentThreadUrlId,
   loading,
 }: {
   userMetadata?: UserMetadata | null;
   customer?: Customer | null;
-  currentThreadId?: string | null;
+  currentThreadUrlId?: string | null;
   loading?: boolean;
 }) {
   const device =
@@ -257,9 +257,9 @@ export function SessionDataCard({
             </Fragment>
           ))}
           <Typography variant="muted">Past Chats</Typography>
-          {customer?.email && currentThreadId && pastThreadsCount > 0 ? (
+          {customer?.email && currentThreadUrlId && pastThreadsCount > 0 ? (
             <Link
-              href={`/threads?search=${encodeURIComponent(customer.email)}&before_thread_id=${encodeURIComponent(currentThreadId)}`}
+              href={`/threads?search=${encodeURIComponent(customer.email)}&before_thread_id=${currentThreadUrlId}`}
               className="min-w-0 truncate text-sm font-medium text-primary hover:underline"
             >
               {pastChatsLabel}
@@ -708,7 +708,7 @@ export function OrdersCard({
           })}
           {hiddenOrderCount > 0 && customerData?.id ? (
             <Link
-              href={`/crm/orders?customer=${customerData.id}`}
+              href={`/crm/orders?customer=${customerData.url_id}`}
               className="text-center text-primary underline underline-offset-2 hover:text-primary"
             >
               View All Orders

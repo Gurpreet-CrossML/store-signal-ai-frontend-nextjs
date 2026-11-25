@@ -20,10 +20,14 @@ export type AgentNotification = {
   notification_type: NotificationType;
   title: string;
   message: string;
-  /** Set for ticket notifications; opens `/helpdesk?ticket=<id>`. */
+  /** Set for ticket notifications. */
   ticket: number | null;
+  /** `ticket` encrypted by the backend; opens `/helpdesk?ticket=<ticket_url_id>`. */
+  ticket_url_id: string | null;
   /** Set for live chat notifications; opens `/support?chat=<id>`. */
   thread: string | null;
+  /** `thread` encrypted by the backend; opens `/support?chat=<thread_url_id>`. */
+  thread_url_id: string | null;
   store_code: string;
   is_read: boolean;
   created_at: string;

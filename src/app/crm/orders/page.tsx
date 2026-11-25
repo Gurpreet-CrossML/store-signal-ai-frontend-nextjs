@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 
 import Orders from "@/clients/orders";
+import { decryptUrlId } from "@/lib/url-id";
 import { AreaSubPage } from "@/components/custom/area-sub-page";
 import { areaSectionMetadata } from "@/lib/nav-areas";
 
@@ -16,13 +17,18 @@ export const dynamic = "force-dynamic";
 
 export const metadata = areaSectionMetadata(HREF);
 
-export default function Page() {
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const { customer } = await searchParams;
   return (
     <AreaSubPage href={HREF}>
       {/* Orders reads useSearchParams (?customer=); static prerender
           requires a Suspense boundary around it. */}
       <Suspense fallback={null}>
-        <Orders />
+        <Orders customerParam={Number(decryptUrlId("Customer", customer))} />
       </Suspense>
     </AreaSubPage>
   );

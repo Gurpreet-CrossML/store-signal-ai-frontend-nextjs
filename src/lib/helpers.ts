@@ -14,12 +14,12 @@ import {
  * Where a conversation opens: an active one in Support, where it can be
  * answered, and a closed one in Threads, where it is only read.
  */
-export const getThreadHref = (threadId: string, isActive: boolean) =>
-  isActive ? `/support/?chat=${threadId}` : `/threads/${threadId}`;
+export const getThreadHref = (threadUrlId: string, isActive: boolean) =>
+  isActive ? `/support/?chat=${threadUrlId}` : `/threads/${threadUrlId}`;
 
 /** A knowledge item's own page (an article is sent on to its editor from there). */
-export const getKnowledgeItemHref = (itemId: number | string) =>
-  `/knowledge/items/${itemId}`;
+export const getKnowledgeItemHref = (itemUrlId: string) =>
+  `/knowledge/items/${itemUrlId}`;
 
 export const formatDateTime = (dateInput: string | null) => {
   if (!dateInput || dateInput === "-") return "-";

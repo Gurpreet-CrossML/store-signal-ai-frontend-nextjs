@@ -367,10 +367,11 @@ export default function Campaigns() {
     () =>
       getColumns(
         segmentById,
-        (campaign) => router.push(`/campaign/campaigns/${campaign.id}`),
+        (campaign) => router.push(`/campaign/campaigns/${campaign.url_id}`),
         handleToggleActive,
         togglingId,
-        (campaign) => router.push(`/campaign/campaigns/${campaign.id}/edit`),
+        (campaign) =>
+          router.push(`/campaign/campaigns/${campaign.url_id}/edit`),
         (campaign) => setCampaignToDelete(campaign),
         handleReschedule,
         reschedulingId,

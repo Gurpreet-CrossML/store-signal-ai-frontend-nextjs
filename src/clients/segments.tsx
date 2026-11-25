@@ -314,7 +314,7 @@ export default function Segments() {
         categoryById,
         handleToggleActive,
         togglingId,
-        (segment) => router.push(`/campaign/segments/${segment.id}/edit`),
+        (segment) => router.push(`/campaign/segments/${segment.url_id}/edit`),
         (segment) => setSegmentToDelete(segment),
       ),
     [categoryById, handleToggleActive, togglingId, router],

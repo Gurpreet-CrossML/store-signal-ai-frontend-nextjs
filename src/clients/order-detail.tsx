@@ -227,7 +227,7 @@ export default function OrderDetail({ orderId }: { orderId: number }) {
               {customer.email ? (
                 customer.id ? (
                   <Link
-                    href={`/crm/customers/${customer.id}`}
+                    href={`/crm/customers/${customer.url_id}`}
                     className="truncate text-sm text-primary hover:underline"
                   >
                     {customer.email}
@@ -251,7 +251,7 @@ export default function OrderDetail({ orderId }: { orderId: number }) {
               ) : null}
               {customer.id ? (
                 <Button variant="outline" size="sm" className="mt-1" asChild>
-                  <Link href={`/crm/orders?customer=${customer.id}`}>
+                  <Link href={`/crm/orders?customer=${customer.url_id}`}>
                     Their Other Orders
                   </Link>
                 </Button>

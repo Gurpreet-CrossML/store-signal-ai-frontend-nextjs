@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 
 import HelpDesk from "@/clients/helpdesk";
+import { decryptUrlId } from "@/lib/url-id";
 
 /**
  * Rendered per request. What this screen shows is decided by the
@@ -14,10 +15,15 @@ export const metadata = {
   title: "Help Desk",
 };
 
-export default function Page() {
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const { ticket } = await searchParams;
   return (
     <Suspense fallback={null}>
-      <HelpDesk />
+      <HelpDesk linkedTicketId={Number(decryptUrlId("Ticket", ticket))} />
     </Suspense>
   );
 }

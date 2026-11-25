@@ -67,6 +67,8 @@ type GetThreadsArgs = {
 export type Customer = {
   // Null for a guest — decides which tickets endpoint the UI calls.
   id: number | null;
+  /** `id` encrypted by the backend, for page URLs; null for a guest. */
+  url_id: string | null;
   name: string;
   email: string;
   phone?: string | null;
@@ -84,6 +86,8 @@ export type ThreadHandlerUser = {
 
 export type Thread = {
   id: string;
+  /** `id` encrypted by the backend, for page URLs. */
+  url_id: string;
   name: string | null;
   customer: Customer | null;
   /** The customer's segment when they were linked to this chat; kept after. */
@@ -295,7 +299,12 @@ export type ThreadDetails = {
   customer_name: string | null;
   customer_email: string | null;
   /** Identity, plus the phone and past-thread count the side panel shows. */
-  customer: { id: number; phone: string; past_threads_count: number } | null;
+  customer: {
+    id: number;
+    url_id: string;
+    phone: string;
+    past_threads_count: number;
+  } | null;
   is_active: boolean;
   close_reason?: ThreadCloseReason | null;
   closed_by_type?: ThreadClosedByType | null;
@@ -387,6 +396,8 @@ export type TicketPriority = "low" | "normal" | "high" | "urgent";
 
 export type ThreadTicketData = {
   id: number;
+  /** `id` encrypted by the backend, for page URLs. */
+  url_id: string;
   ticket_id: string;
   subject: string;
   description: string;

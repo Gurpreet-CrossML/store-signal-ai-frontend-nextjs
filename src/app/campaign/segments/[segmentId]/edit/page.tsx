@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import SegmentCreate from "@/clients/segment-create";
+import { decryptUrlId } from "@/lib/url-id";
 
 export const metadata = {
   title: "Edit Segment",
@@ -11,7 +12,7 @@ export default async function Page({
   params: Promise<{ segmentId: string }>;
 }) {
   const { segmentId } = await params;
-  const parsed = Number(segmentId);
+  const parsed = Number(decryptUrlId("Segment", segmentId));
   if (!Number.isInteger(parsed) || parsed <= 0) notFound();
-  return <SegmentCreate segmentId={segmentId} />;
+  return <SegmentCreate segmentId={String(parsed)} />;
 }

@@ -92,7 +92,7 @@ export function CustomerDetailsPanel({
   ordersDisabled,
   tickets,
   cart,
-  currentThreadId,
+  currentThreadUrlId,
   userMetadataLoading,
   open,
   onOpenChange,
@@ -111,7 +111,7 @@ export function CustomerDetailsPanel({
   tickets?: { data: ThreadTicketData[]; loading?: boolean };
   /** Omit entirely on screens with no live cart. */
   cart?: { data: CartDataResponse | null; loading?: boolean };
-  currentThreadId?: string | null;
+  currentThreadUrlId?: string | null;
   /** True while `userMetadata` may still be the previous thread's. */
   userMetadataLoading?: boolean;
   /**
@@ -186,7 +186,7 @@ export function CustomerDetailsPanel({
             <SessionDataCard
               userMetadata={userMetadata}
               customer={customerData}
-              currentThreadId={currentThreadId}
+              currentThreadUrlId={currentThreadUrlId}
               loading={userMetadataLoading}
             />
           </>

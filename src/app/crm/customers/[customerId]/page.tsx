@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import CustomerDetail from "@/clients/customer-detail";
+import { decryptUrlId } from "@/lib/url-id";
 
 export const metadata = {
   title: "Customer",
@@ -12,7 +13,7 @@ export default async function Page({
   params: Promise<{ customerId: string }>;
 }) {
   const { customerId } = await params;
-  const id = Number(customerId);
+  const id = Number(decryptUrlId("Customer", customerId));
   if (!Number.isInteger(id) || id <= 0) notFound();
 
   // No SubPageShell here: its heading would sit directly above the

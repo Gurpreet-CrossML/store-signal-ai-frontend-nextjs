@@ -106,7 +106,7 @@ export function getOrderColumns(): ColumnDef<OrderListRow>[] {
                 text when the order carries no linked customer. */}
             {customer.id ? (
               <Link
-                href={`/crm/customers/${customer.id}`}
+                href={`/crm/customers/${customer.url_id}`}
                 className="block truncate text-sm text-primary hover:underline"
                 onClick={(event) => event.stopPropagation()}
               >

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import OrderDetail from "@/clients/order-detail";
+import { decryptUrlId } from "@/lib/url-id";
 
 export const metadata = {
   title: "Order",
@@ -12,7 +13,7 @@ export default async function Page({
   params: Promise<{ orderId: string }>;
 }) {
   const { orderId } = await params;
-  const id = Number(orderId);
+  const id = Number(decryptUrlId("Order", orderId));
   if (!Number.isInteger(id) || id <= 0) notFound();
 
   // No SubPageShell: its heading would sit directly above the order's own

@@ -16,6 +16,8 @@ export type EmailTemplateDetailRow = {
 // shared with WhatsApp/SMS templates now, instead of Email's own names.
 export type EmailTemplate = {
   id: number;
+  /** `id` encrypted by the backend, for page URLs. */
+  url_id: string;
   store: number;
   name: string;
   subject: string;
@@ -173,6 +175,8 @@ export const SEGMENT_CATEGORY_ABANDONED_CART_SLUG = "abandoned-cart";
 
 export type Segment = {
   id: number;
+  /** `id` encrypted by the backend, for page URLs. */
+  url_id: string;
   store: number;
   name: string;
   category: number;
@@ -458,6 +462,8 @@ export type CampaignSequenceStep = {
 
 export type Campaign = {
   id: number;
+  /** `id` encrypted by the backend, for page URLs. */
+  url_id: string;
   store: number;
   name: string;
   status: "draft" | "published";

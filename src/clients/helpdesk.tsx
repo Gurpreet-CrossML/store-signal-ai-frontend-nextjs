@@ -1184,8 +1184,8 @@ function ConversationPanel({
   // threads page once closed, and no link when there is none.
   const chatHref = ticket.thread
     ? ticket.thread_is_active
-      ? `/support/?chat=${ticket.thread}`
-      : `/threads/${ticket.thread}`
+      ? `/support/?chat=${ticket.thread_url_id}`
+      : `/threads/${ticket.thread_url_id}`
     : null;
   const staffNames = staff.map((member) =>
     `${member.first_name} ${member.last_name}`.trim(),
@@ -1917,13 +1917,17 @@ function ConversationPanel({
   );
 }
 
-export default function HelpDesk() {
+export default function HelpDesk({
+  linkedTicketId,
+}: {
+  /** Deep link to one ticket, e.g. from the Live Support detail panel; the
+   *  page decrypts it from ?ticket= on the server, 0 when there is none. */
+  linkedTicketId: number;
+}) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
   const activeFilter = searchParams?.get("filter") ?? "";
-  /** Deep link to one ticket, e.g. from the Live Support detail panel. */
-  const linkedTicketId = Number(searchParams?.get("ticket") ?? "");
 
   const dispatch = useAppDispatch();
   const { data: session } = useSession();
@@ -2757,12 +2761,17 @@ export default function HelpDesk() {
   // link and the back button all land on the same ticket. `replace`, not
   // `push`: clicking down a queue should not bury the previous page under
   // twenty history entries.
+  const activeTicketUrlId = ticketRows.find(
+    (row) => row.id === activeTicketId,
+  )?.url_id;
   useEffect(() => {
     if (!pathname) return;
+    // The address carries the ticket's encrypted id, so wait for its row.
+    if (activeTicketId && !activeTicketUrlId) return;
 
     const params = new URLSearchParams(searchParams?.toString() ?? "");
     const current = params.get("ticket");
-    const next = activeTicketId ? String(activeTicketId) : null;
+    const next = activeTicketUrlId ?? null;
     if (current === next) return;
 
     if (next) params.set("ticket", next);
@@ -2772,7 +2781,7 @@ export default function HelpDesk() {
     router.replace(query ? `${pathname}?${query}` : pathname, {
       scroll: false,
     });
-  }, [activeTicketId, pathname, router, searchParams]);
+  }, [activeTicketId, activeTicketUrlId, pathname, router, searchParams]);
 
   useEffect(() => {
     currentActiveSupportTicketIdRef.current = activeTicketId || null;

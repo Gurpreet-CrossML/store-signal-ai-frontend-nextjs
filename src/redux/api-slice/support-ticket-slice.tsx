@@ -90,6 +90,8 @@ type GetSupportTicketsArgs = {
 
 export type SupportTicketCustomer = {
   id: number;
+  /** `id` encrypted by the backend, for page URLs. */
+  url_id: string;
   addresses: unknown[];
   name: string;
   first_name: string;
@@ -242,6 +244,8 @@ export type SupportTicketCreatedBy = "agent" | "ai" | "email";
 
 export type SupportTicket = {
   id: number;
+  /** `id` encrypted by the backend, for page URLs. */
+  url_id: string;
   ticket_id: string;
   created_by_type?: SupportTicketCreatedBy;
   /** The agent who raised it; null when the AI or a rule did. */
@@ -261,6 +265,8 @@ export type SupportTicket = {
   thread?: string | null;
   /** Whether that chat is still open; null when there is none. */
   thread_is_active?: boolean | null;
+  /** `thread` encrypted by the backend, for page URLs. */
+  thread_url_id?: string | null;
   internal_assignee: SupportTicketAssignee | null;
 
   subject: string;

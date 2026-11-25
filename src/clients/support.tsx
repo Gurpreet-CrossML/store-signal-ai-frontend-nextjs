@@ -1052,7 +1052,12 @@ const useNotificationSound = (soundUrl: string = "/notification_sound.mp3") => {
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export default function Support() {
+export default function Support({
+  chatParam,
+}: {
+  /** The open chat (?chat=), decrypted by the page on the server. */
+  chatParam: string | null;
+}) {
   const dispatch = useAppDispatch();
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
@@ -1105,7 +1110,6 @@ export default function Support() {
   const searchParams = useSearchParams();
   // The open chat lives in the URL (?chat=<id>) so conversations can be
   // shared with teammates and deep-linked directly.
-  const chatParam = searchParams?.get("chat") ?? null;
 
   // Local, mutable copy of the thread list. Seeded from Redux (is_read
   // defaults to true), then patched in place by the dashboard socket (new
@@ -1433,6 +1437,9 @@ export default function Support() {
     }
   };
 
+  const activeThreadUrlId = localThreads.find(
+    (thread) => thread.id === activeThreadId,
+  )?.url_id;
   useEffect(() => {
     const params = new URLSearchParams(searchParams?.toString() ?? "");
     const safePathname = pathname ?? "/";
@@ -1459,14 +1466,17 @@ export default function Support() {
     }
 
     if (chatParam === activeThreadId && filterParamMatches) return;
+    // The address carries the chat's encrypted id, so wait for its row.
+    if (!activeThreadUrlId) return;
 
-    params.set("chat", activeThreadId);
+    params.set("chat", activeThreadUrlId);
     const query = params.toString();
     router.replace(query ? `${safePathname}?${query}` : safePathname, {
       scroll: false,
     });
   }, [
     activeThreadId,
+    activeThreadUrlId,
     chatParam,
     pathname,
     activeReadFilter,
@@ -2015,12 +2025,15 @@ export default function Support() {
       setAttachments([]);
       setAppliedChatParam(threadId);
       const params = new URLSearchParams(searchParams?.toString() ?? "");
-      params.set("chat", threadId);
+      const threadUrlId = localThreads.find(
+        (thread) => thread.id === threadId,
+      )?.url_id;
+      if (threadUrlId) params.set("chat", threadUrlId);
       router.replace(`${pathname}?${params.toString()}`, {
         scroll: false,
       });
     },
-    [router, pathname, searchParams],
+    [router, pathname, searchParams, localThreads],
   );
 
   // Closing is the customer's call: this only asks their widget for feedback.
@@ -2088,6 +2101,7 @@ export default function Support() {
         if (existingIndex === -1) {
           const newThread: ThreadWithReadState = {
             id: data.thread_id,
+            url_id: data.thread_url_id,
             last_message: data.message,
             last_message_at: data.created_at,
             cart_total: 0,
@@ -3049,7 +3063,7 @@ export default function Support() {
                             "Guest"}
                         </CardTitle>
                         <CrmLinkButton
-                          customerId={selectedThread?.customer?.id}
+                          customerUrlId={selectedThread?.customer?.url_id}
                           onLinkCustomer={
                             activeThreadId
                               ? () => setIsLinkCustomerOpen(true)
@@ -3288,7 +3302,7 @@ export default function Support() {
             <CustomerDetailsPanel
               open={isDetailsOpen}
               onOpenChange={setIsDetailsOpen}
-              currentThreadId={activeThreadId}
+              currentThreadUrlId={selectedThread?.url_id}
               customerData={selectedThread?.customer || null}
               userMetadata={FetchUserMetadataData}
               userMetadataLoading={FetchUserMetadataIsLoading}

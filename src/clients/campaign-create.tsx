@@ -147,8 +147,11 @@ function parseFieldErrors(rejected: unknown): Record<string, string> {
 
 export default function CampaignCreate({
   campaignId,
+  campaignUrlId,
 }: {
   campaignId?: string;
+  /** `campaignId` as it appears in page URLs. */
+  campaignUrlId?: string;
 } = {}) {
   const router = useRouter();
   const dispatch = useAppDispatch();
@@ -402,7 +405,7 @@ export default function CampaignCreate({
         ).unwrap();
         // The backend removes a campaign's schedules on edit, so a live one
         // is scheduled again straight away.
-        const detailUrl = `/campaign/campaigns/${campaignId}`;
+        const detailUrl = `/campaign/campaigns/${campaignUrlId}`;
         if (existingStatus === "published" && existingIsActive) {
           try {
             await dispatch(
@@ -433,7 +436,7 @@ export default function CampaignCreate({
           ).unwrap();
         } catch {
           // Published but not scheduled: the detail screen can reschedule.
-          router.push(`/campaign/campaigns/${created.id}`);
+          router.push(`/campaign/campaigns/${created.url_id}`);
           return;
         }
         toast.success("Campaign published");
@@ -461,8 +464,8 @@ export default function CampaignCreate({
           <Button variant="ghost" size="icon-sm" asChild>
             <Link
               href={
-                isEditMode
-                  ? `/campaign/campaigns/${campaignId}`
+                campaignUrlId
+                  ? `/campaign/campaigns/${campaignUrlId}`
                   : "/campaign/campaigns"
               }
               aria-label="Back to campaigns"

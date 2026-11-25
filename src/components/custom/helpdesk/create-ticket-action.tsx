@@ -78,7 +78,7 @@ export function CreateTicketAction({
           if (!CreateSupportTicket.fulfilled.match(result)) {
             return { ok: false, payload: result.payload };
           }
-          router.push(`/helpdesk?ticket=${result.payload.id}`);
+          router.push(`/helpdesk?ticket=${result.payload.url_id}`);
           return { ok: true };
         }}
       />

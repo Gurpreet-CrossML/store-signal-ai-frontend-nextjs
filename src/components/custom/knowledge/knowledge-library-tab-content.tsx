@@ -328,8 +328,8 @@ export default function KnowledgeLibraryTabContent({
   const handleOpenItem = (item: KnowledgeItem) => {
     router.push(
       item.source === "article"
-        ? `/knowledge/articles/${item.id}`
-        : `/knowledge/items/${item.id}`,
+        ? `/knowledge/articles/${item.urlId}`
+        : `/knowledge/items/${item.urlId}`,
     );
   };
 
@@ -339,8 +339,8 @@ export default function KnowledgeLibraryTabContent({
     if (!isKnowledgeItemEditable(item.status)) return;
     router.push(
       item.source === "article"
-        ? `/knowledge/articles/${item.id}`
-        : `/knowledge/items/${item.id}?edit=1`,
+        ? `/knowledge/articles/${item.urlId}`
+        : `/knowledge/items/${item.urlId}?edit=1`,
     );
   };
 

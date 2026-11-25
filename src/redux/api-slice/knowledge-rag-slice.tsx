@@ -67,6 +67,8 @@ export type SyncFrequency = "daily" | "weekly" | "manual";
 
 export type KnowledgeItem = {
   id: string;
+  /** `id` encrypted by the backend, for page URLs. */
+  urlId: string;
   type: KnowledgeType;
   source: KnowledgeSource;
   title: string;
@@ -232,6 +234,7 @@ export type KnowledgeItemListResponse = {
 // id — the id isn't exposed on read either.
 type ApiKnowledgeItem = {
   id: number;
+  url_id: string;
   type: KnowledgeType;
   source: KnowledgeSource;
   title: string;
@@ -261,6 +264,7 @@ type ApiKnowledgeItem = {
 function mapApiKnowledgeItem(api: ApiKnowledgeItem): KnowledgeItem {
   return {
     id: String(api.id),
+    urlId: api.url_id,
     type: api.type,
     source: api.source,
     title: api.title,

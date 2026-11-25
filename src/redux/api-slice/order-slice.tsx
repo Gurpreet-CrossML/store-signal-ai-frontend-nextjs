@@ -10,6 +10,8 @@ import { axiosInstance } from "../axios-config";
 /** The shopper as the order endpoints nest them — an identity, not a full record. */
 export type OrderCustomerSummary = {
   id: number;
+  /** `id` encrypted by the backend, for page URLs. */
+  url_id: string;
   first_name: string;
   last_name: string;
   email: string;
@@ -26,6 +28,8 @@ export type OrderCustomerSummary = {
  */
 export type OrderListRow = {
   id: number;
+  /** `id` encrypted by the backend, for page URLs. */
+  url_id: string;
   /** Nested object in practice; a bare id is tolerated. Read via `orderCustomer`. */
   customer: OrderCustomerSummary | number | null;
   order_id: string;
@@ -140,6 +144,7 @@ export function orderCustomer(order: OrderListRow) {
       typeof order.customer === "number"
         ? order.customer
         : (nested?.id ?? null),
+    url_id: nested?.url_id ?? null,
     name: nested
       ? [nested.first_name, nested.last_name].filter(Boolean).join(" ")
       : "",

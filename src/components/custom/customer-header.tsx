@@ -21,14 +21,15 @@ import type { OrderData } from "@/redux/api-slice/thread-slice";
  * link, and put it a long way from the name it refers to.
  */
 export function CrmLinkButton({
-  customerId,
+  customerUrlId,
   onLinkCustomer,
 }: {
-  customerId?: number | null;
+  /** The customer's id as it appears in page URLs. */
+  customerUrlId?: string | null;
   /** Offered when there is no customer to open. */
   onLinkCustomer?: () => void;
 }) {
-  if (customerId) {
+  if (customerUrlId) {
     return (
       <Tooltip>
         <TooltipTrigger asChild>
@@ -38,7 +39,7 @@ export function CrmLinkButton({
             aria-label="View in Catalog"
             asChild
           >
-            <Link href={`/crm/customers/${customerId}`}>
+            <Link href={`/crm/customers/${customerUrlId}`}>
               <IconExternalLink className="size-4" />
             </Link>
           </Button>
