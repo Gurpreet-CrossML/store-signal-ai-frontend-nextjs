@@ -69,8 +69,13 @@ export function MultiSelectCombobox<T extends { id: string; name: string }>({
     >
       <ComboboxChips ref={anchor}>
         {value.map((item) => (
-          <ComboboxChip key={item.id} aria-label={item.name}>
-            {item.name}
+          <ComboboxChip
+            key={item.id}
+            aria-label={item.name}
+            title={item.name}
+            className="max-w-full"
+          >
+            <span className="truncate">{item.name}</span>
           </ComboboxChip>
         ))}
         <ComboboxChipsInput
