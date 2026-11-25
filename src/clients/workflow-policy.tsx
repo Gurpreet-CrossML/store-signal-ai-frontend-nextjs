@@ -11,7 +11,6 @@ import {
   IconArrowRight,
   IconBulb,
   IconCheck,
-  IconCircle,
   IconCircleCheck,
   IconEye,
   IconFileText,
@@ -445,14 +444,21 @@ export default function WorkflowPolicy({ code }: { code: string }) {
       dispatch(DismissPolicySuggestion({ storeCode, workflow: code, key }));
   };
 
-  // Select the card and bring its first marked line into view.
+  // Select the card, so its lines stand out in the policy and flash, and
+  // bring the first one into view. Cleared first, so showing the same card
+  // again flashes again.
   const showInPolicy = (suggestion: PolicySuggestion) => {
-    setSelected(suggestion.key);
-    const first = suggestion.lines[0];
-    if (!first) return;
-    document
-      .querySelector(`#workflow-policy-card [data-mark="${first.start_index}"]`)
-      ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setSelected(null);
+    requestAnimationFrame(() => {
+      setSelected(suggestion.key);
+      const first = suggestion.lines[0];
+      if (!first) return;
+      document
+        .querySelector(
+          `#workflow-policy-card [data-mark="${first.start_index}"]`,
+        )
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
   };
 
   // Put the fixes chosen so far, and this one, into the saved text.
@@ -477,6 +483,12 @@ export default function WorkflowPolicy({ code }: { code: string }) {
     unsavedChanges.current?.confirmLeave(() => router.push(BACK_HREF));
 
   const items = policy?.suggestions.items ?? [];
+  // The places the selected card points at: drawn stronger in the policy.
+  const activePlaces = new Set(
+    (items.find((item) => item.key === selected)?.lines ?? []).map(
+      (line) => `${line.start_index}:${line.end_index}`,
+    ),
+  );
   const marks = Object.values(
     items
       .flatMap((item) => item.lines)
@@ -486,6 +498,7 @@ export default function WorkflowPolicy({ code }: { code: string }) {
           start: line.start_index,
           end: line.end_index,
           count: (out[place]?.count ?? 0) + 1,
+          active: activePlaces.has(place),
         };
         return out;
       }, {}),
@@ -639,13 +652,13 @@ export default function WorkflowPolicy({ code }: { code: string }) {
 
             <div className="flex flex-col gap-2 rounded-xl border bg-card p-4">
               <h3 className="text-sm font-semibold">Writing Tips</h3>
-              <ul className="flex flex-col gap-2">
+              {/* Plain bullets: the tips are read, not picked. */}
+              <ul className="flex list-disc flex-col gap-2 pl-4 marker:text-muted-foreground">
                 {WRITING_TIPS.map((tip) => (
                   <li
                     key={tip}
-                    className="flex items-start gap-2 text-xs leading-[18px] text-muted-foreground"
+                    className="text-xs leading-[18px] text-muted-foreground"
                   >
-                    <IconCircle className="mt-0.5 size-3.5 shrink-0" />
                     {tip}
                   </li>
                 ))}
@@ -705,7 +718,8 @@ export default function WorkflowPolicy({ code }: { code: string }) {
               />
               <WorkflowPolicyFlow
                 flow={policy.flow}
-                title={`How the AI handles ${policy.name.toLowerCase()} requests`}
+                // "Return Request" must not read "return request requests".
+                title={`How the AI handles ${policy.name.toLowerCase().replace(/\s+requests?$/, "")} requests`}
               />
             </TabsContent>
 
@@ -984,8 +998,9 @@ function Suggestions({
   ).map(([kind, look]) => {
     const value = items.filter((item) => item.type === kind).length;
     const plural = kind === "contradiction" && value > 1 ? "s" : "";
+    // Title Case, like every other badge on the page: "3 Never Applies".
     return {
-      label: `${look.label.toLowerCase()}${plural}`,
+      label: `${look.label}${plural}`,
       tone: look.tone,
       value,
     };

@@ -276,6 +276,23 @@ div#markdown-message-bubble a {
   -webkit-box-decoration-break: clone;
   box-decoration-break: clone;
 }
+/* The place the user asked to see ("Show In Policy"): a stronger tint with
+   an outline, flashing twice so the eye finds it. */
+.rich-text-content .rich-text-flag-active {
+  background: color-mix(in oklab, var(--destructive) 22%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--destructive) 45%, transparent);
+  animation: rich-text-flag-flash 0.6s ease-in-out 2;
+}
+@keyframes rich-text-flag-flash {
+  50% {
+    background: color-mix(in oklab, var(--destructive) 40%, transparent);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rich-text-content .rich-text-flag-active {
+    animation: none;
+  }
+}
 .rich-text-content .rich-text-flag-count {
   margin-left: 0.375rem;
   font-size: 0.75rem;
