@@ -74,6 +74,8 @@ export const ENDPOINTS = {
   fetchCompanyProfile: () => "/tenancy/company/",
   updateCompanyProfile: () => "/tenancy/company/",
   fetchStaff: () => "/tenancy/staff/",
+  // Active support agents and store managers: who chats and tickets go to.
+  fetchAssignableStaff: () => "/tenancy/staff/?assignable=true",
   createStaff: () => "/tenancy/staff/",
   updateStaff: (id: number) => `/tenancy/staff/${id}/`,
   resetStaffPassword: (id: number) => `/tenancy/staff/${id}/reset-password/`,
@@ -220,9 +222,11 @@ export const ENDPOINTS = {
   // list for every store), and the questions the AI couldn't answer. Django.
   fetchTestQuestions: () => `/knowledge/test-questions/`,
   fetchUnansweredQuestions: () => `/chat/unanswered-questions/`,
-  // The Test AI chat: GET the user's earlier messages (each question and each answer), POST a
-  // question to have the AI answer it from the store's knowledge. Django.
-  testMessages: () => `/knowledge/test-messages/`,
+  // The workflows that left customer questions unanswered, with how many each left.
+  fetchUnansweredWorkflows: () => `/chat/unanswered-questions/workflows/`,
+  // The Test AI chat: POST a question to have the AI answer it from the
+  // store's knowledge. Nothing is saved. Django.
+  testAnswer: () => `/knowledge/test-answer/`,
   // Website URL discovery: POST a site URL, get back the pages found on it
   // (url, title, word count) so the user can pick which to index. Django.
   discoverKnowledgeUrls: () => `/knowledge/knowledge-items/discover-urls/`,
@@ -951,23 +955,16 @@ export const KNOWLEDGE_TEST_QUESTION_MIN_LENGTH = 3;
 export const KNOWLEDGE_TEST_QUESTION_MAX_LENGTH = 100;
 // What a Test AI answer says its products came from. Shopify is the only
 // platform a store can be connected with today.
-export const KNOWLEDGE_TEST_PRODUCT_SOURCE_LABEL = "Shopify products";
+export const KNOWLEDGE_TEST_PRODUCT_SOURCE_LABEL = "Shopify Products";
 // AI credits one Test AI answer costs when the AI model runs.
 export const KNOWLEDGE_TEST_ANSWER_CREDITS = 1;
-// Who wrote a Test AI chat message, as the messages API names it (`sender`).
+// Said under the Test AI chat: it is never saved.
+export const KNOWLEDGE_TEST_CHAT_NOTICE =
+  "This chat isn't saved. It will be cleared when you switch pages or reload.";
+// Who wrote a Test AI chat message.
 export const KNOWLEDGE_TEST_SENDERS = { user: "user", ai: "ai" } as const;
 export type KnowledgeTestSender =
   (typeof KNOWLEDGE_TEST_SENDERS)[keyof typeof KNOWLEDGE_TEST_SENDERS];
-// Why a customer question counts as one the AI couldn't answer, as the
-// unanswered questions API names it (`reason`), with its label and badge tone.
-export const KNOWLEDGE_UNANSWERED_REASONS = {
-  escalated: { label: "Escalated to a human", tone: "danger" },
-  low_confidence: { label: "Low confidence", tone: "warning" },
-} as const;
-export type KnowledgeUnansweredReason =
-  keyof typeof KNOWLEDGE_UNANSWERED_REASONS;
-// The unanswered-questions reason filter's "no filter" value.
-export const KNOWLEDGE_UNANSWERED_ALL_REASONS = "all";
 export const KNOWLEDGE_UNANSWERED_PAGE_SIZE = 25;
 export const KNOWLEDGE_TEST_QUESTIONS_PAGE_SIZE = 25;
 // How many items of each kind a category holds, as the knowledge API's
@@ -1029,3 +1026,9 @@ export const KNOWLEDGE_SCAN_POLL_MS = 5000;
 // the language. Once one has, it says who changed it instead.
 export const LANGUAGE_DETECTED_NOTE =
   "Detected by AI from the customer's messages. “Send in customer's language” uses this.";
+
+// The longest chat message, the same as the customer widget's
+// MAX_MESSAGE_LENGTH: Live Chat stops typing at it and turns Send off.
+export const MAX_MESSAGE_LENGTH = 1000;
+export const MESSAGE_TOO_LONG_TEXT =
+  "Your message is too long. Please shorten it and try again.";

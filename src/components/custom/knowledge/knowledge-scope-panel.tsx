@@ -23,22 +23,22 @@ const APPLIES_TO: { value: ScopeKind; label: string; hint: string }[] = [
   {
     value: "general",
     label: "Whole Store",
-    hint: "Store-wide info like policies, shipping and contact details.",
+    hint: "Store-wide info like policies, shipping and contact details",
   },
   {
     value: "product",
     label: "Products",
-    hint: "Only when shoppers ask about products you pick.",
+    hint: "Only when shoppers ask about products you pick",
   },
   {
     value: "category",
     label: "Categories",
-    hint: "Only for products in the categories you pick.",
+    hint: "Only for products in the categories you pick",
   },
   {
     value: "collection",
     label: "Collections",
-    hint: "Only for products in the collections you pick.",
+    hint: "Only for products in the collections you pick",
   },
 ];
 

@@ -68,9 +68,12 @@ export function dashboardRangeLabel(filters: DashboardFilterState) {
 export function DashboardRangeFilter({
   filters,
   onChange,
+  numberOfMonths,
 }: {
   filters: DashboardFilterState;
   onChange: (filters: DashboardFilterState) => void;
+  /** Months the custom picker shows side by side; one fits a narrow screen. */
+  numberOfMonths?: 1 | 2;
 }) {
   return (
     <>
@@ -95,6 +98,7 @@ export function DashboardRangeFilter({
           to={filters.to}
           onRangeChange={(from, to) => onChange({ ...filters, from, to })}
           disabled={{ after: new Date() }}
+          numberOfMonths={numberOfMonths}
         />
       )}
     </>

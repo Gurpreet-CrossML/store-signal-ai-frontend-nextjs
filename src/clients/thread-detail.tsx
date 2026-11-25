@@ -40,6 +40,7 @@ import {
 } from "@/components/custom/customer-header";
 import { TagsCell } from "@/components/custom/threads-columns";
 import { InfoIcon } from "@/components/custom/info-icon";
+import { CreditLabel } from "@/components/custom/credit-label";
 import { closedByLabel, closeReasonLabel } from "@/lib/thread-options";
 import { LinkCustomerDialog } from "@/components/custom/link-customer-dialog";
 import {
@@ -55,7 +56,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { Badge } from "@/components/ui/badge";
+import { TagBadge } from "@/components/custom/helpdesk/tag-badge";
 import { Button } from "@/components/ui/button";
 import { CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -507,9 +508,8 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
     if (!threadId) return;
     const result = await dispatch(GenerateAIInsight(threadId));
     if (GenerateAIInsight.fulfilled.match(result)) {
-      // The summary and tags come from the same analysis.
+      // The summary comes from the same analysis; tags are set on thread close.
       dispatch(FetchConversationSummary(threadId));
-      dispatch(FetchTags(threadId));
     }
   };
 
@@ -676,15 +676,20 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
                 <EmptyMedia variant="icon" className="mb-1 size-8">
                   <IconSparkles className="size-4" />
                 </EmptyMedia>
-                <EmptyTitle className="text-sm">No AI Insights Yet</EmptyTitle>
-                <EmptyDescription className="text-xs">
+                <EmptyTitle className="text-base">
+                  No AI Insights Yet
+                </EmptyTitle>
+                <EmptyDescription className="text-sm">
                   Generate a summary, score and suggestions for this
                   conversation.
                 </EmptyDescription>
               </EmptyHeader>
               <EmptyContent>
                 <Button
+                  // Same look as "Draft With AI" (create-ticket-dialog).
+                  variant="outline"
                   size="sm"
+                  className="h-auto gap-2 px-4 py-1"
                   disabled={GenerateAIInsightIsLoading}
                   onClick={handleGenerateInsights}
                 >
@@ -693,9 +698,13 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
                   ) : (
                     <IconSparkles className="size-4" />
                   )}
-                  {GenerateAIInsightIsLoading
-                    ? "Generating Insights…"
-                    : "Generate AI Insights"}
+                  {GenerateAIInsightIsLoading ? (
+                    "Generating Insights…"
+                  ) : (
+                    <CreditLabel className="self-center text-xs">
+                      Generate AI Insights
+                    </CreditLabel>
+                  )}
                 </Button>
               </EmptyContent>
             </Empty>
@@ -853,36 +862,35 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
         </div>
       </ThreadCard>
       <ThreadCard title="Thread Details">
+        {/* Values line up on the left of their column, like Help Desk. */}
         <dl className="grid grid-cols-[auto_1fr] gap-x-5 gap-y-1.5 px-5 py-4 text-sm">
           <dt className="text-muted-foreground">Thread ID</dt>
-          <dd className="truncate text-right font-mono">{threadId}</dd>
+          <dd className="truncate font-mono">{threadId}</dd>
           <dt className="text-muted-foreground">Channel</dt>
-          <dd className="text-right">Web Chat</dd>
+          <dd>Web Chat</dd>
           <dt className="text-muted-foreground">Started</dt>
-          <dd className="text-right">{started}</dd>
+          <dd>{started}</dd>
           <dt className="text-muted-foreground">Ended</dt>
-          <dd className="text-right">{ended}</dd>
+          <dd>{ended}</dd>
           <dt className="text-muted-foreground">Duration</dt>
-          <dd className="text-right">
+          <dd>
             {getDuration(
               details?.created_at ?? null,
               details?.ended_at ?? null,
             ) || "—"}
           </dd>
           <dt className="text-muted-foreground">Handled By</dt>
-          <dd className="text-right">{handledBy}</dd>
+          <dd>{handledBy}</dd>
           {closeReason ? (
             <>
               <dt className="text-muted-foreground">Close Reason</dt>
-              <dd className="text-right">{closeReason}</dd>
+              <dd>{closeReason}</dd>
             </>
           ) : null}
-          <dt className="text-muted-foreground">Category</dt>
-          <dd className="text-right">{threadTagLabels[0] ?? "—"}</dd>
           {feedback ? (
             <>
               <dt className="text-muted-foreground">User Feedback</dt>
-              <dd className="flex items-center justify-end gap-1.5 text-right">
+              <dd className="flex items-center gap-1.5">
                 <span aria-label={feedback.rating}>
                   {FEEDBACK_RATINGS.find(
                     (rating) => rating.value === feedback.rating,
@@ -937,13 +945,8 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
               <div className="min-w-0">
                 <h1 className="truncate text-2xl font-bold">{customerName}</h1>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
-                  {threadTagLabels.map((tag) => (
-                    <Badge
-                      key={tag}
-                      className="bg-primary/10 text-primary hover:bg-primary/10"
-                    >
-                      {tag}
-                    </Badge>
+                  {(threadTags as ThreadTagData[]).map((tag) => (
+                    <TagBadge key={tag.name} tag={tag} />
                   ))}
                 </div>
               </div>

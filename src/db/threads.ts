@@ -232,13 +232,6 @@ export async function get_thread_counts(storeCode?: string) {
 }
 
 /** Threads the customer started in this store before this one. */
-/**
- * The segment a chat shows: its own copy (taken when the customer was
- * linked, so an October VIP chat stays VIP), else the customer's current
- * segment from the customer table. Same rule as Django's CustomerSegmentField.
- */
-const threadCustomerSegment = sql<string>`COALESCE(NULLIF(${chatThread.customerSegment}, ''), ${chatCustomer.segment}, '')`;
-
 const pastThreadsCount = sql<number>`CASE WHEN ${chatCustomer.id} IS NOT NULL THEN (SELECT COUNT(*)::int FROM ${chatThread} ct WHERE ct.customer_id = ${chatCustomer.id} AND ct.store_id = ${chatThread.storeId} AND ct.created_at < ${chatThread.createdAt}) ELSE 0 END`;
 
 /**
@@ -301,7 +294,9 @@ export async function list_threads(
       >`COALESCE((SELECT NULLIF(regexp_replace(${userMetadata.updatedCartData}->>'total', '[^0-9.]', '', 'g'), '')::numeric FROM ${userMetadata} WHERE ${userMetadata.threadId} = ${chatThread.id} LIMIT 1), 0)`,
       ended_at: chatThread.endedAt,
       customer_id: chatCustomer.id,
-      customer_segment: threadCustomerSegment,
+      // The chat's own copy, taken when it got its customer; never the
+      // customer's current segment, so old chats keep what they had.
+      customer_segment: chatThread.customerSegment,
       customer_first_name: chatCustomer.firstName,
       customer_last_name: chatCustomer.lastName,
       customer_email: chatCustomer.email,
@@ -332,7 +327,6 @@ export async function list_threads(
       chatCustomer.registeredAt,
       chatCustomer.totalSpent,
       chatCustomer.ordersCount,
-      chatCustomer.segment,
       authUser.id,
       authUser.firstName,
       authUser.lastName,
@@ -548,6 +542,13 @@ function buildThreadConditions(
           AND (o.order_number ILIKE ${`%${search}%`} OR o.order_id ILIKE ${`%${search}%`})
       )`,
     ];
+    // Phones are stored as digits only ("919876543210"), so "+91 98765
+    // 43210" or a bare "9876543210" is reduced the same way first. A term
+    // with no digits (a name) skips this, or it would match every phone.
+    const phoneDigits = search.replace(/\D/g, "").replace(/^00/, "");
+    if (phoneDigits) {
+      searchConditions.push(ilike(chatCustomer.phone, `%${phoneDigits}%`));
+    }
     if (isValidUuid(search)) {
       searchConditions.push(eq(chatThread.id, search));
     }
@@ -832,7 +833,9 @@ export async function get_thread_details(
       created_at: chatThread.createdAt,
       ended_at: chatThread.endedAt,
       customer_id: chatCustomer.id,
-      customer_segment: threadCustomerSegment,
+      // The chat's own copy, taken when it got its customer; never the
+      // customer's current segment, so old chats keep what they had.
+      customer_segment: chatThread.customerSegment,
       customer_first_name: chatCustomer.firstName,
       customer_last_name: chatCustomer.lastName,
       customer_email: chatCustomer.email,
@@ -1065,7 +1068,13 @@ export async function get_ai_insights(
       next_actionable_items: aiInsights.nextActionableItems,
     })
     .from(aiInsights)
-    .where(scopedThreadFilter(aiInsights.threadId, thread_id))
+    .where(
+      and(
+        scopedThreadFilter(aiInsights.threadId, thread_id),
+        // A row with no summary holds only the auto-generated tags: not insights yet.
+        isNotNull(aiInsights.conversationSummary),
+      ),
+    )
     .limit(1);
 
   if (rows.length === 0) return null;

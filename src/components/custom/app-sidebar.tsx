@@ -218,7 +218,9 @@ export function AppSidebar({
           </SidebarMenu>
           <StoreSwitcher />
         </SidebarHeader>
-        <SidebarContent>
+        {/* Scrolls on a short screen (a phone turned sideways), where the
+            icon state's clipping would hide the lower links. */}
+        <SidebarContent className="group-data-[collapsible=icon]:overflow-y-auto">
           <NavMain
             items={navMain}
             liveSupportBadgeCount={FetchThreadCountsData.needsHuman}

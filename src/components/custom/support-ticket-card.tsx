@@ -2,11 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import {
-  IconArrowUpRight,
-  IconExternalLink,
-  IconInfoCircle,
-} from "@tabler/icons-react";
+import { IconExternalLink, IconInfoCircle } from "@tabler/icons-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,8 +25,11 @@ import {
   ticketRef,
 } from "@/components/custom/ticket-priority-bar";
 import { BADGE_TONE_STYLES, type BadgeTone } from "@/lib/badge-tones";
+import { HELPDESK_CHANNEL_LABELS } from "@/lib/helpdesk-filters";
+import { CHANNEL_META } from "@/lib/ticket-options";
 import { capitalizeText, formatDate, formatDateTime } from "@/lib/helpers";
 import { cn } from "@/lib/utils";
+import type { SupportTicketChannel } from "@/redux/api-slice/support-ticket-slice";
 import type { ThreadTicketData } from "@/redux/api-slice/thread-slice";
 
 export const TICKET_STATUS_TONES: Record<string, BadgeTone> = {
@@ -144,8 +143,8 @@ export function SupportTicketCard({
 
             {/* Always on show rather than revealed on hover: a hover-only
               action is invisible until you happen to be over the right
-              card, and unreachable on touch entirely. Two icons cost less
-              room than the buttons they replace. */}
+              card, and unreachable on touch entirely. Help Desk is reached
+              from the details popup, so the card has no second link. */}
             <div className="flex shrink-0 items-center">
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -161,31 +160,16 @@ export function SupportTicketCard({
                 </TooltipTrigger>
                 <TooltipContent>Ticket Details</TooltipContent>
               </Tooltip>
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button type="button" variant="ghost" size="icon-xs" asChild>
-                    {/* Opens in a new tab: the agent is mid-conversation
-                      here, and this is somewhere else to work. */}
-                    <a
-                      href={`/helpdesk?ticket=${ticket.id}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label="Open in Help Desk"
-                    >
-                      <IconArrowUpRight className="size-4" />
-                    </a>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Open In Help Desk</TooltipContent>
-              </Tooltip>
             </div>
           </div>
         </div>
       </motion.div>
 
       <Dialog open={showDetails} onOpenChange={setShowDetails}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent
+          className="sm:max-w-lg"
+          onInteractOutside={(event) => event.preventDefault()}
+        >
           <DialogHeader>
             <div className="flex items-start justify-between gap-3 pr-6">
               <DialogTitle className="text-left">
@@ -194,7 +178,7 @@ export function SupportTicketCard({
               <StatusBadge status={ticket.status} />
             </div>
             <DialogDescription className="text-left">
-              {ticketRef(ticket.ticket_id)} · raised{" "}
+              {ticketRef(ticket.ticket_id)} · Created{" "}
               {formatDateTime(ticket.created_at)}
             </DialogDescription>
           </DialogHeader>
@@ -213,11 +197,17 @@ export function SupportTicketCard({
             <div className="flex flex-col gap-2 border-t border-border pt-4">
               <DetailRow
                 label="Priority"
-                value={capitalizeText(ticket.priority)}
+                value={capitalizeText(ticket.priority) || "—"}
               />
               <DetailRow
                 label="Channel"
-                value={capitalizeText(ticket.channel)}
+                value={
+                  HELPDESK_CHANNEL_LABELS[
+                    ticket.channel as SupportTicketChannel
+                  ] ??
+                  CHANNEL_META[ticket.channel as SupportTicketChannel]?.label ??
+                  (capitalizeText(ticket.channel) || "—")
+                }
               />
               <DetailRow
                 label="Last Updated"
@@ -236,6 +226,7 @@ export function SupportTicketCard({
                 target="_blank"
                 rel="noopener noreferrer"
               >
+                {/* A new tab: the agent is mid-conversation here. */}
                 <IconExternalLink className="size-4" />
                 Open In Help Desk
               </a>
