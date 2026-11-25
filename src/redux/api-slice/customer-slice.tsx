@@ -35,7 +35,6 @@ export type CustomerAddress = {
  * `chat.models.Customer.Segment`.
  */
 export type CustomerSegment =
-  | "top_vip"
   | "vip"
   | "at_risk_vip"
   | "new"

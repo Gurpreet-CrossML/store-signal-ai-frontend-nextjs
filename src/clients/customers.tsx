@@ -2,55 +2,25 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { IconSearch, IconX } from "@tabler/icons-react";
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table";
 
 import { DataTable } from "@/components/custom/data-table";
 import { getCustomerColumns } from "@/components/custom/crm/customers-columns";
 import {
-  CustomerFilterPopover,
-  EMPTY_CUSTOMER_FILTERS,
-  countActiveCustomerFilters,
-  type CustomerFilterSelection,
+  CustomerFilterBar,
+  DEFAULT_CUSTOMER_FILTERS,
+  hasCustomerFilters,
+  type CustomerFilterState,
 } from "@/components/custom/crm/customer-filters";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { useDebounce } from "@/hooks/use-debounce";
 import { endOfDay, startOfDay } from "@/lib/helpers";
 import {
   FetchCustomers,
   type CustomerFilters,
-  type CustomerOrdering,
 } from "@/redux/api-slice/customer-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { ACTIVE_FILTER_STYLE } from "@/lib/config";
-import { cn } from "@/lib/utils";
 
 const PER_PAGE = 25;
-
-const SORT_OPTIONS: { value: CustomerOrdering; label: string }[] = [
-  { value: "-total_spent", label: "Top Spenders" },
-  { value: "-orders_count", label: "Most Orders" },
-  { value: "-registered_at", label: "Newest Customers" },
-  { value: "registered_at", label: "Oldest Customers" },
-  { value: "first_name", label: "Name (A–Z)" },
-];
-
-/** "any" means the question isn't being asked, so the param is omitted. */
-function triState(value: "any" | "yes" | "no") {
-  return value === "any" ? undefined : value === "yes";
-}
-
-function numeric(value: string) {
-  if (!value.trim()) return undefined;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : undefined;
-}
 
 export default function Customers() {
   const dispatch = useAppDispatch();
@@ -64,52 +34,47 @@ export default function Customers() {
   );
 
   const [page, setPage] = useState(1);
-  const [searchInput, setSearchInput] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [ordering, setOrdering] = useState<CustomerOrdering>("-total_spent");
-
-  // Draft is what the popover edits; applied is what the request uses, so
-  // half-typed bounds don't fire a query on every keystroke.
-  const [draftFilters, setDraftFilters] = useState<CustomerFilterSelection>(
-    EMPTY_CUSTOMER_FILTERS,
+  const [filters, setFilters] = useState<CustomerFilterState>(
+    DEFAULT_CUSTOMER_FILTERS,
   );
-  const [appliedFilters, setAppliedFilters] = useState<CustomerFilterSelection>(
-    EMPTY_CUSTOMER_FILTERS,
-  );
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
-
-  // Debounce the search so a request isn't fired per keystroke, and reset to
-  // page 1 in the same tick rather than chaining a second effect off it.
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(searchInput.trim());
-      setPage(1);
-    }, 350);
-    return () => clearTimeout(timer);
-  }, [searchInput]);
+  // So a request isn't fired per keystroke.
+  const debouncedSearch = useDebounce(filters.search.trim());
 
   const requestFilters: CustomerFilters = useMemo(
     () => ({
       ...(debouncedSearch ? { search: debouncedSearch } : {}),
-      accepts_email_marketing: triState(appliedFilters.emailConsent),
-      accepts_sms_marketing: triState(appliedFilters.smsConsent),
-      is_email_verified: triState(appliedFilters.emailVerified),
-      orders_count_min: numeric(appliedFilters.ordersMin),
-      orders_count_max: numeric(appliedFilters.ordersMax),
-      total_spent_min: numeric(appliedFilters.spentMin),
-      total_spent_max: numeric(appliedFilters.spentMax),
+      ...(filters.hasOrders === "true" ? { orders_count_min: 1 } : {}),
+      ...(filters.hasOrders === "false" ? { orders_count_max: 0 } : {}),
+      ...(filters.emailVerified
+        ? { is_email_verified: filters.emailVerified === "true" }
+        : {}),
       // The picker yields whole days; the range has to cover all of its last
       // one or "up to today" would stop at midnight.
-      ...(appliedFilters.registeredFrom
-        ? { registered_from: startOfDay(appliedFilters.registeredFrom) }
+      ...(filters.registeredFrom
+        ? { registered_from: startOfDay(filters.registeredFrom) }
         : {}),
-      ...(appliedFilters.registeredTo
-        ? { registered_to: endOfDay(appliedFilters.registeredTo) }
+      ...(filters.registeredTo
+        ? { registered_to: endOfDay(filters.registeredTo) }
         : {}),
-      ordering,
+      ordering: filters.ordering,
     }),
-    [appliedFilters, debouncedSearch, ordering],
+    [
+      debouncedSearch,
+      filters.hasOrders,
+      filters.emailVerified,
+      filters.registeredFrom,
+      filters.registeredTo,
+      filters.ordering,
+    ],
   );
+
+  // A new search, filter or sort starts again from page 1 (during render, as
+  // on Threads, so the fetch below never runs with the old page).
+  const [prevRequestFilters, setPrevRequestFilters] = useState(requestFilters);
+  if (requestFilters !== prevRequestFilters) {
+    setPrevRequestFilters(requestFilters);
+    setPage(1);
+  }
 
   useEffect(() => {
     if (!storeCode) return;
@@ -124,7 +89,6 @@ export default function Customers() {
   }, [dispatch, storeCode, page, requestFilters]);
 
   const columns = useMemo(() => getCustomerColumns(), []);
-  const activeFilterCount = countActiveCustomerFilters(appliedFilters);
 
   // The shared table is zero-indexed; this screen's API is 1-indexed.
   const pagination: PaginationState = {
@@ -136,81 +100,15 @@ export default function Customers() {
     setPage(next.pageIndex + 1);
   };
 
-  const hasQuery = Boolean(debouncedSearch) || activeFilterCount > 0;
+  const hasQuery = hasCustomerFilters(filters);
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="relative w-full max-w-sm">
-          <IconSearch className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={searchInput}
-            onChange={(event) => setSearchInput(event.target.value)}
-            placeholder="Search name, email, phone or customer ID…"
-            aria-label="Search customers"
-            className="pl-9"
-          />
-          {searchInput ? (
-            <button
-              type="button"
-              onClick={() => setSearchInput("")}
-              aria-label="Clear customer search"
-              className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            >
-              <IconX className="size-4" />
-            </button>
-          ) : null}
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Select
-            value={ordering}
-            onValueChange={(value) => {
-              setOrdering(value as CustomerOrdering);
-              setPage(1);
-            }}
-          >
-            <SelectTrigger
-              // A sort order is always applied, including the default.
-              className={cn("w-44", ACTIVE_FILTER_STYLE)}
-              aria-label="Sort customers"
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {SORT_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <CustomerFilterPopover
-            open={isFilterOpen}
-            onOpenChange={(open) => {
-              setIsFilterOpen(open);
-              // Reopening starts from what is actually applied, not from an
-              // abandoned draft.
-              if (open) setDraftFilters(appliedFilters);
-            }}
-            filters={draftFilters}
-            onFiltersChange={setDraftFilters}
-            activeCount={activeFilterCount}
-            onApply={() => {
-              setAppliedFilters(draftFilters);
-              setPage(1);
-              setIsFilterOpen(false);
-            }}
-            onClear={() => {
-              setDraftFilters(EMPTY_CUSTOMER_FILTERS);
-              setAppliedFilters(EMPTY_CUSTOMER_FILTERS);
-              setPage(1);
-              setIsFilterOpen(false);
-            }}
-          />
-        </div>
-      </div>
+    <div className="flex flex-col gap-6">
+      <CustomerFilterBar
+        filters={filters}
+        onChange={setFilters}
+        onClear={() => setFilters(DEFAULT_CUSTOMER_FILTERS)}
+      />
 
       <DataTable
         columns={columns}
