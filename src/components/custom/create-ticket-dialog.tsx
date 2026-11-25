@@ -642,7 +642,7 @@ export function CreateTicketDialog({
                   placeholder={ordersLoading ? "Loading orders…" : "No order"}
                 />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent position="popper" className="max-h-72">
                 <SelectItem value={NO_ORDER}>No Order</SelectItem>
                 {orders.map((order) => (
                   <SelectItem key={order.id} value={String(order.id)}>
