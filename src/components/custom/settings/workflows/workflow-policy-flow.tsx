@@ -50,11 +50,9 @@ export const OUTCOMES: Record<
 /** The legend, in the order the steps run. */
 const LEGEND: PolicyEffect[] = ["decline", "need_info", "team", "allow"];
 
-/** What happens when no step matched. */
-const DEFAULT_TEXT: Record<PolicyFlow["default"]["effect"], string> = {
-  decline: "Anything else is declined.",
-  team: "Anything else is sent to your team to review.",
-};
+/** The final step: what happens to a request no rule above matched. */
+const ELSE_QUESTION = "Anything else?";
+const ELSE_ROW = "A request that matches none of the rules above";
 
 /** First letter up, the rest as written: "the order" → "The order". */
 const sentence = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
@@ -86,10 +84,64 @@ function stepRows(step: PolicyFlowStep) {
       }));
 }
 
+/** One numbered step: its question, then each row with its outcome. */
+function FlowStep({
+  number,
+  question,
+  effect,
+  rows,
+  last,
+}: {
+  number: number;
+  question: string;
+  effect: PolicyEffect;
+  rows: ReturnType<typeof stepRows>;
+  last: boolean;
+}) {
+  return (
+    <li className="flex gap-3.5">
+      {/* The step's number, and the line down to the next one. */}
+      <div className="flex flex-col items-center">
+        <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-[13px] font-semibold text-primary-foreground">
+          {number}
+        </span>
+        {!last && (
+          <span className="my-1 w-0.5 flex-1 rounded-full bg-primary/20" />
+        )}
+      </div>
+      <div
+        className={cn("flex min-w-0 flex-1 flex-col gap-1", !last && "pb-4")}
+      >
+        <p className="pt-1 text-[13px] font-semibold">{question}</p>
+        <ul className="flex flex-col">
+          {rows.map((row) => (
+            <li
+              key={row.key}
+              className="flex items-center gap-2.5 border-t border-border/60 py-2 text-[13px]"
+            >
+              <span className="flex min-w-0 flex-1 items-start gap-1.5 break-words">
+                {row.platform && (
+                  <IconLock
+                    className="mt-0.5 size-3.5 shrink-0 text-muted-foreground"
+                    aria-label="Built-in check"
+                  />
+                )}
+                {sentence(row.text)}
+              </span>
+              <OutcomeBadge effect={effect} withIcon />
+            </li>
+          ))}
+        </ul>
+      </div>
+    </li>
+  );
+}
+
 /**
  * The saved policy as numbered steps, in the order the engine settles a
  * request: a decline anywhere wins, then a missing detail is asked for,
- * then your team, then allowed, then the policy's default.
+ * then your team, then allowed, and last the policy's default for
+ * anything no rule matched.
  */
 export default function WorkflowPolicyFlow({
   flow,
@@ -98,8 +150,6 @@ export default function WorkflowPolicyFlow({
   flow: PolicyFlow;
   title: string;
 }) {
-  const DefaultIcon = OUTCOMES[flow.default.effect].icon;
-
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -110,65 +160,34 @@ export default function WorkflowPolicyFlow({
             matches wins.
           </p>
         </div>
+        {/* With icons, the same badges as on the rows below. */}
         <div className="flex flex-wrap gap-1.5">
           {LEGEND.map((effect) => (
-            <OutcomeBadge key={effect} effect={effect} />
+            <OutcomeBadge key={effect} effect={effect} withIcon />
           ))}
         </div>
       </div>
 
       <ol className="flex flex-col">
-        {flow.steps.map((step, index) => {
-          const last = index === flow.steps.length - 1;
-          return (
-            <li key={index} className="flex gap-3.5">
-              {/* The step's number, and the line down to the next one. */}
-              <div className="flex flex-col items-center">
-                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-[13px] font-semibold text-primary-foreground">
-                  {index + 1}
-                </span>
-                {!last && (
-                  <span className="my-1 w-0.5 flex-1 rounded-full bg-primary/20" />
-                )}
-              </div>
-              <div
-                className={cn(
-                  "flex min-w-0 flex-1 flex-col gap-1",
-                  !last && "pb-4",
-                )}
-              >
-                <p className="pt-1 text-[13px] font-semibold">
-                  {OUTCOMES[step.effect].question}
-                </p>
-                <ul className="flex flex-col">
-                  {stepRows(step).map((row) => (
-                    <li
-                      key={row.key}
-                      className="flex items-center gap-2.5 border-t border-border/60 py-2 text-[13px]"
-                    >
-                      <span className="flex min-w-0 flex-1 items-start gap-1.5 break-words">
-                        {row.platform && (
-                          <IconLock
-                            className="mt-0.5 size-3.5 shrink-0 text-muted-foreground"
-                            aria-label="Built-in check"
-                          />
-                        )}
-                        {sentence(row.text)}
-                      </span>
-                      <OutcomeBadge effect={step.effect} withIcon />
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </li>
-          );
-        })}
+        {flow.steps.map((step, index) => (
+          <FlowStep
+            key={index}
+            number={index + 1}
+            question={OUTCOMES[step.effect].question}
+            effect={step.effect}
+            rows={stepRows(step)}
+            last={false}
+          />
+        ))}
+        {/* The default is the final step, not a note under the list. */}
+        <FlowStep
+          number={flow.steps.length + 1}
+          question={ELSE_QUESTION}
+          effect={flow.default.effect}
+          rows={[{ key: "else", text: ELSE_ROW, platform: false }]}
+          last
+        />
       </ol>
-
-      <p className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/40 px-3 py-2.5 text-xs text-muted-foreground">
-        <DefaultIcon className="size-3.5 shrink-0" />
-        {DEFAULT_TEXT[flow.default.effect]}
-      </p>
     </div>
   );
 }
