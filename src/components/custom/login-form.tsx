@@ -1,29 +1,43 @@
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { useState } from "react";
+import { applyServerFieldErrors, formikErrorsFromZod } from "@/lib/form-errors";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useFormik } from "formik";
+import { toast } from "sonner";
 import z from "zod";
+import {
+  IconArrowRight,
+  IconEye,
+  IconEyeOff,
+  IconLock,
+  IconMail,
+} from "@tabler/icons-react";
+
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group";
+import { Spinner } from "@/components/ui/spinner";
+import { Typography } from "@/components/ui/typography";
 
 export function LoginForm({
   className,
   ...props
 }: React.ComponentProps<"form">) {
   const router = useRouter();
-  const [authError, setAuthError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const validationSchema = z.object({
     email: z.email("Invalid email").min(1, "Email is required"),
-    password: z
-      .string()
-      .min(1, "Password is required")
-      .min(6, "Password must be at least 6 characters"),
+    password: z.string().min(1, "Password is required"),
   });
 
   const formik = useFormik({
@@ -31,16 +45,10 @@ export function LoginForm({
     validate: (values) => {
       const result = validationSchema.safeParse(values);
       if (result.success) return {};
-      return Object.fromEntries(
-        result.error.issues.map((issue) => [
-          issue.path.join("."),
-          issue.message,
-        ]),
-      );
+      return formikErrorsFromZod(result.error.issues);
     },
     onSubmit: async (values) => {
       setIsLoading(true);
-      setAuthError("");
 
       const res = await signIn("credentials", {
         redirect: false,
@@ -54,23 +62,30 @@ export function LoginForm({
         router.push("/");
         router.refresh();
       } else {
-        let message = "Invalid email or password";
-        if (res?.error) {
-          try {
-            const responseErrors = JSON.parse(res.error);
-            message = responseErrors?.message ?? message;
-            toast.error("Log in Failed!", {
-              description:
-                message +
-                (responseErrors?.data?.non_field_errors
-                  ? `: ${responseErrors.data.non_field_errors}`
-                  : ""),
-            });
-          } catch {
-            message = res.error;
-            setAuthError(message);
-          }
+        // The backend's error body, passed through next-auth as the error
+        // string: { message, data: { email?, password?, non_field_errors? } }.
+        let payload: {
+          message?: string;
+          data?: { non_field_errors?: string };
+        } | null = null;
+        try {
+          payload = res?.error ? JSON.parse(res.error) : null;
+        } catch {
+          payload = null;
         }
+        // Field errors go under their fields, like the other forms. A wrong
+        // email or password comes back as one non-field message (the backend
+        // never says which, so an email's account isn't revealed): it goes
+        // under both fields.
+        const nonField = payload?.data?.non_field_errors;
+        if (!applyServerFieldErrors(formik, payload) && nonField) {
+          formik.setErrors({ email: nonField, password: nonField });
+          formik.setTouched({ email: true, password: true }, false);
+        }
+        toast.error("Log in failed", {
+          description:
+            nonField || payload?.message || "Invalid email or password",
+        });
       }
 
       setIsLoading(false);
@@ -83,56 +98,110 @@ export function LoginForm({
       {...props}
       onSubmit={formik.handleSubmit}
     >
-      <FieldGroup>
-        <div className="flex flex-col items-center gap-1 text-center">
-          <h1 className="text-2xl font-bold">Login to your account</h1>
-          <p className="text-sm text-balance text-muted-foreground">
-            Enter your email below to login to your account
-          </p>
+      <FieldGroup className="gap-5">
+        <div className="flex flex-col gap-2">
+          <Typography variant="h1" className="text-2xl font-bold sm:text-3xl">
+            Welcome Back 👋
+          </Typography>
+          <Typography variant="p" className="text-muted-foreground">
+            Log in to your StoreSignal account to continue
+          </Typography>
         </div>
-        <Field>
-          <FieldLabel htmlFor="email">Email</FieldLabel>
-          <Input
-            id="email"
-            name="email"
-            type="email"
-            placeholder="m@example.com"
-            required
-            onChange={formik.handleChange}
-            onBlur={formik.handleBlur}
-            value={formik.values.email}
-          />
+        <Field data-invalid={formik.touched.email && !!formik.errors.email}>
+          <FieldLabel htmlFor="email">Email Address</FieldLabel>
+          <InputGroup>
+            <InputGroupAddon>
+              <IconMail />
+            </InputGroupAddon>
+            <InputGroupInput
+              id="email"
+              name="email"
+              type="email"
+              placeholder="you@example.com"
+              required
+              aria-invalid={formik.touched.email && !!formik.errors.email}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              value={formik.values.email}
+            />
+          </InputGroup>
           {formik.touched.email && formik.errors.email && (
-            <p className="text-sm text-destructive">{formik.errors.email}</p>
+            <Typography variant="small" className="text-destructive">
+              {formik.errors.email}
+            </Typography>
           )}
         </Field>
-        <Field>
-          <div className="flex items-center">
+        <Field
+          data-invalid={formik.touched.password && !!formik.errors.password}
+        >
+          <div className="flex items-center justify-between">
             <FieldLabel htmlFor="password">Password</FieldLabel>
+            <Link
+              href="/forgot-password"
+              className="text-sm font-medium text-primary hover:underline"
+            >
+              Forgot Password?
+            </Link>
           </div>
-          <Input
-            id="password"
-            name="password"
-            type="password"
-            placeholder="********"
-            required
-            onChange={formik.handleChange}
-            onBlur={formik.handleBlur}
-            value={formik.values.password}
-          />
+          <InputGroup>
+            <InputGroupAddon>
+              <IconLock />
+            </InputGroupAddon>
+            <InputGroupInput
+              id="password"
+              name="password"
+              type={showPassword ? "text" : "password"}
+              placeholder="Enter your password"
+              required
+              aria-invalid={formik.touched.password && !!formik.errors.password}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              value={formik.values.password}
+            />
+            <InputGroupAddon align="inline-end">
+              <InputGroupButton
+                type="button"
+                size="icon-xs"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                onClick={() => setShowPassword((visible) => !visible)}
+              >
+                {showPassword ? <IconEyeOff /> : <IconEye />}
+              </InputGroupButton>
+            </InputGroupAddon>
+          </InputGroup>
           {formik.touched.password && formik.errors.password && (
-            <p className="text-sm text-destructive">{formik.errors.password}</p>
+            <Typography variant="small" className="text-destructive">
+              {formik.errors.password}
+            </Typography>
           )}
         </Field>
-        {authError && (
-          <p className="text-sm text-destructive text-center">{authError}</p>
-        )}
+        {/* <Field orientation="horizontal">
+          <Checkbox id="remember-me" name="rememberMe" />
+          <FieldLabel htmlFor="remember-me" className="font-normal">
+            Remember me
+          </FieldLabel>
+        </Field> */}
         <Field>
-          <Button disabled={isLoading} type="submit">
+          <Button
+            disabled={isLoading}
+            type="submit"
+            size="lg"
+            className="relative"
+          >
             {isLoading && <Spinner data-icon="inline-start" />}
-            {isLoading ? "Logging in..." : "Login"}
+            {isLoading ? "Logging In..." : "Log In"}
+            {!isLoading && <IconArrowRight className="absolute right-4" />}
           </Button>
         </Field>
+        <Typography variant="muted" className="text-center text-sm">
+          Don&apos;t have an account?{" "}
+          <Link
+            href="/signup"
+            className="font-medium text-primary hover:underline"
+          >
+            Create One
+          </Link>
+        </Typography>
       </FieldGroup>
     </form>
   );

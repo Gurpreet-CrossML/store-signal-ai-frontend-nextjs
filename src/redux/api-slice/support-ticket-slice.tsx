@@ -1,0 +1,2110 @@
+import {
+  createAsyncThunk,
+  createSlice,
+  isAnyOf,
+  type PayloadAction,
+} from "@reduxjs/toolkit";
+import { axiosInstance } from "@/redux/axios-config";
+import { DEFAULT_HELPDESK_QUEUE, ENDPOINTS } from "@/lib/config";
+import { getApiErrorMessage } from "@/lib/helpers";
+import type { TicketLanguage, TicketSentiment } from "@/lib/ticket-options";
+import { toast } from "sonner";
+import { isAxiosError } from "axios";
+import { OrderData } from "@/redux/api-slice/thread-slice";
+import type { CustomerSegment } from "@/redux/api-slice/customer-slice";
+import type {
+  CopilotAction,
+  CopilotActions,
+  CopilotConversation,
+  CopilotFeedback,
+  CopilotMessage,
+} from "@/lib/copilot";
+
+export type SupportTicketStatus =
+  | "open"
+  | "snoozed"
+  | "resolved"
+  | "closed"
+  | "reopen";
+export type SupportTicketPriority = "low" | "normal" | "high" | "urgent";
+export type SupportTicketChannel =
+  | "web"
+  | "email"
+  | "whatsapp"
+  | "instagram"
+  | "facebook";
+export type SupportTicketMessageType = "external" | "internal";
+// "system" is written by neither side: the issue summary a ticket opens
+// with, or a further issue the AI adds to it later. Emailed to the customer.
+export type SupportTicketMessageSenderType = "customer" | "agent" | "system";
+export type SupportTicketMessageDirection = "incoming" | "outgoing";
+export type SupportTicketPlatfrom =
+  | "internal"
+  | "zendesk"
+  | "freshdesk"
+  | "zoho_desk"
+  | "gorgias"
+  | "intercom";
+export type SupportTicketMessageContentType = "text/plain" | "multipart";
+export type SupportTicketMessageAttachment = "text/plain" | "multipart";
+export type SupportTicketDraftType = "manual" | "ai";
+
+export type SupportSocketPayload = {
+  event?:
+    | "ticket_created"
+    | "customer_message"
+    | "ticket_updated"
+    // Only the ticket's SLA changed (an agent replied, the status moved).
+    | "ticket_sla_updated";
+  ticket?: SupportTicket;
+  message?: SupportTicketMessage;
+};
+
+export type SupportTicketOrdering = "newest" | "oldest" | "last_updated";
+
+export type SupportTicketFilters = {
+  status?: SupportTicketStatus | SupportTicketStatus[];
+  ordering?: SupportTicketOrdering;
+  search?: string;
+  channel?: SupportTicketChannel[];
+  tags?: string[];
+  priority?: SupportTicketPriority[];
+  sentiment?: TicketSentiment[];
+  is_read?: boolean;
+  /** The logged-in agent's own tickets. */
+  assigned_to_me?: boolean;
+  is_assigned?: boolean;
+  is_snoozed?: boolean;
+  /** Created on or after this ISO instant. */
+  created_from?: string;
+  /** Created on or before this ISO instant. */
+  created_to?: string;
+};
+
+type GetSupportTicketsArgs = {
+  store_code?: string;
+  page?: number;
+  limit?: number;
+  filters?: SupportTicketFilters;
+};
+
+export type SupportTicketCustomer = {
+  id: number;
+  addresses: unknown[];
+  name: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  store: number | null;
+  customer_id: string;
+  /** When the shopper's account was created on the platform. */
+  registered_at?: string | null;
+  created_at: string;
+  updated_at: string;
+  thread_id: string;
+  orders: OrderData[];
+  /** The customer's page in the store's own admin (Shopify, Magento). */
+  admin_url?: string | null;
+};
+
+type GetSupportTicketTagsArgs = {
+  storeCode: string;
+  page?: number;
+  limit?: number;
+  search?: string;
+  /** Only tags of this type; omit for all tags. */
+  type?: "custom" | "system";
+  append?: boolean;
+};
+
+/** Where a ticket stands on one SLA target. */
+export type SlaTargetStatus =
+  | "not_applicable"
+  | "on_track"
+  | "due_soon"
+  | "met"
+  | "breached";
+
+/** One target of the SLA applied to a ticket. */
+export type SlaTarget = {
+  target_minutes: number | null;
+  due_at: string | null;
+  /** When the target was met; null while it is still open. */
+  completed_at: string | null;
+  /** When the target was found missed; null while it has not been. */
+  breached_at: string | null;
+  status: SlaTargetStatus;
+};
+
+/** The SLA applied to a ticket, and the tag that triggered it. */
+export type SupportTicketSla = {
+  tag: {
+    id: number;
+    name: string;
+    color: string;
+  };
+  first_reply: SlaTarget;
+  every_reply: SlaTarget;
+  resolution: SlaTarget;
+};
+
+export type SupportTicketTagData = {
+  id?: number;
+  name: string;
+  color: string;
+  description: string;
+  /** A platform-provided tag; the store cannot edit or delete it. */
+  is_predefined?: boolean;
+  is_active?: boolean;
+  /** When the tag was created. Sent by the tag list only. */
+  created_at?: string;
+  /** Support tickets carrying the tag. Sent by the tag list only. */
+  ticket_count?: number;
+  /** Analysed threads the AI tagged with it. Sent by the tag list only. */
+  thread_count?: number;
+  /** Similar-tags lookup only: same name as the one typed, so a duplicate. */
+  is_exact?: boolean;
+  /** Whether the tag has an SLA policy. Sent by the tag list only. */
+  has_sla_policy?: boolean;
+  /** Assign and remove only: the SLA the ticket follows after the change. */
+  ticket_sla?: SupportTicketSla | null;
+};
+
+export type SupportTicketTagsResponse = {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: SupportTicketTagData[];
+};
+
+export type SupportMessageImproveResponse = {
+  message: string;
+  action: string;
+};
+
+export type SupportTicketSnoozeResponse = {
+  snoozed_until: string | null;
+};
+
+export type SupportTicketTranslateResponse = {
+  language_name: string;
+  language_code: string;
+  messages: Array<{ id: number | string; message: string }>;
+};
+
+type SupportTicketAssignee = {
+  id: number;
+  name: string;
+  email: string;
+};
+
+type SupportTicketMessageAttachments = {
+  id: number;
+  file: string;
+  file_url: string;
+  content_type: string;
+  created_at: string;
+};
+
+export type SupportTicketMessage = {
+  id: number;
+  message: string;
+  message_type: SupportTicketMessageType;
+  agent: number;
+  sender_type: SupportTicketMessageSenderType;
+  message_direction: SupportTicketMessageDirection;
+  platform: SupportTicketPlatfrom;
+  channel: SupportTicketChannel;
+  content_type: SupportTicketMessageContentType;
+  created_at: string;
+  metadata: {
+    // Set when the reply was sent in the customer's language.
+    translated_message?: {
+      message: string;
+      language_name: string;
+      language_code: string;
+    };
+  };
+  attachments: SupportTicketMessageAttachments[];
+  pendingFiles?: File[];
+};
+
+export type SupportTicketDraftMessage = {
+  id: number;
+  ticket: number;
+  agent: number;
+  message: string;
+  draft_type: SupportTicketDraftType;
+};
+
+/** Who or what opened a ticket. */
+export type SupportTicketCreatedBy = "agent" | "ai" | "email";
+
+export type SupportTicket = {
+  id: number;
+  ticket_id: string;
+  created_by_type?: SupportTicketCreatedBy;
+  /** The agent who raised it; null when the AI or a rule did. */
+  created_by?: SupportTicketAssignee | null;
+  language?: TicketLanguage;
+  sentiment?: TicketSentiment;
+  order_id?: string | null;
+  /** The linked order's total and currency; sent by the ticket list only. */
+  order_total?: string | null;
+  order_currency?: string | null;
+  customer: string | SupportTicketCustomer | null;
+  /** The customer's full name; sent by the ticket list only. */
+  customer_name?: string | null;
+  /** The customer's segment when the ticket was opened; kept after. */
+  customer_segment?: CustomerSegment;
+  /** The chat the ticket was raised from; sent by the ticket's details. */
+  thread?: string | null;
+  /** Whether that chat is still open; null when there is none. */
+  thread_is_active?: boolean | null;
+  internal_assignee: SupportTicketAssignee | null;
+
+  subject: string;
+  description: string;
+  last_message?: string | null;
+
+  status: SupportTicketStatus;
+  /** How many times the ticket has moved into the reopen status. */
+  reopen_count?: number;
+  priority: SupportTicketPriority;
+
+  tags: SupportTicketTagData[];
+
+  /** The SLA the ticket follows; null when none of its tags sets one. */
+  sla?: SupportTicketSla | null;
+
+  is_read: boolean;
+  channel: SupportTicketChannel;
+
+  resolved_source?: string | null;
+  resolved_at?: string | null;
+  resolved_by?: string | null;
+  closed_source?: string | null;
+  closed_at?: string | null;
+  closed_by?: string | null;
+
+  created_at: string;
+  updated_at?: string;
+  last_message_at?: string | null;
+
+  messages?: SupportTicketMessage[];
+  drafts?: SupportTicketDraftMessage[];
+
+  is_snoozed: boolean;
+  snoozed_until: string;
+};
+
+export type SupportTicketStatusCounts = {
+  closed: number;
+  open: number;
+  reopen: number;
+  resolved: number;
+  snoozed: number;
+};
+
+/** One channel in use, with how many tickets came through it. */
+export type SupportTicketFilterCountItem = {
+  value: string;
+  label: string;
+  count: number;
+};
+
+/** One of the store's active tags, with how many tickets carry it. */
+export type SupportTicketFilterCountTag = {
+  id: number;
+  name: string;
+  color: string;
+  count: number;
+};
+
+/** What the help desk's left panel shows next to each of its views. */
+export type SupportTicketFilterCounts = {
+  all: number;
+  unassigned: number;
+  assigned_to_me: number;
+  unread: number;
+  /** Tickets with any tag, each once — not the sum of the tag rows. */
+  tagged: number;
+  /** Urgent or high priority. */
+  high_priority: number;
+  negative_sentiment: number;
+  channels: SupportTicketFilterCountItem[];
+  tags: SupportTicketFilterCountTag[];
+};
+
+export type SupportTicketsResponse = {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: SupportTicket[];
+  status_counts: SupportTicketStatusCounts;
+};
+
+type SupportTicketStaffAssignData = {
+  internal_assignee: number | null;
+};
+
+export const FetchSupportTickets = createAsyncThunk<
+  SupportTicketsResponse,
+  GetSupportTicketsArgs
+>(
+  "Threads",
+  async (
+    {
+      store_code = "",
+      page = 1,
+      limit = 15,
+      filters = {},
+    }: GetSupportTicketsArgs = {},
+    thunkAPI,
+  ) => {
+    try {
+      const filteration =
+        "&" +
+        Object.entries(filters)
+          .map(([key, value]) => `${key}=${value}`)
+          .join("&");
+
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchSupportTickets()}?store_code=${store_code}&page=${page}&page_size=${limit}${filteration !== "&" ? filteration : ""}`,
+      );
+      const data = response.data.data;
+
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Couldn't fetch the support ticket.", {
+        description: data?.message || "Please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch the support ticket.",
+      );
+    }
+  },
+);
+
+// The left panel's counts. No error toast: this runs in the background and
+// the panel simply shows no numbers when it fails.
+export const FetchSupportTicketFilterCounts = createAsyncThunk<
+  SupportTicketFilterCounts,
+  { storeCode: string; status?: SupportTicketStatus[] }
+>("FetchSupportTicketFilterCounts", async ({ storeCode, status }, thunkAPI) => {
+  try {
+    const params = new URLSearchParams({ store_code: storeCode });
+    if (status?.length) params.set("status", status.join(","));
+
+    const response = await axiosInstance.get(
+      `${ENDPOINTS.fetchSupportTicketFilterCounts()}?${params.toString()}`,
+    );
+    return response.data.data;
+  } catch (error) {
+    const response = isAxiosError(error) ? error.response : undefined;
+    return thunkAPI.rejectWithValue(
+      response?.data || "Couldn't fetch the ticket filter counts.",
+    );
+  }
+});
+
+export const FetchSupportTicketDetails = createAsyncThunk(
+  "FetchSupportTicketDetails",
+  async (
+    { storeCode, ticketId }: { storeCode: string; ticketId: number },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchSupportTicketDeatils(ticketId)}?store_code=${storeCode}`,
+      );
+      const data = response.data.data;
+
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Couldn't fetch ticket details.", {
+        description: data?.message || "Please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch ticket details.");
+    }
+  },
+);
+
+export const SupportTicketMessageSend = createAsyncThunk(
+  "SupportTicketMessageSend",
+  async (
+    {
+      storeCode,
+      ticketId,
+      formData,
+    }: { storeCode: string; ticketId: number; formData: FormData },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.post(
+        `${ENDPOINTS.supportTicketMessageSend(ticketId)}?store_code=${storeCode}`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        },
+      );
+      const data = response.data.data;
+
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Couldn't send message.", {
+        description: data?.message || "Please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Couldn't send message.");
+    }
+  },
+);
+
+export const FetchSupportTicketTags = createAsyncThunk(
+  "FetchSupportTicketTags",
+  async (
+    {
+      storeCode,
+      page = 1,
+      limit = 15,
+      search = "",
+      type,
+    }: GetSupportTicketTagsArgs,
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.get(
+        ENDPOINTS.fetchSupportTicketTags(),
+        {
+          params: {
+            store_code: storeCode,
+            page,
+            page_size: limit,
+            ...(search && { search }),
+            ...(type && { type }),
+          },
+        },
+      );
+      const data = response.data.data;
+
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Couldn't fetch support ticket tags.", {
+        description: data?.message || "Please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch support ticket tags.",
+      );
+    }
+  },
+);
+
+/**
+ * What an agent fills in to raise a ticket by hand.
+ *
+ * `customer` is an email, never an id, even when the agent picked a shopper
+ * out of the directory: the serializer resolves the address to a record and
+ * creates one when it is new, so an address is the only input that works
+ * for both a known shopper and a stranger. A DM contact is always the
+ * second case — Meta hands over a name and a PSID, never an email.
+ *
+ * `tags` are names rather than ids for the same reason: the backend reuses
+ * a tag that exists and creates one that does not, so the caller does not
+ * have to know which it is holding.
+ */
+export type CreateSupportTicketPayload = {
+  /** The shopper's email. Resolved to a customer, or one is created. */
+  customer: string;
+  subject: string;
+  description: string;
+  priority: SupportTicketPriority;
+  /** The order this is about, by id. Omitted when it is about nothing in particular. */
+  order?: number;
+  tags?: { name: string }[];
+  /** Language of the conversation. The server defaults to English. */
+  language?: TicketLanguage;
+  /** The customer's tone. The server defaults to neutral. */
+  sentiment?: TicketSentiment;
+};
+
+/**
+ * The AI's reading of a conversation, as a ticket an agent can edit.
+ *
+ * Every field is a suggestion — nothing is saved until the agent submits
+ * the create call — so the shape mirrors the form rather than the model.
+ * An empty conversation comes back with blank strings rather than a
+ * guessed ticket, which the form treats as "nothing to prefill".
+ */
+export type SupportTicketDraft = {
+  subject: string;
+  description: string;
+  priority: SupportTicketPriority;
+  /** 0–3, Title Case. Safe to post back — tags resolve case-insensitively. */
+  tags: { name: string }[];
+};
+
+/**
+ * Draft a ticket from a live chat, reading its recent messages.
+ *
+ * A failure here is not a blocking one: the agent asked for help filling
+ * the form and can still fill it themselves, so this says so quietly and
+ * leaves the form alone rather than raising an error over it.
+ */
+export const FetchThreadTicketDraft = createAsyncThunk(
+  "FetchThreadTicketDraft",
+  async (
+    { storeCode, threadId }: { storeCode: string; threadId: string },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.threadSupportTicketDraft(threadId)}?store_code=${storeCode}`,
+        { useBackend: true },
+      );
+      return response.data.data as SupportTicketDraft;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.info("Couldn't draft this one", {
+        description:
+          data?.data?.detail?.[0] ||
+          data?.message ||
+          "Fill the form in manually.",
+      });
+      return thunkAPI.rejectWithValue(data || "Couldn't create ticket");
+    }
+  },
+);
+
+/**
+ * Raise a ticket from a live chat an agent is already handling.
+ *
+ * Addressed by the thread, which the backend stores on the ticket — so the
+ * conversation that produced it stays reachable, and the channel is set to
+ * the web widget without the client saying so.
+ */
+export const CreateSupportTicket = createAsyncThunk(
+  "CreateSupportTicket",
+  async (
+    {
+      storeCode,
+      threadId,
+      payload,
+    }: {
+      storeCode: string;
+      /** The live chat it came from; omit for a ticket an agent raises cold. */
+      threadId?: string;
+      payload: CreateSupportTicketPayload;
+    },
+    thunkAPI,
+  ) => {
+    try {
+      const url = threadId
+        ? ENDPOINTS.createThreadSupportTicket(threadId)
+        : ENDPOINTS.createSupportTicket();
+      const response = await axiosInstance.post(
+        `${url}?store_code=${storeCode}`,
+        payload,
+        { useBackend: true },
+      );
+      toast.success("Ticket created.", {
+        description: "It is now in the help desk queue.",
+      });
+      return response.data.data as SupportTicket;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Couldn't create ticket", {
+        description:
+          getApiErrorMessage(data?.data) ||
+          data?.message ||
+          "Please check the form and try again.",
+      });
+      return thunkAPI.rejectWithValue(data || "Couldn't link the customer");
+    }
+  },
+);
+
+/** Attach an existing customer record to a ticket a guest raised. */
+export const SupportTicketCustomerLink = createAsyncThunk(
+  "SupportTicketCustomerLink",
+  async (
+    {
+      storeCode,
+      ticketId,
+      customerId,
+    }: { storeCode: string; ticketId: number; customerId: number },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.patch(
+        `${ENDPOINTS.supportTicketCustomerLink(ticketId)}?store_code=${storeCode}`,
+        { customer: customerId },
+        { useBackend: true },
+      );
+      toast.success("Customer linked to this ticket.");
+      return response.data.data as SupportTicket;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Couldn't link the customer", {
+        description: data?.message || "Please try again later.",
+      });
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't assign a staff to ticket.",
+      );
+    }
+  },
+);
+
+export const SupportTicketStaffAssign = createAsyncThunk(
+  "SupportTicketStaffAssign",
+  async (
+    {
+      storeCode,
+      ticketId,
+      payload,
+    }: {
+      storeCode: string;
+      ticketId: number;
+      payload: SupportTicketStaffAssignData;
+    },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.put(
+        `${ENDPOINTS.supportTicketStaffAssign(ticketId)}?store_code=${storeCode}`,
+        payload,
+      );
+      const data = response.data.data;
+
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Couldn't assign a staff to ticket.", {
+        description: data?.message || "Please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Couldn't save draft message.");
+    }
+  },
+);
+
+export const SupportTicketAgentDraftSave = createAsyncThunk(
+  "SupportTicketAgentDraftSave",
+  async (
+    {
+      storeCode,
+      ticketId,
+      payload,
+    }: { storeCode: string; ticketId: number; payload: { message: string } },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.post(
+        `${ENDPOINTS.supportTicketAgentDraftSave(ticketId)}?store_code=${storeCode}`,
+        payload,
+      );
+      const data = response.data.data;
+
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Couldn't save draft message.", {
+        description: data?.message || "Please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't assign this tag to ticket.",
+      );
+    }
+  },
+);
+
+export const SupportTicketTagAssign = createAsyncThunk(
+  "SupportTicketTagAssign",
+  async (
+    {
+      storeCode,
+      ticketId,
+      tagId,
+    }: { storeCode: string; ticketId: number; tagId: number },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.put(
+        `${ENDPOINTS.supportTicketTagAssign(ticketId, tagId)}?store_code=${storeCode}`,
+      );
+      const data = response.data.data;
+
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Couldn't assign this tag to ticket.", {
+        description: data?.message || "Please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't remove this tag to ticket.",
+      );
+    }
+  },
+);
+
+export const SupportTicketTagRemove = createAsyncThunk(
+  "SupportTicketTagRemove",
+  async (
+    {
+      storeCode,
+      ticketId,
+      tagId,
+    }: { storeCode: string; ticketId: number; tagId: number },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.put(
+        `${ENDPOINTS.supportTicketTagRemove(ticketId, tagId)}?store_code=${storeCode}`,
+      );
+      const data = response.data.data;
+
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Couldn't remove this tag to ticket.", {
+        description: data?.message || "Please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Couldn't improve the message.");
+    }
+  },
+);
+
+export const SupportMessageImprove = createAsyncThunk(
+  "SupportMessageImprove",
+  async (
+    {
+      storeCode,
+      ticketId,
+      payload,
+    }: {
+      storeCode: string;
+      ticketId: number;
+      payload: SupportMessageImproveResponse;
+    },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.post(
+        `${ENDPOINTS.supportMessageImprove(ticketId)}?store_code=${storeCode}`,
+        payload,
+      );
+      const data = response.data.data;
+
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Couldn't improve the message.", {
+        description: data?.message || "Please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Couldn't snooze this ticket.");
+    }
+  },
+);
+
+export const SupportTicketSnooze = createAsyncThunk(
+  "SupportTicketSnooze",
+  async (
+    {
+      storeCode,
+      ticketId,
+      payload,
+    }: {
+      storeCode: string;
+      ticketId: number;
+      payload: SupportTicketSnoozeResponse;
+    },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.put(
+        `${ENDPOINTS.supportTicketSnooze(ticketId)}?store_code=${storeCode}`,
+        payload,
+      );
+      const data = response.data.data;
+
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Couldn't snooze this ticket.", {
+        description: data?.message || "Please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Couldn't mark read.");
+    }
+  },
+);
+
+export const SupportTicketMarkRead = createAsyncThunk(
+  "SupportTicketMarkRead",
+  async (
+    { storeCode, ticketId }: { storeCode: string; ticketId: number },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.put(
+        `${ENDPOINTS.supportTicketMarkRead(ticketId)}?store_code=${storeCode}`,
+      );
+      const data = response.data.data;
+
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Couldn't mark read.", {
+        description: data?.message || "Please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Couldn't delete this tag.");
+    }
+  },
+);
+
+/**
+ * The store's tags a typed name would duplicate.
+ *
+ * Not a thunk, and it never toasts: it runs as the owner types, so an error
+ * toast per keystroke would be noise. A failed lookup returns no matches —
+ * the create and update endpoints still refuse a duplicate on their own.
+ */
+export async function fetchSimilarTicketTags({
+  storeCode,
+  name,
+  excludeId,
+  signal,
+}: {
+  storeCode: string;
+  name: string;
+  /** The tag being renamed, which must not match itself. */
+  excludeId?: number;
+  signal?: AbortSignal;
+}): Promise<SupportTicketTagData[]> {
+  try {
+    const response = await axiosInstance.get(ENDPOINTS.ticketTagSimilar(), {
+      params: {
+        store_code: storeCode,
+        name,
+        ...(excludeId && { exclude_id: excludeId }),
+      },
+      signal,
+    });
+    const data = response.data.data;
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
+
+export const TicketTagDelete = createAsyncThunk(
+  "TicketTagDelete",
+  async (
+    { storeCode, tagId }: { storeCode: string; tagId: number },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.delete(
+        `${ENDPOINTS.ticketTagDelete(tagId)}?store_code=${storeCode}`,
+      );
+      const data = response.data.data;
+
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Couldn't delete this tag.", {
+        description: data?.message || "Please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Couldn't create a tag.");
+    }
+  },
+);
+
+export const TicketTagCreate = createAsyncThunk(
+  "TicketTagCreate",
+  async (
+    {
+      storeCode,
+      payload,
+    }: { storeCode: string; payload: SupportTicketTagData },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.post(
+        `${ENDPOINTS.ticketTagCreate()}?store_code=${storeCode}`,
+        payload,
+      );
+      const data = response.data.data;
+
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Couldn't create a tag.", {
+        description: data?.message || "Please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Couldn't update this tag.");
+    }
+  },
+);
+
+export const TicketTagUpdate = createAsyncThunk(
+  "TicketTagUpdate",
+  async (
+    {
+      storeCode,
+      tagId,
+      payload,
+    }: { storeCode: string; tagId: number; payload: SupportTicketTagData },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.patch(
+        `${ENDPOINTS.ticketTagUpdate(tagId)}?store_code=${storeCode}`,
+        payload,
+      );
+      const data = response.data.data;
+
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Couldn't update this tag.", {
+        description: data?.message || "Please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Couldn't generate ai draft.");
+    }
+  },
+);
+
+export const SupportTicketAIMessageDraftGenerate = createAsyncThunk(
+  "SupportTicketAIMessageDraftGenerate",
+  async (
+    { storeCode, ticketId }: { storeCode: string; ticketId: number },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.post(
+        `${ENDPOINTS.supportTicketAIMessageDraftGenerate(ticketId)}?store_code=${storeCode}`,
+      );
+      const data = response.data.data;
+
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Couldn't generate ai draft.", {
+        description: data?.message || "Please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Couldn't update ticket status.");
+    }
+  },
+);
+
+export const SupportTicketStatusUpdate = createAsyncThunk(
+  "SupportTicketStatusUpdate",
+  async (
+    {
+      storeCode,
+      ticketId,
+      payload,
+    }: {
+      storeCode: string;
+      ticketId: number;
+      payload: { status: SupportTicketStatus };
+      /**
+       * The status the ticket is leaving. Not sent to the API; it lets the
+       * queue counts move by one without refetching the whole list.
+       */
+      previousStatus?: SupportTicketStatus;
+    },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.put(
+        `${ENDPOINTS.supportTicketStatusUpdate(ticketId)}?store_code=${storeCode}`,
+        payload,
+      );
+      const data = response.data.data;
+
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Couldn't update ticket status.", {
+        description: data?.message || "Please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't update ticket priority.",
+      );
+    }
+  },
+);
+
+export const SupportTicketPriorityUpdate = createAsyncThunk(
+  "SupportTicketPriorityUpdate",
+  async (
+    {
+      storeCode,
+      ticketId,
+      payload,
+    }: {
+      storeCode: string;
+      ticketId: number;
+      payload: { priority: SupportTicketPriority };
+    },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.put(
+        `${ENDPOINTS.supportTicketPriorityUpdate(ticketId)}?store_code=${storeCode}`,
+        payload,
+      );
+      const data = response.data.data;
+
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Couldn't update ticket priority.", {
+        description: data?.message || "Please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Couldn't load ticket activity.");
+    }
+  },
+);
+
+/** A change to a ticket's priority, language, sentiment or tags. */
+export const SUPPORT_TICKET_CHANGE_TYPES = {
+  PRIORITY_CHANGED: "priority_changed",
+  LANGUAGE_CHANGED: "language_changed",
+  SENTIMENT_CHANGED: "sentiment_changed",
+  TAG_ADDED: "tag_added",
+  TAG_REMOVED: "tag_removed",
+} as const;
+
+export type SupportTicketChangeType =
+  (typeof SUPPORT_TICKET_CHANGE_TYPES)[keyof typeof SUPPORT_TICKET_CHANGE_TYPES];
+
+/** One line of a ticket's history: its creation, a status change, an assignment or another change. */
+export type SupportTicketActivityItem = {
+  type: "created" | "status_changed" | "assigned" | SupportTicketChangeType;
+  /** Who did it, or null when the system did (creation) or the name is unknown. */
+  actor: string | null;
+  /** Previous status, agent or value; for "created" and "tag_added" always null. */
+  from_value: string | null;
+  /** New status, agent or value; for "created" who opened it (ai, agent, rule); for "tag_removed" null. */
+  to_value: string | null;
+  created_at: string;
+};
+
+/** What happened to a ticket, newest first. */
+export const SupportTicketActivityFetch = createAsyncThunk(
+  "SupportTicketActivityFetch",
+  async (
+    { storeCode, ticketId }: { storeCode: string; ticketId: number },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.supportTicketActivity(ticketId)}?store_code=${storeCode}`,
+      );
+      return response.data.data.activity as SupportTicketActivityItem[];
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Couldn't load ticket activity.", {
+        description: data?.message || "Please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't update ticket language or sentiment.",
+      );
+    }
+  },
+);
+
+/** Change a ticket's language and/or sentiment; either may be sent alone. */
+export const SupportTicketLanguageSentimentUpdate = createAsyncThunk(
+  "SupportTicketLanguageSentimentUpdate",
+  async (
+    {
+      storeCode,
+      ticketId,
+      payload,
+    }: {
+      storeCode: string;
+      ticketId: number;
+      payload: { language?: TicketLanguage; sentiment?: TicketSentiment };
+    },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.put(
+        `${ENDPOINTS.supportTicketLanguageSentimentUpdate(ticketId)}?store_code=${storeCode}`,
+        payload,
+      );
+      return response.data.data as {
+        language: TicketLanguage;
+        sentiment: TicketSentiment;
+      };
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Couldn't update ticket language or sentiment.", {
+        description: data?.message || "Please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't translate ticket messages.",
+      );
+    }
+  },
+);
+
+export const SupportTicketMessagesTranslate = createAsyncThunk<
+  SupportTicketTranslateResponse,
+  {
+    storeCode: string;
+    ticketId: number;
+    payload: { language_code: string; language_name: string };
+  }
+>(
+  "SupportTicketMessagesTranslate",
+  async ({ storeCode, ticketId, payload }, thunkAPI) => {
+    try {
+      const response = await axiosInstance.post(
+        `${ENDPOINTS.supportTicketMessagesTranslate(ticketId)}?store_code=${storeCode}`,
+        payload,
+      );
+      const data = response.data.data;
+
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Couldn't translate ticket messages.", {
+        description: data?.message || "Please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't translate ticket messages.",
+      );
+    }
+  },
+);
+
+// Helpdesk Copilot. The GET goes straight to Django (`useBackend`): the
+// local Next API has no Copilot route.
+export const FetchCopilotConversation = createAsyncThunk<
+  CopilotConversation,
+  { storeCode: string; ticketId: number }
+>("FetchCopilotConversation", async ({ storeCode, ticketId }, thunkAPI) => {
+  try {
+    const response = await axiosInstance.get(
+      `${ENDPOINTS.supportTicketCopilot(ticketId)}?store_code=${storeCode}`,
+      { useBackend: true },
+    );
+    const data = response.data.data;
+
+    return data;
+  } catch (error) {
+    const response = isAxiosError(error) ? error.response : undefined;
+    const data = response?.data;
+
+    return thunkAPI.rejectWithValue(data || "Couldn't load Copilot.");
+  }
+});
+
+export const CopilotActionRun = createAsyncThunk<
+  { reused: boolean; message?: CopilotMessage; actions: CopilotActions },
+  { storeCode: string; ticketId: number; action: CopilotAction }
+>("CopilotActionRun", async ({ storeCode, ticketId, action }, thunkAPI) => {
+  try {
+    const response = await axiosInstance.post(
+      `${ENDPOINTS.supportTicketCopilot(ticketId)}?store_code=${storeCode}`,
+      { action },
+      // A model call, with a knowledge search for two of the three actions.
+      { timeout: 90_000 },
+    );
+    const data = response.data.data;
+
+    if (data.reused) {
+      // Nothing changed, so the server saved nothing; say why.
+      toast.info("Nothing new to run", { description: response.data.message });
+    }
+    // Reload either way: for a new answer, the agent's request and Copilot's
+    // reply; otherwise, anything another agent added in the meantime.
+    thunkAPI.dispatch(FetchCopilotConversation({ storeCode, ticketId }));
+
+    return data;
+  } catch (error) {
+    const response = isAxiosError(error) ? error.response : undefined;
+    const data = response?.data;
+
+    if (response?.status === 409) {
+      toast.info("Not available right now", { description: data?.message });
+      // The refusal means the ticket moved on (resolved, already running).
+      thunkAPI.dispatch(FetchCopilotConversation({ storeCode, ticketId }));
+    } else if (response?.status === 429) {
+      toast.error("Out of AI credits", {
+        description: "Ask an admin to top up credits to use Copilot.",
+      });
+    } else {
+      toast.error("Copilot couldn't finish.", {
+        description: data?.message || "Please try again later.",
+      });
+    }
+
+    return thunkAPI.rejectWithValue(data || "Copilot couldn't finish.");
+  }
+});
+
+export const CopilotMessageRate = createAsyncThunk<
+  { message: CopilotMessage; actions: CopilotActions },
+  {
+    storeCode: string;
+    ticketId: number;
+    messageId: number;
+    feedback: CopilotFeedback;
+    feedbackMessage?: string;
+  }
+>(
+  "CopilotMessageRate",
+  async (
+    { storeCode, ticketId, messageId, feedback, feedbackMessage = "" },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.patch(
+        `${ENDPOINTS.supportTicketCopilotFeedback(ticketId, messageId)}?store_code=${storeCode}`,
+        { feedback, feedback_message: feedbackMessage },
+      );
+      const data = response.data.data;
+
+      if (feedback === "good") toast.success("Thanks for the feedback");
+
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Couldn't save your feedback.", {
+        description: data?.message || "Please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Couldn't save your feedback.");
+    }
+  },
+);
+
+// Everything that moves a ticket between the left panel's views, so the
+// counts are fetched again after it.
+const ticketChangeThunks = isAnyOf(
+  CreateSupportTicket.fulfilled,
+  SupportTicketStaffAssign.fulfilled,
+  SupportTicketTagAssign.fulfilled,
+  SupportTicketTagRemove.fulfilled,
+  SupportTicketSnooze.fulfilled,
+  SupportTicketMarkRead.fulfilled,
+  SupportTicketStatusUpdate.fulfilled,
+  SupportTicketPriorityUpdate.fulfilled,
+  SupportTicketLanguageSentimentUpdate.fulfilled,
+);
+
+const SupportTicketsSlice = createSlice({
+  name: "SupportTicketsSlice",
+  initialState: {
+    // The status tab the list is on. Lives here, not in the screen, because
+    // the left panel counts only the tickets of that tab.
+    HelpdeskQueue: DEFAULT_HELPDESK_QUEUE as SupportTicketStatus,
+    // Bumped whenever a ticket changes; the left panel refetches on it.
+    FilterCountsRefreshKey: 0,
+    FetchSupportTicketFilterCountsState: {
+      FetchSupportTicketFilterCountsIsLoading: false,
+      FetchSupportTicketFilterCountsIsSuccess: false,
+      FetchSupportTicketFilterCountsIsError: null as
+        | null
+        | string
+        | object
+        | unknown,
+      FetchSupportTicketFilterCountsData:
+        null as SupportTicketFilterCounts | null,
+    },
+    FetchSupportTicketsState: {
+      FetchSupportTicketsLoading: false,
+      FetchSupportTicketsIsSuccess: false,
+      FetchSupportTicketsIsError: null as null | string | object | unknown,
+      FetchSupportTicketsListData: {
+        count: 0,
+        next: null,
+        previous: null,
+        results: [],
+        status_counts: {
+          open: 0,
+          snoozed: 0,
+          resolved: 0,
+          closed: 0,
+          reopen: 0,
+        },
+      } as SupportTicketsResponse,
+    },
+    FetchSupportTicketDetailsState: {
+      FetchSupportTicketDetailsIsLoading: false,
+      FetchSupportTicketDetailsIsSuccess: false,
+      FetchSupportTicketDetailsIsError: null as
+        | null
+        | string
+        | object
+        | unknown,
+      FetchSupportTicketDetailsData: null as SupportTicket | null,
+    },
+    CreateSupportTicketState: {
+      CreateSupportTicketIsLoading: false,
+      CreateSupportTicketIsSuccess: false,
+      CreateSupportTicketIsError: null as null | string | object | unknown,
+      CreateSupportTicketData: null as SupportTicket | null,
+    },
+    SupportTicketMessageSendState: {
+      SupportTicketMessageSendIsLoading: false,
+      SupportTicketMessageSendIsSuccess: false,
+      SupportTicketMessageSendIsError: null as null | string | object | unknown,
+      SupportTicketMessageSendData: {} as SupportTicketMessage,
+    },
+    FetchSupportTicketTagsState: {
+      FetchSupportTicketTagsIsLoading: false,
+      FetchSupportTicketTagsIsSuccess: false,
+      FetchSupportTicketTagsIsError: null as null | string | object | unknown,
+      FetchSupportTicketTagsData: {
+        count: 0,
+        next: null,
+        previous: null,
+        results: [],
+      } as SupportTicketTagsResponse,
+    },
+    SupportTicketStaffAssignState: {
+      SupportTicketStaffAssignIsLoading: false,
+      SupportTicketStaffAssignIsSuccess: false,
+      SupportTicketStaffAssignIsError: null as null | string | object | unknown,
+      SupportTicketStaffAssignData: [] as SupportTicketStaffAssignData[],
+    },
+    SupportTicketAgentDraftSaveState: {
+      SupportTicketAgentDraftSaveIsLoading: false,
+      SupportTicketAgentDraftSaveIsSuccess: false,
+      SupportTicketAgentDraftSaveIsError: null as
+        | null
+        | string
+        | object
+        | unknown,
+      SupportTicketAgentDraftSaveData: {} as SupportTicketDraftMessage,
+    },
+    SupportTicketTagAssignState: {
+      SupportTicketTagAssignIsLoading: false,
+      SupportTicketTagAssignIsSuccess: false,
+      SupportTicketTagAssignIsError: null as null | string | object | unknown,
+      SupportTicketTagAssignData: {} as SupportTicketTagData,
+    },
+    SupportTicketTagRemoveState: {
+      SupportTicketTagRemoveIsLoading: false,
+      SupportTicketTagRemoveIsSuccess: false,
+      SupportTicketTagRemoveIsError: null as null | string | object | unknown,
+      SupportTicketTagRemoveData: {} as SupportTicketTagData,
+    },
+    SupportMessageImproveState: {
+      SupportMessageImproveIsLoading: false,
+      SupportMessageImproveIsSuccess: false,
+      SupportMessageImproveIsError: null as null | string | object | unknown,
+      SupportMessageImproveData: {} as SupportMessageImproveResponse,
+    },
+    SupportTicketSnoozeState: {
+      SupportTicketSnoozeIsLoading: false,
+      SupportTicketSnoozeIsSuccess: false,
+      SupportTicketSnoozeIsError: null as null | string | object | unknown,
+      SupportTicketSnoozeData: {} as SupportTicketSnoozeResponse,
+    },
+    SupportTicketMarkReadState: {
+      SupportTicketMarkReadIsLoading: false,
+      SupportTicketMarkReadIsSuccess: false,
+      SupportTicketMarkReadIsError: null as null | string | object | unknown,
+      SupportTicketMarkReadData: {} as SupportTicketSnoozeResponse,
+    },
+    TicketTagDeleteState: {
+      TicketTagDeleteIsLoading: false,
+      TicketTagDeleteIsSuccess: false,
+      TicketTagDeleteIsError: null as null | string | object | unknown,
+      TicketTagDeleteData: {} as SupportTicketTagData,
+    },
+    TicketTagCreateState: {
+      TicketTagCreateIsLoading: false,
+      TicketTagCreateIsSuccess: false,
+      TicketTagCreateIsError: null as null | string | object | unknown,
+      TicketTagCreateData: {} as SupportTicketTagData,
+    },
+    TicketTagUpdateState: {
+      TicketTagUpdateIsLoading: false,
+      TicketTagUpdateIsSuccess: false,
+      TicketTagUpdateIsError: null as null | string | object | unknown,
+      TicketTagUpdateData: {} as SupportTicketTagData,
+    },
+    SupportTicketAIMessageDraftGenerateState: {
+      SupportTicketAIMessageDraftGenerateIsLoading: false,
+      SupportTicketAIMessageDraftGenerateIsSuccess: false,
+      SupportTicketAIMessageDraftGenerateIsError: null as
+        | null
+        | string
+        | object
+        | unknown,
+      SupportTicketAIMessageDraftGenerateData: {} as SupportTicketDraftMessage,
+    },
+    SupportTicketCustomerLinkState: {
+      SupportTicketCustomerLinkIsLoading: false,
+    },
+    SupportTicketStatusUpdateState: {
+      SupportTicketStatusUpdateIsLoading: false,
+      SupportTicketStatusUpdateIsSuccess: false,
+      SupportTicketStatusUpdateIsError: null as
+        | null
+        | string
+        | object
+        | unknown,
+      SupportTicketStatusUpdateData: {} as { status: SupportTicketStatus },
+    },
+    SupportTicketPriorityUpdateState: {
+      SupportTicketPriorityUpdateIsLoading: false,
+      SupportTicketPriorityUpdateIsSuccess: false,
+      SupportTicketPriorityUpdateIsError: null as
+        | null
+        | string
+        | object
+        | unknown,
+      SupportTicketPriorityUpdateData: {} as { status: SupportTicketPriority },
+    },
+    SupportTicketLanguageSentimentUpdateState: {
+      SupportTicketLanguageSentimentUpdateIsLoading: false,
+      SupportTicketLanguageSentimentUpdateIsSuccess: false,
+      SupportTicketLanguageSentimentUpdateIsError: null as
+        | null
+        | string
+        | object
+        | unknown,
+      SupportTicketLanguageSentimentUpdateData: {} as {
+        language?: TicketLanguage;
+        sentiment?: TicketSentiment;
+      },
+    },
+    SupportTicketActivityFetchState: {
+      SupportTicketActivityFetchIsLoading: false,
+      SupportTicketActivityFetchIsSuccess: false,
+      SupportTicketActivityFetchIsError: null as
+        | null
+        | string
+        | object
+        | unknown,
+      SupportTicketActivityFetchData: [] as SupportTicketActivityItem[],
+    },
+    SupportTicketMessagesTranslateState: {
+      SupportTicketMessagesTranslateIsLoading: false,
+      SupportTicketMessagesTranslateIsSuccess: false,
+      SupportTicketMessagesTranslateIsError: null as
+        | null
+        | string
+        | object
+        | unknown,
+      SupportTicketMessagesTranslateData: {} as SupportTicketTranslateResponse,
+    },
+    FetchCopilotConversationState: {
+      FetchCopilotConversationIsLoading: false,
+      FetchCopilotConversationIsSuccess: false,
+      FetchCopilotConversationIsError: null as null | string | object | unknown,
+      // Kept per ticket, so reopening a ticket shows its answers at once
+      // while they reload.
+      FetchCopilotConversationData: {} as Record<number, CopilotConversation>,
+    },
+    CopilotActionRunState: {
+      CopilotActionRunIsLoading: false,
+      CopilotActionRunTicketId: null as number | null,
+      CopilotActionRunAction: null as CopilotAction | null,
+    },
+    CopilotMessageRateState: {
+      CopilotMessageRateIsLoading: false,
+    },
+  },
+  reducers: {
+    setHelpdeskQueue: (state, action: PayloadAction<SupportTicketStatus>) => {
+      state.HelpdeskQueue = action.payload;
+    },
+    // For changes the screen only learns of from the ticket socket.
+    refreshFilterCounts: (state) => {
+      state.FilterCountsRefreshKey += 1;
+    },
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(FetchSupportTicketFilterCounts.pending, (state) => {
+        state.FetchSupportTicketFilterCountsState.FetchSupportTicketFilterCountsIsLoading = true;
+        state.FetchSupportTicketFilterCountsState.FetchSupportTicketFilterCountsIsError =
+          null;
+        state.FetchSupportTicketFilterCountsState.FetchSupportTicketFilterCountsIsSuccess = false;
+      })
+      .addCase(FetchSupportTicketFilterCounts.fulfilled, (state, action) => {
+        state.FetchSupportTicketFilterCountsState.FetchSupportTicketFilterCountsIsLoading = false;
+        state.FetchSupportTicketFilterCountsState.FetchSupportTicketFilterCountsData =
+          action.payload;
+        state.FetchSupportTicketFilterCountsState.FetchSupportTicketFilterCountsIsSuccess = true;
+      })
+      .addCase(FetchSupportTicketFilterCounts.rejected, (state, action) => {
+        state.FetchSupportTicketFilterCountsState.FetchSupportTicketFilterCountsIsLoading = false;
+        state.FetchSupportTicketFilterCountsState.FetchSupportTicketFilterCountsIsError =
+          action.payload;
+        state.FetchSupportTicketFilterCountsState.FetchSupportTicketFilterCountsIsSuccess = false;
+      })
+      .addCase(FetchSupportTickets.pending, (state, action) => {
+        state.FetchSupportTicketsState.FetchSupportTicketsLoading = true;
+        state.FetchSupportTicketsState.FetchSupportTicketsIsError = null;
+        state.FetchSupportTicketsState.FetchSupportTicketsIsSuccess = false;
+
+        if (action.meta.arg.page === 1) {
+          state.FetchSupportTicketsState.FetchSupportTicketsListData = {
+            count: 0,
+            next: null,
+            previous: null,
+            results: [],
+            status_counts: {
+              open: 0,
+              snoozed: 0,
+              resolved: 0,
+              closed: 0,
+              reopen: 0,
+            },
+          };
+        }
+      })
+      .addCase(FetchSupportTickets.fulfilled, (state, action) => {
+        state.FetchSupportTicketsState.FetchSupportTicketsLoading = false;
+        state.FetchSupportTicketsState.FetchSupportTicketsIsSuccess = true;
+
+        if ((action.meta.arg.page ?? 1) > 1) {
+          state.FetchSupportTicketsState.FetchSupportTicketsListData = {
+            ...action.payload,
+            results: [
+              ...state.FetchSupportTicketsState.FetchSupportTicketsListData
+                .results,
+              ...action.payload.results,
+            ],
+          };
+        } else {
+          state.FetchSupportTicketsState.FetchSupportTicketsListData =
+            action.payload;
+        }
+      })
+      .addCase(FetchSupportTickets.rejected, (state, action) => {
+        state.FetchSupportTicketsState.FetchSupportTicketsLoading = false;
+        state.FetchSupportTicketsState.FetchSupportTicketsIsError =
+          action.payload;
+        state.FetchSupportTicketsState.FetchSupportTicketsIsSuccess = false;
+      })
+      .addCase(FetchSupportTicketDetails.pending, (state) => {
+        state.FetchSupportTicketDetailsState.FetchSupportTicketDetailsIsLoading = true;
+        state.FetchSupportTicketDetailsState.FetchSupportTicketDetailsIsError =
+          null;
+        state.FetchSupportTicketDetailsState.FetchSupportTicketDetailsIsSuccess = false;
+      })
+      .addCase(FetchSupportTicketDetails.fulfilled, (state, action) => {
+        state.FetchSupportTicketDetailsState.FetchSupportTicketDetailsIsLoading = false;
+        state.FetchSupportTicketDetailsState.FetchSupportTicketDetailsData =
+          action.payload;
+        state.FetchSupportTicketDetailsState.FetchSupportTicketDetailsIsSuccess = true;
+      })
+      .addCase(FetchSupportTicketDetails.rejected, (state, action) => {
+        state.FetchSupportTicketDetailsState.FetchSupportTicketDetailsIsLoading = false;
+        state.FetchSupportTicketDetailsState.FetchSupportTicketDetailsIsError =
+          action.payload;
+        state.FetchSupportTicketDetailsState.FetchSupportTicketDetailsIsSuccess = false;
+      })
+      .addCase(SupportTicketMessageSend.pending, (state) => {
+        state.SupportTicketMessageSendState.SupportTicketMessageSendIsLoading = true;
+        state.SupportTicketMessageSendState.SupportTicketMessageSendIsError =
+          null;
+        state.SupportTicketMessageSendState.SupportTicketMessageSendIsSuccess = false;
+      })
+      .addCase(SupportTicketMessageSend.fulfilled, (state, action) => {
+        state.SupportTicketMessageSendState.SupportTicketMessageSendIsLoading = false;
+        state.SupportTicketMessageSendState.SupportTicketMessageSendData =
+          action.payload;
+        state.SupportTicketMessageSendState.SupportTicketMessageSendIsSuccess = true;
+      })
+      .addCase(SupportTicketMessageSend.rejected, (state, action) => {
+        state.SupportTicketMessageSendState.SupportTicketMessageSendIsLoading = false;
+        state.SupportTicketMessageSendState.SupportTicketMessageSendIsError =
+          action.payload;
+        state.SupportTicketMessageSendState.SupportTicketMessageSendIsSuccess = false;
+      })
+      .addCase(FetchSupportTicketTags.pending, (state) => {
+        state.FetchSupportTicketTagsState.FetchSupportTicketTagsIsLoading = true;
+        state.FetchSupportTicketTagsState.FetchSupportTicketTagsIsError = null;
+        state.FetchSupportTicketTagsState.FetchSupportTicketTagsIsSuccess = false;
+      })
+      .addCase(FetchSupportTicketTags.fulfilled, (state, action) => {
+        state.FetchSupportTicketTagsState.FetchSupportTicketTagsIsLoading = false;
+        state.FetchSupportTicketTagsState.FetchSupportTicketTagsData = action
+          .meta.arg.append
+          ? {
+              ...action.payload,
+              results: [
+                ...state.FetchSupportTicketTagsState.FetchSupportTicketTagsData
+                  .results,
+                ...action.payload.results,
+              ],
+            }
+          : action.payload;
+        state.FetchSupportTicketTagsState.FetchSupportTicketTagsIsSuccess = true;
+      })
+      .addCase(FetchSupportTicketTags.rejected, (state, action) => {
+        state.FetchSupportTicketTagsState.FetchSupportTicketTagsIsLoading = false;
+        state.FetchSupportTicketTagsState.FetchSupportTicketTagsIsError =
+          action.payload;
+        state.FetchSupportTicketTagsState.FetchSupportTicketTagsIsSuccess = false;
+      })
+      .addCase(SupportTicketStaffAssign.pending, (state) => {
+        state.SupportTicketStaffAssignState.SupportTicketStaffAssignIsLoading = true;
+        state.SupportTicketStaffAssignState.SupportTicketStaffAssignIsError =
+          null;
+        state.SupportTicketStaffAssignState.SupportTicketStaffAssignIsSuccess = false;
+      })
+      .addCase(SupportTicketStaffAssign.fulfilled, (state, action) => {
+        state.SupportTicketStaffAssignState.SupportTicketStaffAssignIsLoading = false;
+        state.SupportTicketStaffAssignState.SupportTicketStaffAssignData =
+          action.payload;
+        state.SupportTicketStaffAssignState.SupportTicketStaffAssignIsSuccess = true;
+      })
+      .addCase(SupportTicketStaffAssign.rejected, (state, action) => {
+        state.SupportTicketStaffAssignState.SupportTicketStaffAssignIsLoading = false;
+        state.SupportTicketStaffAssignState.SupportTicketStaffAssignIsError =
+          action.payload;
+        state.SupportTicketStaffAssignState.SupportTicketStaffAssignIsSuccess = false;
+      })
+      .addCase(SupportTicketAgentDraftSave.pending, (state) => {
+        state.SupportTicketAgentDraftSaveState.SupportTicketAgentDraftSaveIsLoading = true;
+        state.SupportTicketAgentDraftSaveState.SupportTicketAgentDraftSaveIsError =
+          null;
+        state.SupportTicketAgentDraftSaveState.SupportTicketAgentDraftSaveIsSuccess = false;
+      })
+      .addCase(SupportTicketAgentDraftSave.fulfilled, (state, action) => {
+        state.SupportTicketAgentDraftSaveState.SupportTicketAgentDraftSaveIsLoading = false;
+        state.SupportTicketAgentDraftSaveState.SupportTicketAgentDraftSaveData =
+          action.payload;
+        state.SupportTicketAgentDraftSaveState.SupportTicketAgentDraftSaveIsSuccess = true;
+      })
+      .addCase(SupportTicketAgentDraftSave.rejected, (state, action) => {
+        state.SupportTicketAgentDraftSaveState.SupportTicketAgentDraftSaveIsLoading = false;
+        state.SupportTicketAgentDraftSaveState.SupportTicketAgentDraftSaveIsError =
+          action.payload;
+        state.SupportTicketAgentDraftSaveState.SupportTicketAgentDraftSaveIsSuccess = false;
+      })
+      .addCase(SupportTicketTagAssign.pending, (state) => {
+        state.SupportTicketTagAssignState.SupportTicketTagAssignIsLoading = true;
+        state.SupportTicketTagAssignState.SupportTicketTagAssignIsError = null;
+        state.SupportTicketTagAssignState.SupportTicketTagAssignIsSuccess = false;
+      })
+      .addCase(SupportTicketTagAssign.fulfilled, (state, action) => {
+        state.SupportTicketTagAssignState.SupportTicketTagAssignIsLoading = false;
+        state.SupportTicketTagAssignState.SupportTicketTagAssignData =
+          action.payload;
+        state.SupportTicketTagAssignState.SupportTicketTagAssignIsSuccess = true;
+      })
+      .addCase(SupportTicketTagAssign.rejected, (state, action) => {
+        state.SupportTicketTagAssignState.SupportTicketTagAssignIsLoading = false;
+        state.SupportTicketTagAssignState.SupportTicketTagAssignIsError =
+          action.payload;
+        state.SupportTicketTagAssignState.SupportTicketTagAssignIsSuccess = false;
+      })
+      .addCase(SupportTicketTagRemove.pending, (state) => {
+        state.SupportTicketTagRemoveState.SupportTicketTagRemoveIsLoading = true;
+        state.SupportTicketTagRemoveState.SupportTicketTagRemoveIsError = null;
+        state.SupportTicketTagRemoveState.SupportTicketTagRemoveIsSuccess = false;
+      })
+      .addCase(SupportTicketTagRemove.fulfilled, (state, action) => {
+        state.SupportTicketTagRemoveState.SupportTicketTagRemoveIsLoading = false;
+        state.SupportTicketTagRemoveState.SupportTicketTagRemoveData =
+          action.payload;
+        state.SupportTicketTagRemoveState.SupportTicketTagRemoveIsSuccess = true;
+      })
+      .addCase(SupportTicketTagRemove.rejected, (state, action) => {
+        state.SupportTicketTagRemoveState.SupportTicketTagRemoveIsLoading = false;
+        state.SupportTicketTagRemoveState.SupportTicketTagRemoveIsError =
+          action.payload;
+        state.SupportTicketTagRemoveState.SupportTicketTagRemoveIsSuccess = false;
+      })
+      .addCase(SupportMessageImprove.pending, (state) => {
+        state.SupportMessageImproveState.SupportMessageImproveIsLoading = true;
+        state.SupportMessageImproveState.SupportMessageImproveIsError = null;
+        state.SupportMessageImproveState.SupportMessageImproveIsSuccess = false;
+      })
+      .addCase(SupportMessageImprove.fulfilled, (state, action) => {
+        state.SupportMessageImproveState.SupportMessageImproveIsLoading = false;
+        state.SupportMessageImproveState.SupportMessageImproveData =
+          action.payload;
+        state.SupportMessageImproveState.SupportMessageImproveIsSuccess = true;
+      })
+      .addCase(SupportMessageImprove.rejected, (state, action) => {
+        state.SupportMessageImproveState.SupportMessageImproveIsLoading = false;
+        state.SupportMessageImproveState.SupportMessageImproveIsError =
+          action.payload;
+        state.SupportMessageImproveState.SupportMessageImproveIsSuccess = false;
+      })
+      .addCase(SupportTicketSnooze.pending, (state) => {
+        state.SupportTicketSnoozeState.SupportTicketSnoozeIsLoading = true;
+        state.SupportTicketSnoozeState.SupportTicketSnoozeIsError = null;
+        state.SupportTicketSnoozeState.SupportTicketSnoozeIsSuccess = false;
+      })
+      .addCase(SupportTicketSnooze.fulfilled, (state, action) => {
+        state.SupportTicketSnoozeState.SupportTicketSnoozeIsLoading = false;
+        state.SupportTicketSnoozeState.SupportTicketSnoozeData = action.payload;
+        state.SupportTicketSnoozeState.SupportTicketSnoozeIsSuccess = true;
+      })
+      .addCase(SupportTicketSnooze.rejected, (state, action) => {
+        state.SupportTicketSnoozeState.SupportTicketSnoozeIsLoading = false;
+        state.SupportTicketSnoozeState.SupportTicketSnoozeIsError =
+          action.payload;
+        state.SupportTicketSnoozeState.SupportTicketSnoozeIsSuccess = false;
+      })
+      .addCase(SupportTicketMarkRead.pending, (state) => {
+        state.SupportTicketMarkReadState.SupportTicketMarkReadIsLoading = true;
+        state.SupportTicketMarkReadState.SupportTicketMarkReadIsError = null;
+        state.SupportTicketMarkReadState.SupportTicketMarkReadIsSuccess = false;
+      })
+      .addCase(SupportTicketMarkRead.fulfilled, (state, action) => {
+        state.SupportTicketMarkReadState.SupportTicketMarkReadIsLoading = false;
+        state.SupportTicketMarkReadState.SupportTicketMarkReadData =
+          action.payload;
+        state.SupportTicketMarkReadState.SupportTicketMarkReadIsSuccess = true;
+      })
+      .addCase(SupportTicketMarkRead.rejected, (state, action) => {
+        state.SupportTicketMarkReadState.SupportTicketMarkReadIsLoading = false;
+        state.SupportTicketMarkReadState.SupportTicketMarkReadIsError =
+          action.payload;
+        state.SupportTicketMarkReadState.SupportTicketMarkReadIsSuccess = false;
+      })
+      .addCase(TicketTagDelete.pending, (state) => {
+        state.TicketTagDeleteState.TicketTagDeleteIsLoading = true;
+        state.TicketTagDeleteState.TicketTagDeleteIsError = null;
+        state.TicketTagDeleteState.TicketTagDeleteIsSuccess = false;
+      })
+      .addCase(TicketTagDelete.fulfilled, (state, action) => {
+        state.TicketTagDeleteState.TicketTagDeleteIsLoading = false;
+        state.TicketTagDeleteState.TicketTagDeleteData = action.payload;
+        state.TicketTagDeleteState.TicketTagDeleteIsSuccess = true;
+      })
+      .addCase(TicketTagDelete.rejected, (state, action) => {
+        state.TicketTagDeleteState.TicketTagDeleteIsLoading = false;
+        state.TicketTagDeleteState.TicketTagDeleteIsError = action.payload;
+        state.TicketTagDeleteState.TicketTagDeleteIsSuccess = false;
+      })
+      .addCase(TicketTagCreate.pending, (state) => {
+        state.TicketTagCreateState.TicketTagCreateIsLoading = true;
+        state.TicketTagCreateState.TicketTagCreateIsError = null;
+        state.TicketTagCreateState.TicketTagCreateIsSuccess = false;
+      })
+      .addCase(TicketTagCreate.fulfilled, (state, action) => {
+        state.TicketTagCreateState.TicketTagCreateIsLoading = false;
+        state.TicketTagCreateState.TicketTagCreateData = action.payload;
+        state.TicketTagCreateState.TicketTagCreateIsSuccess = true;
+      })
+      .addCase(TicketTagCreate.rejected, (state, action) => {
+        state.TicketTagCreateState.TicketTagCreateIsLoading = false;
+        state.TicketTagCreateState.TicketTagCreateIsError = action.payload;
+        state.TicketTagCreateState.TicketTagCreateIsSuccess = false;
+      })
+      .addCase(TicketTagUpdate.pending, (state) => {
+        state.TicketTagUpdateState.TicketTagUpdateIsLoading = true;
+        state.TicketTagUpdateState.TicketTagUpdateIsError = null;
+        state.TicketTagUpdateState.TicketTagUpdateIsSuccess = false;
+      })
+      .addCase(TicketTagUpdate.fulfilled, (state, action) => {
+        state.TicketTagUpdateState.TicketTagUpdateIsLoading = false;
+        state.TicketTagUpdateState.TicketTagUpdateData = action.payload;
+        state.TicketTagUpdateState.TicketTagUpdateIsSuccess = true;
+      })
+      .addCase(TicketTagUpdate.rejected, (state, action) => {
+        state.TicketTagUpdateState.TicketTagUpdateIsLoading = false;
+        state.TicketTagUpdateState.TicketTagUpdateIsError = action.payload;
+        state.TicketTagUpdateState.TicketTagUpdateIsSuccess = false;
+      })
+      .addCase(SupportTicketAIMessageDraftGenerate.pending, (state) => {
+        state.SupportTicketAIMessageDraftGenerateState.SupportTicketAIMessageDraftGenerateIsLoading = true;
+        state.SupportTicketAIMessageDraftGenerateState.SupportTicketAIMessageDraftGenerateIsError =
+          null;
+        state.SupportTicketAIMessageDraftGenerateState.SupportTicketAIMessageDraftGenerateIsSuccess = false;
+      })
+      .addCase(
+        SupportTicketAIMessageDraftGenerate.fulfilled,
+        (state, action) => {
+          state.SupportTicketAIMessageDraftGenerateState.SupportTicketAIMessageDraftGenerateIsLoading = false;
+          state.SupportTicketAIMessageDraftGenerateState.SupportTicketAIMessageDraftGenerateData =
+            action.payload;
+          state.SupportTicketAIMessageDraftGenerateState.SupportTicketAIMessageDraftGenerateIsSuccess = true;
+        },
+      )
+      .addCase(
+        SupportTicketAIMessageDraftGenerate.rejected,
+        (state, action) => {
+          state.SupportTicketAIMessageDraftGenerateState.SupportTicketAIMessageDraftGenerateIsLoading = false;
+          state.SupportTicketAIMessageDraftGenerateState.SupportTicketAIMessageDraftGenerateIsError =
+            action.payload;
+          state.SupportTicketAIMessageDraftGenerateState.SupportTicketAIMessageDraftGenerateIsSuccess = false;
+        },
+      )
+      .addCase(CreateSupportTicket.pending, (state) => {
+        state.CreateSupportTicketState.CreateSupportTicketIsLoading = true;
+        state.CreateSupportTicketState.CreateSupportTicketIsError = null;
+        state.CreateSupportTicketState.CreateSupportTicketIsSuccess = false;
+      })
+      .addCase(CreateSupportTicket.fulfilled, (state, action) => {
+        state.CreateSupportTicketState.CreateSupportTicketIsLoading = false;
+        state.CreateSupportTicketState.CreateSupportTicketData = action.payload;
+        state.CreateSupportTicketState.CreateSupportTicketIsSuccess = true;
+      })
+      .addCase(CreateSupportTicket.rejected, (state, action) => {
+        state.CreateSupportTicketState.CreateSupportTicketIsLoading = false;
+        state.CreateSupportTicketState.CreateSupportTicketIsError =
+          action.payload;
+        state.CreateSupportTicketState.CreateSupportTicketIsSuccess = false;
+      })
+      .addCase(SupportTicketCustomerLink.pending, (state) => {
+        state.SupportTicketCustomerLinkState.SupportTicketCustomerLinkIsLoading = true;
+      })
+      .addCase(SupportTicketCustomerLink.fulfilled, (state) => {
+        state.SupportTicketCustomerLinkState.SupportTicketCustomerLinkIsLoading = false;
+      })
+      .addCase(SupportTicketCustomerLink.rejected, (state) => {
+        state.SupportTicketCustomerLinkState.SupportTicketCustomerLinkIsLoading = false;
+      })
+      .addCase(SupportTicketStatusUpdate.pending, (state) => {
+        state.SupportTicketStatusUpdateState.SupportTicketStatusUpdateIsLoading = true;
+        state.SupportTicketStatusUpdateState.SupportTicketStatusUpdateIsError =
+          null;
+        state.SupportTicketStatusUpdateState.SupportTicketStatusUpdateIsSuccess = false;
+      })
+      .addCase(SupportTicketStatusUpdate.fulfilled, (state, action) => {
+        state.SupportTicketStatusUpdateState.SupportTicketStatusUpdateIsLoading = false;
+        state.SupportTicketStatusUpdateState.SupportTicketStatusUpdateData =
+          action.payload;
+        state.SupportTicketStatusUpdateState.SupportTicketStatusUpdateIsSuccess = true;
+
+        // The ticket changed queue, so move it between the queue counts now
+        // rather than waiting for the next list fetch.
+        const { previousStatus, payload } = action.meta.arg;
+        const nextStatus: SupportTicketStatus =
+          action.payload?.status ?? payload.status;
+        const counts =
+          state.FetchSupportTicketsState.FetchSupportTicketsListData
+            .status_counts;
+
+        if (counts && previousStatus && previousStatus !== nextStatus) {
+          if ((counts[previousStatus] ?? 0) > 0) {
+            counts[previousStatus] -= 1;
+          }
+          counts[nextStatus] = (counts[nextStatus] ?? 0) + 1;
+        }
+      })
+      .addCase(SupportTicketStatusUpdate.rejected, (state, action) => {
+        state.SupportTicketStatusUpdateState.SupportTicketStatusUpdateIsLoading = false;
+        state.SupportTicketStatusUpdateState.SupportTicketStatusUpdateIsError =
+          action.payload;
+        state.SupportTicketStatusUpdateState.SupportTicketStatusUpdateIsSuccess = false;
+      })
+      .addCase(SupportTicketPriorityUpdate.pending, (state) => {
+        state.SupportTicketPriorityUpdateState.SupportTicketPriorityUpdateIsLoading = true;
+        state.SupportTicketPriorityUpdateState.SupportTicketPriorityUpdateIsError =
+          null;
+        state.SupportTicketPriorityUpdateState.SupportTicketPriorityUpdateIsSuccess = false;
+      })
+      .addCase(SupportTicketPriorityUpdate.fulfilled, (state, action) => {
+        state.SupportTicketPriorityUpdateState.SupportTicketPriorityUpdateIsLoading = false;
+        state.SupportTicketPriorityUpdateState.SupportTicketPriorityUpdateData =
+          action.payload;
+        state.SupportTicketPriorityUpdateState.SupportTicketPriorityUpdateIsSuccess = true;
+      })
+      .addCase(SupportTicketPriorityUpdate.rejected, (state, action) => {
+        state.SupportTicketPriorityUpdateState.SupportTicketPriorityUpdateIsLoading = false;
+        state.SupportTicketPriorityUpdateState.SupportTicketPriorityUpdateIsError =
+          action.payload;
+        state.SupportTicketPriorityUpdateState.SupportTicketPriorityUpdateIsSuccess = false;
+      })
+      .addCase(SupportTicketLanguageSentimentUpdate.pending, (state) => {
+        state.SupportTicketLanguageSentimentUpdateState.SupportTicketLanguageSentimentUpdateIsLoading = true;
+        state.SupportTicketLanguageSentimentUpdateState.SupportTicketLanguageSentimentUpdateIsError =
+          null;
+        state.SupportTicketLanguageSentimentUpdateState.SupportTicketLanguageSentimentUpdateIsSuccess = false;
+      })
+      .addCase(
+        SupportTicketLanguageSentimentUpdate.fulfilled,
+        (state, action) => {
+          state.SupportTicketLanguageSentimentUpdateState.SupportTicketLanguageSentimentUpdateIsLoading = false;
+          state.SupportTicketLanguageSentimentUpdateState.SupportTicketLanguageSentimentUpdateData =
+            action.payload;
+          state.SupportTicketLanguageSentimentUpdateState.SupportTicketLanguageSentimentUpdateIsSuccess = true;
+        },
+      )
+      .addCase(
+        SupportTicketLanguageSentimentUpdate.rejected,
+        (state, action) => {
+          state.SupportTicketLanguageSentimentUpdateState.SupportTicketLanguageSentimentUpdateIsLoading = false;
+          state.SupportTicketLanguageSentimentUpdateState.SupportTicketLanguageSentimentUpdateIsError =
+            action.payload;
+          state.SupportTicketLanguageSentimentUpdateState.SupportTicketLanguageSentimentUpdateIsSuccess = false;
+        },
+      )
+      .addCase(SupportTicketActivityFetch.pending, (state) => {
+        state.SupportTicketActivityFetchState.SupportTicketActivityFetchIsLoading = true;
+        state.SupportTicketActivityFetchState.SupportTicketActivityFetchIsError =
+          null;
+        state.SupportTicketActivityFetchState.SupportTicketActivityFetchIsSuccess = false;
+      })
+      .addCase(SupportTicketActivityFetch.fulfilled, (state, action) => {
+        state.SupportTicketActivityFetchState.SupportTicketActivityFetchIsLoading = false;
+        state.SupportTicketActivityFetchState.SupportTicketActivityFetchData =
+          action.payload;
+        state.SupportTicketActivityFetchState.SupportTicketActivityFetchIsSuccess = true;
+      })
+      .addCase(SupportTicketActivityFetch.rejected, (state, action) => {
+        state.SupportTicketActivityFetchState.SupportTicketActivityFetchIsLoading = false;
+        state.SupportTicketActivityFetchState.SupportTicketActivityFetchIsError =
+          action.payload;
+        state.SupportTicketActivityFetchState.SupportTicketActivityFetchIsSuccess = false;
+      })
+      .addCase(SupportTicketMessagesTranslate.pending, (state) => {
+        state.SupportTicketMessagesTranslateState.SupportTicketMessagesTranslateIsLoading = true;
+        state.SupportTicketMessagesTranslateState.SupportTicketMessagesTranslateIsError =
+          null;
+        state.SupportTicketMessagesTranslateState.SupportTicketMessagesTranslateIsSuccess = false;
+      })
+      .addCase(SupportTicketMessagesTranslate.fulfilled, (state, action) => {
+        state.SupportTicketMessagesTranslateState.SupportTicketMessagesTranslateIsLoading = false;
+        state.SupportTicketMessagesTranslateState.SupportTicketMessagesTranslateData =
+          action.payload;
+        state.SupportTicketMessagesTranslateState.SupportTicketMessagesTranslateIsSuccess = true;
+      })
+      .addCase(SupportTicketMessagesTranslate.rejected, (state, action) => {
+        state.SupportTicketMessagesTranslateState.SupportTicketMessagesTranslateIsLoading = false;
+        state.SupportTicketMessagesTranslateState.SupportTicketMessagesTranslateIsError =
+          action.payload;
+        state.SupportTicketMessagesTranslateState.SupportTicketMessagesTranslateIsSuccess = false;
+      })
+      .addCase(FetchCopilotConversation.pending, (state) => {
+        state.FetchCopilotConversationState.FetchCopilotConversationIsLoading = true;
+        state.FetchCopilotConversationState.FetchCopilotConversationIsError =
+          null;
+        state.FetchCopilotConversationState.FetchCopilotConversationIsSuccess = false;
+      })
+      .addCase(FetchCopilotConversation.fulfilled, (state, action) => {
+        state.FetchCopilotConversationState.FetchCopilotConversationIsLoading = false;
+        state.FetchCopilotConversationState.FetchCopilotConversationData[
+          action.meta.arg.ticketId
+        ] = action.payload;
+        state.FetchCopilotConversationState.FetchCopilotConversationIsSuccess = true;
+      })
+      .addCase(FetchCopilotConversation.rejected, (state, action) => {
+        state.FetchCopilotConversationState.FetchCopilotConversationIsLoading = false;
+        state.FetchCopilotConversationState.FetchCopilotConversationIsError =
+          action.payload;
+        state.FetchCopilotConversationState.FetchCopilotConversationIsSuccess = false;
+      })
+      .addCase(CopilotActionRun.pending, (state, action) => {
+        state.CopilotActionRunState.CopilotActionRunIsLoading = true;
+        state.CopilotActionRunState.CopilotActionRunTicketId =
+          action.meta.arg.ticketId;
+        state.CopilotActionRunState.CopilotActionRunAction =
+          action.meta.arg.action;
+      })
+      .addCase(CopilotActionRun.fulfilled, (state) => {
+        state.CopilotActionRunState.CopilotActionRunIsLoading = false;
+      })
+      .addCase(CopilotActionRun.rejected, (state) => {
+        state.CopilotActionRunState.CopilotActionRunIsLoading = false;
+      })
+      .addCase(CopilotMessageRate.pending, (state) => {
+        state.CopilotMessageRateState.CopilotMessageRateIsLoading = true;
+      })
+      .addCase(CopilotMessageRate.fulfilled, (state, action) => {
+        state.CopilotMessageRateState.CopilotMessageRateIsLoading = false;
+        const conversation =
+          state.FetchCopilotConversationState.FetchCopilotConversationData[
+            action.meta.arg.ticketId
+          ];
+        if (conversation) {
+          conversation.messages = conversation.messages.map((message) =>
+            message.id === action.payload.message.id
+              ? action.payload.message
+              : message,
+          );
+          conversation.actions = action.payload.actions;
+        }
+      })
+      .addCase(CopilotMessageRate.rejected, (state) => {
+        state.CopilotMessageRateState.CopilotMessageRateIsLoading = false;
+      })
+      .addMatcher(ticketChangeThunks, (state) => {
+        state.FilterCountsRefreshKey += 1;
+      });
+  },
+});
+
+export const { setHelpdeskQueue, refreshFilterCounts } =
+  SupportTicketsSlice.actions;
+export default SupportTicketsSlice.reducer;

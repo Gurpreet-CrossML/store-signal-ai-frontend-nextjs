@@ -1,3 +1,10 @@
+import {
+  Icon,
+  IconBrandFacebook,
+  IconBrandInstagram,
+  IconBrandWhatsapp,
+} from "@tabler/icons-react";
+
 const DJANGO_BASE_URL =
   process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:8000";
 const LOCAL_BASE_URL = process.env.NEXT_PUBLIC_FRONTEND_URL || "";
@@ -16,56 +23,562 @@ export function createAPIUrl(path?: string, target: APITarget = "local") {
   return `${baseUrl}/api${formattedPath}`;
 }
 
+export function createWebSocketUrl(path?: string) {
+  const baseUrl = DJANGO_BASE_URL.replace(/\/$/, "");
+  const wsBaseUrl = baseUrl.replace(/^http/, "ws");
+  const formattedPath = path ? (path.startsWith("/") ? path : `/${path}`) : "";
+
+  return `${wsBaseUrl}/ws${formattedPath}`;
+}
+
 export const ENDPOINTS = {
   login: () => createAPIUrl("/auth/login/", "django"),
 
+  // Auth/session (Django) — token lifecycle + identity.
+  refreshToken: () => createAPIUrl("/auth/token/refresh/", "django"),
+  verifyToken: () => createAPIUrl("/auth/token/verify/", "django"),
+  logout: () => createAPIUrl("/auth/logout/", "django"),
+  profile: () => createAPIUrl("/auth/profile/", "django"),
+
+  // Password reset (Django, public). Called without the session token: a
+  // revoked token on a public endpoint would fail authentication.
+  forgotPassword: () => createAPIUrl("/auth/password/forgot/", "django"),
+  openResetLink: () => createAPIUrl("/auth/password/reset/validate/", "django"),
+  resetPassword: () => createAPIUrl("/auth/password/reset/confirm/", "django"),
+
+  // Chat Websocket (Django)
+  chatSocket: (threadId: string, token: string) =>
+    createWebSocketUrl(`/chat/${threadId}/?role=agent&token=${token}`),
+  createInternalNote: () =>
+    createAPIUrl("/chat/messages/internal-note/", "django"),
+
+  // Dashboard Websocket (Django)
+  dashboardSocket: (storeCode: string, token: string) =>
+    createWebSocketUrl(`/support/dashboard/${storeCode}/?token=${token}`),
+
+  // Social AI Websocket (Django) — read-only stream of new DMs, new
+  // comments, and comment tagging for every connected account on the store.
+  socialSocket: (storeCode: string, token: string) =>
+    createWebSocketUrl(`/social/${storeCode}/?token=${token}`),
+
+  // Image upload (Django) — POST multipart/form-data to this endpoint, then
+  // use the returned URL in a message payload.
+  uploadAttachments: () =>
+    createAPIUrl("/support/attachments/upload/", "django"),
+
+  // Company & staff management (Django /api/tenancy/). These are Django-owned;
+  // GET calls must pass `useBackend: true` (writes auto-route to Django).
+  // Public self-serve sign-up (Django) — creates the company and its first
+  // admin; the password is generated server-side and emailed.
+  registerCompany: () => "/tenancy/register/",
+  fetchCompanyProfile: () => "/tenancy/company/",
+  updateCompanyProfile: () => "/tenancy/company/",
+  fetchStaff: () => "/tenancy/staff/",
+  // Active support agents and store managers: who chats and tickets go to.
+  fetchAssignableStaff: () => "/tenancy/staff/?assignable=true",
+  createStaff: () => "/tenancy/staff/",
+  updateStaff: (id: number) => `/tenancy/staff/${id}/`,
+  resetStaffPassword: (id: number) => `/tenancy/staff/${id}/reset-password/`,
+
   // Store Management
-  fetchStoresList: () => "/store/list/",
+  fetchStoresList: () => "/store/list",
+  // Same list straight from Django — the full store records, for the
+  // Settings → Stores screen (GET needs useBackend). The local route above
+  // is the ported read the store switcher uses.
+  fetchStoresDirectory: () => "/store/list/",
+  // The store's widget key, for showing its embed script after onboarding.
+  storeWidgetInit: () => "/store/widget-init/",
+  // Detail route for one store; PATCH { is_active: false } deactivates it.
+  // NOTE: endpoint is still being finalised by the backend dev; adjust the
+  // path here once it's confirmed.
+  storeDetail: (code: string) => `/store/${code}/`,
+  // Shopify connect (Django, OAuth). Start returns the consent URL to send
+  // the browser to; Shopify then redirects back to this app with
+  // code/shop/state/hmac/timestamp, which the callback GET forwards verbatim
+  // (the HMAC covers every param) — no auth header, tenant comes from `state`.
+  shopifyOauthStart: () => "/store/shopify/oauth/start/",
+  shopifyOauthCallback: () => "/store/shopify/oauth/callback/",
+  // Company onboarding (Django, company admin). GET (needs useBackend) is the
+  // step + connected stores with their widget keys; PATCH sets
+  // `onboarding_step` to "brand_voice", "completed" or "skipped".
+  companyOnboarding: () => "/tenancy/company/onboarding/",
+  // Dashboard "finish setup" checklist (Django). GET (needs useBackend,
+  // ?store_code=<code>) returns one store's step statuses; read-only.
+  dashboardChecklist: () => "/tenancy/dashboard/checklist/",
+  // Per-store settings (Django) — currently the widget's allowed-IP list.
+  // GET returns the settings, PATCH updates them.
+  storeAllowedIPsSettings: () =>
+    createAPIUrl("/store/settings/allowed-ips/", "django"),
+  // Workflows for a store (Django). GET lists every platform workflow with
+  // the store's on/off state; POST turns one on or off.
+  storeWorkflows: () => createAPIUrl("/chat/workflows/", "django"),
+  // A store's own policy for one workflow (Django). GET reads it with its
+  // read-back and suggestions; POST converts, checks and saves new text as
+  // a version.
+  workflowPolicy: () => createAPIUrl("/chat/workflows/policy/", "django"),
+  // POST re-publishes an earlier policy version as a new one.
+  workflowPolicyRollback: () =>
+    createAPIUrl("/chat/workflows/policy/rollback/", "django"),
+  // DELETE removes an earlier policy version for good (never the live one).
+  workflowPolicyVersion: () =>
+    createAPIUrl("/chat/workflows/policy/version/", "django"),
+  // GET pages through a workflow's policy versions, newest first.
+  workflowPolicyVersions: () =>
+    createAPIUrl("/chat/workflows/policy/versions/", "django"),
+  // GET pages through a workflow's activity, newest first.
+  workflowActivity: () => createAPIUrl("/chat/workflows/activity/", "django"),
+  // POST checks the live policy again (the Suggestions tab).
+  workflowPolicyCheck: () =>
+    createAPIUrl("/chat/workflows/policy/check/", "django"),
+  // POST hides one suggestion of the live policy's check.
+  workflowPolicyDismiss: () =>
+    createAPIUrl("/chat/workflows/policy/dismiss/", "django"),
 
-  // Dashboard Analytics
-  fetchFeedbackInsights: () => "/analytics/feedback-insights/",
-  fetchConversationData: () => "/analytics/conversion/",
-  fetchEngagementData: () => "/analytics/engagements/",
-  fetchOperationalEfficiencyData: () => "/analytics/operational-efficiency/",
-  fetchUserMatrix: () => "/analytics/user-matrix/",
-  fetchConversaionRateData: () => "/analytics/conversion-rate/",
-  fetchQueryCategoryInsights: () => "/analytics/query-category-insights/",
-  fetchConversationHistory: () => "/analytics/chat-history/",
+  // Dashboard Analytics. Local GET routes (Next) — NO trailing slash, otherwise
+  // Next.js issues a 308 redirect (an extra round-trip) before each call.
+  // fetchDashboard consolidates the 5 summary calls into one request.
+  fetchDashboard: () => "/analytics/dashboard",
+  fetchFeedbackInsights: () => "/analytics/feedback-insights",
+  fetchConversationData: () => "/analytics/conversion",
+  fetchEngagementData: () => "/analytics/engagements",
+  fetchOperationalEfficiencyData: () => "/analytics/operational-efficiency",
+  fetchUserMatrix: () => "/analytics/user-matrix",
+  fetchConversaionRateData: () => "/analytics/conversion-rate",
+  fetchQueryCategoryInsights: () => "/analytics/query-category-insights",
+  fetchConversationHistory: () => "/analytics/chat-history",
+  // Chat-to-order funnel + AI-assisted revenue (Django; GET needs useBackend).
+  fetchChatOrderFunnel: () => "/analytics/chat-order-funnel/",
+  // AI Usage analytics (Django; GET requests require useBackend: true).
+  fetchAIUsageSummary: () => "/chat/ai-usage/summary/",
+  fetchAIUsageDaily: () => "/chat/ai-usage/daily/",
+  fetchAIUsageTokenSplit: () => "/chat/ai-usage/token-split/",
+  fetchAIUsageWorkflowCosts: () => "/chat/ai-usage/workflow-costs/",
+  fetchAIUsageLatencyTrend: () => "/chat/ai-usage/latency-trend/",
+  // AI credit usage (Django usage + billing apps; GET needs useBackend).
+  fetchAIUsageCreditSummary: () => "/usage/ai-usage/summary/",
+  fetchAIUsageCreditDaily: () => "/usage/ai-usage/daily/",
+  fetchAIUsageByFeature: () => "/usage/ai-usage/by-feature/",
+  fetchCreditStatus: () => "/billing/credits/",
 
-  // Thread-level Analytics
-  fetchThreads: () => "/analytics/threads/",
-  fetchThreadDetails: (threadId: string) => `/analytics/threads/${threadId}/`,
+  // Geography (Django Cities Light). Countries is intentionally limited to
+  // India by the backend; states and cities are dependent lists.
+  fetchCountries: () => "/core/location/countries/",
+  fetchStates: (countryId: number) =>
+    `/core/location/countries/${countryId}/states/`,
+  fetchCities: (stateId: number) => `/core/location/states/${stateId}/cities/`,
+
+  // Thread-level Analytics (local GETs — no trailing slash).
+  fetchThreads: () => "/analytics/threads",
+  fetchThreadCounts: () => "/analytics/thread-counts",
+  fetchThreadDetails: (threadId: string) => `/analytics/threads/${threadId}`,
   fetchUserMetadata: (threadId: string) =>
-    `/analytics/threads/${threadId}/user-metadata/`,
+    `/analytics/threads/${threadId}/user-metadata`,
   fetchConversationSummary: (threadId: string) =>
-    `/analytics/threads/${threadId}/summary/`,
+    `/analytics/threads/${threadId}/summary`,
   fetchFeedbackSequence: (threadId: string) =>
-    `/analytics/threads/${threadId}/feedback-sequence/`,
-  fetchTags: (threadId: string) => `/analytics/threads/${threadId}/tags/`,
+    `/analytics/threads/${threadId}/feedback-sequence`,
+  fetchTags: (threadId: string) => `/analytics/threads/${threadId}/tags`,
+  fetchThreadTagOptions: () => "/analytics/threads/tags",
   fetchAIInsight: (threadId: string) =>
-    `/analytics/threads/${threadId}/ai-insights/`,
+    `/analytics/threads/${threadId}/ai-insights`,
+  // POST — run the AI analysis for an ended thread, on the merchant's request.
+  generateAIInsight: (threadId: string) =>
+    createAPIUrl(`/analytics/threads/${threadId}/ai-insights/`, "django"),
   fetchCartData: (threadId: string) =>
-    `/analytics/threads/${threadId}/cart-data/`,
-  fetchFreshdeskTicketId: (threadId: string) =>
-    `/support/threads/${threadId}/tickets/`,
+    `/analytics/threads/${threadId}/cart-data`,
+  // Support tickets (Django). Same payload from both, so the caller only
+  // picks the URL: customer-scoped for a logged-in customer (spans all
+  // their conversations), thread-scoped for a guest.
+  fetchCustomerTickets: (customerId: number) =>
+    createAPIUrl(`/support/customers/${customerId}/tickets/`, "django"),
+  fetchThreadTickets: (threadId: string) =>
+    createAPIUrl(`/support/threads/${threadId}/tickets/`, "django"),
+  fetchOrderData: (threadId: string) =>
+    `/analytics/threads/${threadId}/order-data`,
 
-  // Chatbot Customization
+  // Chatbot Customization (Django via useBackend — keep trailing slash).
   widgetCustomization: (storeId: number) =>
     `/store/widget-customization/${storeId}/`,
 
-  // Knowledge Base Management
-  fetchLibraryDocuments: () => `/knowledge/library-documents/`,
-  uploadLibraryDocument: () => `/knowledge/library-documents/`,
-  fetchStoreFaqs: () => `/knowledge/store-faqs/`,
-  createStoreFaq: () => `/knowledge/store-faqs/`,
-  updateStoreFaq: (id: number) => `/knowledge/store-faqs/${id}/`,
-  deleteStoreFaq: (id: number) => `/knowledge/store-faqs/${id}/`,
-  fetchScrapeLinkTypes: () => `/knowledge/scrape-links/types`,
-  createScrapeLink: () => `/knowledge/scrape-links/`,
-  fetchScrapeLink: () => `/knowledge/scrape-links/`,
+  // Brand Voice. GET uses the local tenant-scoped API route; writes are routed
+  // to Django by axios-config so its serializer validation remains authoritative.
+  personaIdentity: () => "/chat/persona-identity/",
+  neverSayRules: () => "/chat/never-say-rules/",
+
+  // Knowledge Library items (general/product knowledge entries). GET is
+  // routed to Django via `useBackend: true` (not ported to a local API
+  // route); writes go to Django by the axios-config default.
+  fetchKnowledgeItems: () => `/knowledge/knowledge-items/`,
+  createKnowledgeItem: () => `/knowledge/knowledge-items/`,
+  knowledgeItemDetail: (id: number) => `/knowledge/knowledge-items/${id}/`,
+  knowledgeItemsBulkScope: () => `/knowledge/knowledge-items/bulk-scope/`,
+  knowledgeItemPublish: (id: number) =>
+    `/knowledge/knowledge-items/${id}/publish/`,
+  // Vector storage (used / limit / by kind, in bytes) and item counts. Django.
+  fetchKnowledgeStats: () => `/knowledge/knowledge-items/stats/`,
+  // The knowledge categories with how many items are filed under each. Django.
+  fetchKnowledgeCategories: () => `/knowledge/knowledge-items/categories/`,
+  // The sample customer questions a store owner can try on their AI (the same
+  // list for every store), and the questions the AI couldn't answer. Django.
+  fetchTestQuestions: () => `/knowledge/test-questions/`,
+  fetchUnansweredQuestions: () => `/chat/unanswered-questions/`,
+  // The workflows that left customer questions unanswered, with how many each left.
+  fetchUnansweredWorkflows: () => `/chat/unanswered-questions/workflows/`,
+  // The Test AI chat: POST a question to have the AI answer it from the
+  // store's knowledge. Nothing is saved. Django.
+  testAnswer: () => `/knowledge/test-answer/`,
+  // Website URL discovery: POST a site URL, get back the pages found on it
+  // (url, title, word count) so the user can pick which to index. Django.
+  discoverKnowledgeUrls: () => `/knowledge/knowledge-items/discover-urls/`,
+  // Fills in title/word count for pages a scan couldn't read (rate limits).
+  discoverKnowledgeUrlDetails: () =>
+    `/knowledge/knowledge-items/discover-urls/details/`,
+  // Product picker for Product Knowledge (Django; GET needs useBackend).
+  // Case-insensitive partial match on name via `?search=`, optional — when
+  // omitted/blank, returns any 5 products for the store. Results are
+  // capped server-side either way.
+  searchProducts: () => `/products/search/`,
+  // Paginated product list (Django; GET needs useBackend), with the same
+  // optional `?search=` as above. Used by Attach Products.
+  fetchProducts: () => `/products/`,
+  // Category/Collection pickers for Knowledge item creation (Django; GET
+  // needs useBackend). Same shape/behavior as `searchProducts` above.
+  searchCategories: () => `/products/categories/search/`,
+  searchCollections: () => `/products/collections/search/`,
+
+  // Integrations
+  fetchIntegrations: () => `/integrations`,
+  // Write — connecting a store to an integration stays on the Django backend.
+  // NOTE: endpoint is still being finalised by the backend dev; adjust the path
+  // here once it's confirmed.
+  connectStoreIntegration: () => `/store/integrations/`,
+  // Detail route — disconnect targets a StoreIntegration by its own object id.
+  storeIntegrationDetail: (id: number) => `/store/integrations/${id}/`,
+
+  // Brand Voice reads use the local DB-backed chat routes; writes go straight to
+  // Django's upsert endpoints.
+  tonePresets: () => `/chat/tone-presets/`,
+  vocabularyPresets: () => "/chat/vocabulary-presets/",
+  neverSayRulesPresets: () => "/chat/never-say-rules-presets/",
+  toneStyle: () => `/chat/tone-style/`,
+  vocabulary: () => `/chat/vocabulary/`,
+
+  // Catalog. Store-scoped directories of shoppers and their orders. Both lists
+  // take search, filter and ordering query params — see CustomerFilters and
+  // OrderFilters in their slices for the full set.
+  //
+  // NOTE: the backend confirmed the two list routes. The detail routes are
+  // the DRF convention on top of them and are still to be verified.
+  fetchCustomers: () => createAPIUrl("/chat/customers/", "django"),
+  // Paginated customer list for the dashboard (page / limit). The plain
+  // route above stays for the chat widget, which reads it unpaginated.
+  fetchCustomerList: () => createAPIUrl("/chat/customers/list/", "django"),
+  fetchCustomerDetails: (customerId: number) =>
+    createAPIUrl(`/chat/customers/${customerId}/`, "django"),
+  // POST — create a shopper from just an email, so a guest ticket can be
+  // attached to a real record and filled in later from Catalog.
+  // NOTE: pending confirmation from the backend team.
+  createCustomer: () => createAPIUrl("/chat/customers/", "django"),
+  fetchOrders: () => createAPIUrl("/chat/orders/", "django"),
+  // One customer's stored orders. Read-only — it never calls the commerce
+  // platform, so it is the cheap one to reach for.
+  fetchCustomerOrders: (customerId: number) =>
+    createAPIUrl(`/chat/customers/${customerId}/orders/`, "django"),
+  // GET, not POST: refreshing a customer's history from Shopify or Magento
+  // and handing it back. The single sync route — the thread-scoped and
+  // ticket-scoped ones it replaced both went through the customer anyway.
+  syncCustomerOrders: (customerId: number) =>
+    createAPIUrl(`/chat/customers/${customerId}/orders/sync/`, "django"),
+  fetchOrderDetails: (orderId: number) =>
+    createAPIUrl(`/chat/orders/${orderId}/`, "django"),
+
+  // Helpdesk(Support) apis
+  fetchSupportTickets: () => createAPIUrl("/support/tickets", "django"),
+  // GET — the ticket count of every help desk filter view, tags and channels
+  // included, in one request.
+  fetchSupportTicketFilterCounts: () =>
+    createAPIUrl("/support/tickets/filter-counts/", "django"),
+  // POST — raise a ticket with no conversation behind it: an agent logging
+  // a problem that reached them by phone, email or in person.
+  createSupportTicket: () => createAPIUrl("/support/tickets/", "django"),
+  // POST — raise a ticket from a live-chat conversation. The counterpart
+  // of metaCreateSupportTicket: same fields, same payload, addressed by
+  // the thread behind it rather than a social contact.
+  createThreadSupportTicket: (threadId: string) =>
+    createAPIUrl(
+      `/support/threads/${threadId}/create-support-ticket/`,
+      "django",
+    ),
+  // GET — an AI reading of the conversation, as a ticket an agent can edit.
+  // Slow (it calls the model), so it is asked for on demand rather than on
+  // opening the form.
+  threadSupportTicketDraft: (threadId: string) =>
+    createAPIUrl(
+      `/support/threads/${threadId}/support-ticket/draft/`,
+      "django",
+    ),
+  fetchSupportTicketDeatils: (ticket_id: number) =>
+    createAPIUrl(`/support/tickets/${ticket_id}/`, "django"),
+  supportTicketMessageSend: (ticket_id: number) =>
+    createAPIUrl(`/support/tickets/${ticket_id}/messages/`, "django"),
+  fetchSupportTicketTags: () => createAPIUrl("/support/ticket-tags", "django"),
+  // PATCH — attach an existing customer to a ticket raised by a guest.
+  // NOTE: pending confirmation from the backend team.
+  supportTicketCustomerLink: (ticket_id: number) =>
+    createAPIUrl(`/support/tickets/${ticket_id}/customer/`, "django"),
+  // PATCH — the same for a live chat thread a guest started. A separate
+  // route because a thread is not a ticket; the two are different objects
+  // with different owners.
+  // NOTE: pending confirmation from the backend team.
+  threadCustomerLink: (threadId: string) =>
+    createAPIUrl(`/chat/threads/${threadId}/update/customer/`, "django"),
+  supportTicketStaffAssign: (ticket_id: number) =>
+    createAPIUrl(`/support/tickets/${ticket_id}/assignee/`, "django"),
+  supportTicketAgentDraftSave: (ticket_id: number) =>
+    createAPIUrl(
+      `/support/tickets/${ticket_id}/draft-messages/agent/`,
+      "django",
+    ),
+  supportTicketTagAssign: (ticket_id: number, tag_id: number) =>
+    createAPIUrl(
+      `/support/tickets/${ticket_id}/tags/${tag_id}/assign/`,
+      "django",
+    ),
+  supportTicketTagRemove: (ticket_id: number, tag_id: number) =>
+    createAPIUrl(
+      `/support/tickets/${ticket_id}/tags/${tag_id}/remove/`,
+      "django",
+    ),
+  supportMessageImprove: (ticket_id: number) =>
+    createAPIUrl(`/support/tickets/${ticket_id}/message/improve/`, "django"),
+  supportTicketSnooze: (ticket_id: number) =>
+    createAPIUrl(`/support/tickets/${ticket_id}/snooze/`, "django"),
+  supportTicketMarkRead: (ticket_id: number) =>
+    createAPIUrl(`/support/tickets/${ticket_id}/mark/read/`, "django"),
+  ticketTagCreate: () => createAPIUrl("/support/ticket-tags/", "django"),
+  ticketTagSimilar: () =>
+    createAPIUrl("/support/ticket-tags/similar/", "django"),
+  ticketTagUpdate: (tag_id: number) =>
+    createAPIUrl(`/support/ticket-tags/${tag_id}/`, "django"),
+  ticketTagDelete: (tag_id: number) =>
+    createAPIUrl(`/support/ticket-tags/${tag_id}/delete/`, "django"),
+  slaPolicies: () => createAPIUrl("/support/sla-policies/", "django"),
+  // PATCH to update, DELETE to remove.
+  slaPolicyDetail: (policy_id: number) =>
+    createAPIUrl(`/support/sla-policies/${policy_id}/`, "django"),
+  // GET the store's email connection, POST to connect, DELETE to disconnect.
+  emailChannel: () => createAPIUrl("/support/email-channel/", "django"),
+  emailChannelSendTest: () =>
+    createAPIUrl("/support/email-channel/send-test/", "django"),
+  supportTicketAIMessageDraftGenerate: (ticket_id: number) =>
+    createAPIUrl(`/support/tickets/${ticket_id}/draft-messages/ai/`, "django"),
+  supportTicketStatusUpdate: (ticket_id: number) =>
+    createAPIUrl(`/support/tickets/${ticket_id}/status/`, "django"),
+  supportTicketPriorityUpdate: (ticket_id: number) =>
+    createAPIUrl(`/support/tickets/${ticket_id}/priority/`, "django"),
+  supportTicketActivity: (ticket_id: number) =>
+    createAPIUrl(`/support/tickets/${ticket_id}/activity/`, "django"),
+  supportTicketLanguageSentimentUpdate: (ticket_id: number) =>
+    createAPIUrl(`/support/tickets/${ticket_id}/language-sentiment/`, "django"),
+  supportTicketMessagesTranslate: (ticket_id: number) =>
+    createAPIUrl(`/support/tickets/${ticket_id}/messages/translate/`, "django"),
+  // Helpdesk Copilot: GET the conversation, POST to run an action.
+  supportTicketCopilot: (ticket_id: number) =>
+    createAPIUrl(`/support/tickets/${ticket_id}/copilot/`, "django"),
+  // PATCH — rate an answer good or bad.
+  supportTicketCopilotFeedback: (ticket_id: number, message_id: number) =>
+    createAPIUrl(
+      `/support/tickets/${ticket_id}/copilot/messages/${message_id}/feedback/`,
+      "django",
+    ),
+
+  // Helpdesk support ticket websocket (Django)
+  supportSocket: (store_code: string, token: string) =>
+    createWebSocketUrl(`/support/${store_code}/?token=${token}`),
+
+  // Notifications (Django) — always the logged-in agent's own. New ones
+  // arrive live on the dashboard socket as `notification` events.
+  notifications: () => createAPIUrl("/support/notifications/", "django"),
+  notificationCounts: () =>
+    createAPIUrl("/support/notifications/counts/", "django"),
+  notificationsMarkAllRead: () =>
+    createAPIUrl("/support/notifications/mark/read/", "django"),
+  notificationMarkRead: (notification_id: number) =>
+    createAPIUrl(
+      `/support/notifications/${notification_id}/mark/read/`,
+      "django",
+    ),
+
+  // Social AI (Django via useBackend — keep trailing slash). Nested by
+  // resource so a response can only carry the relevant scope's data:
+  // pages/posts are addressed by their EXTERNAL Graph id; users, comments
+  // and messages by their DB id (all come from the parent list responses).
+  // `store_code` is a required query param on every call.
+  createMetaOAuthUrl: () => `/social/meta/oauth/`,
+  fetchSocialAccountsSubscriptions: () =>
+    `/social/subscriptions/connected-accounts/`,
+  // PATCH — per-account settings (currently the AI auto-reply toggle);
+  // DELETE — disconnect the account (its history is kept).
+  updateConnectedAccount: ({ accountId }: { accountId: string }) =>
+    `/social/subscriptions/connected-accounts/${accountId}/`,
+  fetchSocialPosts: ({ accountId }: { accountId: string }) =>
+    `/social/meta/pages/${accountId}/posts/`,
+  // One post by its external Graph id — deep links (?post=) resolve
+  // directly instead of walking the paginated list.
+  fetchSocialPost: ({ postId }: { postId: string }) =>
+    `/social/meta/posts/${postId}/`,
+  fetchPostComments: ({ postId }: { postId: string }) =>
+    `/social/meta/posts/${postId}/comments/`,
+  fetchCommentTopics: ({ postId }: { postId: string }) =>
+    `/social/meta/posts/${postId}/comments/topics/`,
+  fetchSocialUsers: ({ accountId }: { accountId: string }) =>
+    `/social/meta/pages/${accountId}/users/`,
+  fetchSocialDms: ({
+    accountId,
+    userId,
+  }: {
+    accountId: string;
+    userId: number;
+  }) => `/social/meta/pages/${accountId}/users/${userId}/messages/`,
+  // One route, the method is the verb: POST likes, DELETE unlikes — the
+  // same shape as hide/unhide.
+  likeComment: ({ postId, commentId }: { postId: string; commentId: number }) =>
+    `/social/meta/posts/${postId}/comments/${commentId}/like/`,
+  hideComment: ({ postId, commentId }: { postId: string; commentId: number }) =>
+    `/social/meta/posts/${postId}/comments/${commentId}/hide/`,
+  deleteComment: ({
+    postId,
+    commentId,
+  }: {
+    postId: string;
+    commentId: number;
+  }) => `/social/meta/posts/${postId}/comments/${commentId}/delete/`,
+  replyComment: ({
+    postId,
+    commentId,
+  }: {
+    postId: string;
+    commentId: number;
+  }) => `/social/meta/posts/${postId}/comments/${commentId}/reply/`,
+  replyMessage: ({
+    userId,
+    messageId,
+  }: {
+    userId: number;
+    messageId: number;
+  }) => `/social/meta/users/${userId}/messages/${messageId}/reply/`,
+  reactMessage: ({
+    userId,
+    messageId,
+  }: {
+    userId: number;
+    messageId: number;
+  }) => `/social/meta/users/${userId}/messages/${messageId}/react/`,
+  // POST — raise a help desk ticket for a DM contact. Addressed by the
+  // SocialUser rather than a chat thread: a Messenger conversation has no
+  // Thread behind it, which is why the ticket's own thread stays null.
+  metaCreateSupportTicket: (userId: number) =>
+    `/social/meta/users/${userId}/create-support-ticket/`,
+  // The social counterpart of threadSupportTicketDraft. Contacts are
+  // page-scoped, so the same shopper on Facebook and on Instagram drafts
+  // from two separate conversations.
+  metaSupportTicketDraft: (userId: number) =>
+    `/social/meta/users/${userId}/support-ticket/draft/`,
+  // POST — attach a customer to a DM contact ({ customer: <pk> }), the
+  // social counterpart of threadCustomerLink. Creating a ticket already
+  // links one server-side; this is the direct path when no ticket is
+  // wanted.
+  socialUserCustomerLink: (userId: number) =>
+    `/social/meta/users/${userId}/update/customer/`,
+  // Comment automation rules, per connected account — GET returns the whole
+  // settings config (vocabularies + this account's effective rules).
+  fetchCommentSettings: ({ accountId }: { accountId: string }) =>
+    `/social/subscriptions/connected-accounts/${accountId}/comment-settings/`,
+  // PUT — save one intent card ({ actions, autonomy }).
+  saveIntentRule: ({
+    accountId,
+    intent,
+  }: {
+    accountId: string;
+    intent: string;
+  }) =>
+    `/social/subscriptions/connected-accounts/${accountId}/comment-settings/intents/${intent}/`,
+  // PUT saves a topic override; DELETE removes it (the comment falls back
+  // to its intent card).
+  topicRule: ({ accountId, topic }: { accountId: string; topic: string }) =>
+    `/social/subscriptions/connected-accounts/${accountId}/comment-settings/topics/${topic}/`,
+  // The draft review queue. PATCH the detail route edits a pending draft;
+  // approve/ sends it (public reply / like / DM / hide), discard/ closes it.
+  fetchCommentDrafts: () => `/social/comment-drafts/`,
+  // In-context draft reads: one contact's pending comment draft(s) on a
+  // post, or their pending drafted DM on a page. Both default to
+  // status=pending and return the standard paginated envelope.
+  userCommentDraft: ({ postId, userId }: { postId: string; userId: number }) =>
+    `/social/meta/posts/${postId}/users/${userId}/comment-draft/`,
+  userMessageDraft: ({ pageId, userId }: { pageId: string; userId: number }) =>
+    `/social/meta/pages/${pageId}/users/${userId}/message-draft/`,
+  commentDraft: ({ draftId }: { draftId: number }) =>
+    `/social/comment-drafts/${draftId}/`,
+  approveCommentDraft: ({ draftId }: { draftId: number }) =>
+    `/social/comment-drafts/${draftId}/approve/`,
+  discardCommentDraft: ({ draftId }: { draftId: number }) =>
+    `/social/comment-drafts/${draftId}/discard/`,
+
+  // WhatsApp templates (Django via useBackend — keep trailing slash).
+  fetchWhatsAppTemplates: ({ accountId }: { accountId: string }) =>
+    `/campaign/accounts/${accountId}/templates/`,
+  createWhatsAppTemplate: ({ accountId }: { accountId: string }) =>
+    `/campaign/accounts/${accountId}/templates/`,
+  whatsAppTemplateDetail: ({
+    accountId,
+    templateId,
+  }: {
+    accountId: string;
+    templateId: number;
+  }) => `/campaign/accounts/${accountId}/templates/${templateId}/`,
+  whatsAppTemplateLibraryList: ({ accountId }: { accountId: string }) =>
+    `/campaign/accounts/${accountId}/templates/import/`,
+  whatsAppTemplateLibraryImport: ({
+    accountId,
+    catalogueId,
+  }: {
+    accountId: string;
+    catalogueId: number;
+  }) => `/campaign/accounts/${accountId}/templates/${catalogueId}/import/`,
+  // Email templates (Django via useBackend — keep trailing slash).
+  fetchEmailTemplates: () => `/campaign/email-templates/`,
+  createEmailTemplate: () => `/campaign/email-templates/`,
+  emailTemplateDetail: ({ templateId }: { templateId: number }) =>
+    `/campaign/email-templates/${templateId}/`,
+  // Segments & campaigns (Django via useBackend — keep trailing slash).
+  // Segment categories are platform-wide (no store_code needed); segments
+  // and campaigns are store-scoped and take ?store_code=<code> on the URL.
+  // The list endpoints also accept ?search=<q> (case-insensitive contains
+  // on name), so the list screens can push filtering to the server.
+  fetchSegmentCategories: () => `/campaign/segment-categories/`,
+  fetchSegments: () => `/campaign/segments/`,
+  createSegment: () => `/campaign/segments/`,
+  previewSegment: (categoryId: number) =>
+    `/campaign/segments/preview/${categoryId}/`,
+  segmentDetail: ({ segmentId }: { segmentId: number }) =>
+    `/campaign/segments/${segmentId}/`,
+  fetchCampaigns: () => `/campaign/campaigns/`,
+  createCampaign: () => `/campaign/campaigns/`,
+  campaignDetail: ({ campaignId }: { campaignId: number }) =>
+    `/campaign/campaigns/${campaignId}/`,
+  campaignSequenceSteps: ({ campaignId }: { campaignId: number }) =>
+    `/campaign/campaigns/${campaignId}/sequence-steps/`,
+  campaignSchedule: ({ campaignId }: { campaignId: number }) =>
+    `/campaign/campaigns/${campaignId}/schedule/`,
 };
 
 // Default page size, mirroring DRF's PageNumberPagination.page_size.
+// Chatbot widget embed. The script lives on a per-environment bucket; the
+// API base is the Django backend the widget talks to (same one this app uses).
+export const WIDGET_SCRIPT_SRC =
+  process.env.NEXT_PUBLIC_WIDGET_SCRIPT_URL || "";
+export const WIDGET_API_BASE = createAPIUrl(undefined, "django");
+
 export const DEFAULT_API_PAGE_SIZE = 15;
 
 // Chatbot feedback rating choices, mirroring the backend RATING_CHOICES.
@@ -100,3 +613,422 @@ export type APIResponse = {
   message?: string;
   data?: object | object[] | PaginationResponse | ErrorResponse | null;
 };
+
+export const SELF_REFERENCE_OPTIONS = [
+  {
+    value: "i",
+    label: '"I"',
+    description: "I can help with that",
+  },
+  {
+    value: "we",
+    label: '"We"',
+    description: "We can help with that",
+  },
+] as const;
+
+export type ToneSliderDef = {
+  key: "warmth" | "formality" | "energy" | "playfulness" | "directness";
+  label: string;
+  minLabel: string;
+  maxLabel: string;
+  info: string;
+};
+
+export const TONE_SLIDERS: ToneSliderDef[] = [
+  {
+    key: "warmth",
+    label: "Warmth",
+    minLabel: "Reserved",
+    maxLabel: "Warm",
+    info: "How emotionally friendly replies feel. Low keeps it businesslike and neutral; high adds empathy and personal touches.",
+  },
+  {
+    key: "formality",
+    label: "Formality",
+    minLabel: "Casual",
+    maxLabel: "Formal",
+    info: "The register of the language. Low sounds like a friend texting; high reads like professional correspondence.",
+  },
+  {
+    key: "energy",
+    label: "Energy",
+    minLabel: "Calm",
+    maxLabel: "Energetic",
+    info: "How lively the writing is. Low is calm and measured; high is upbeat with more enthusiasm and momentum.",
+  },
+  {
+    key: "playfulness",
+    label: "Playfulness",
+    minLabel: "Serious",
+    maxLabel: "Playful",
+    info: "Room for humor and lightness. Low stays strictly on-task; high allows jokes and playful asides.",
+  },
+  {
+    key: "directness",
+    label: "Directness",
+    minLabel: "Gentle",
+    maxLabel: "Direct",
+    info: "How quickly the assistant gets to the point. Low cushions messages softly; high answers first and skips the padding.",
+  },
+];
+
+export type SelectOption = { value: string; label: string };
+
+/** Option with a one-line explanation of what picking it changes. */
+export type DescribedOption = SelectOption & { description: string };
+
+export const ANSWER_LENGTH_CHOICES: readonly DescribedOption[] = [
+  {
+    value: "concise",
+    label: "Concise",
+    description: "One or two sentences.",
+  },
+  {
+    value: "standard",
+    label: "Standard",
+    description: "Balanced, key details.",
+  },
+  {
+    value: "thorough",
+    label: "Thorough",
+    description: "Full, detailed explanations.",
+  },
+];
+
+export const EMOJI_POLICY_CHOICES: readonly DescribedOption[] = [
+  { value: "none", label: "None", description: "Avoids emojis." },
+  {
+    value: "sparing",
+    label: "Sparing",
+    description: "Rare, only when fitting.",
+  },
+  {
+    value: "moderate",
+    label: "Moderate",
+    description: "Occasional, adds warmth.",
+  },
+  {
+    value: "liberal",
+    label: "Liberal",
+    description: "In most replies.",
+  },
+  {
+    value: "free",
+    label: "Free",
+    description: "Whenever natural.",
+  },
+];
+
+export const EXCLAMATION_POLICY_CHOICES: readonly DescribedOption[] = [
+  {
+    value: "none",
+    label: "None",
+    description: "Avoids exclamation marks.",
+  },
+  {
+    value: "sparing",
+    label: "Sparing",
+    description: "Big moments only.",
+  },
+  {
+    value: "moderate",
+    label: "Moderate",
+    description: "Occasional friendly emphasis.",
+  },
+  {
+    value: "liberal",
+    label: "Liberal",
+    description: "Frequent excitement!",
+  },
+  {
+    value: "free",
+    label: "Free",
+    description: "Unrestricted!",
+  },
+];
+
+export const REGIONAL_SPELLING_CHOICES: readonly DescribedOption[] = [
+  {
+    value: "uk",
+    label: "UK",
+    description: "“Colour”, “organise”.",
+  },
+  {
+    value: "us",
+    label: "US",
+    description: "“Color”, “organize”.",
+  },
+  {
+    value: "auto",
+    label: "Auto",
+    description: "Matches each customer.",
+  },
+];
+
+// Mirrors `onboarding_step` on the session user (Django user_context), in
+// the order the user walks through them.
+export const ONBOARDING_STEPS = [
+  { value: "store_setup", label: "Connect The Store" },
+  { value: "go_live", label: "Go Live On Store" },
+  { value: "brand_voice", label: "Set Up Brand Voice" },
+] as const;
+
+export type OnboardingStep = (typeof ONBOARDING_STEPS)[number]["value"];
+
+// The stages the connect-progress dialog walks through while the backend
+// finishes a Shopify OAuth callback. Cosmetic pacing — the backend does it
+// in one request — so the last entry is only shown once it responds.
+// Where the widget embed code goes, per platform, shown as numbered steps
+// beside the snippet.
+export const WIDGET_INSTALL_STEPS = {
+  shopify: [
+    "In your Shopify admin, open Online Store → Themes.",
+    "On your live theme, choose Edit code.",
+    "Open layout/theme.liquid.",
+    "Paste the snippet at the very end of the file, just before </body>, and save.",
+  ],
+  default: [
+    "Open the storefront's theme or template editor.",
+    "Paste the snippet before </body> on every page, and publish.",
+  ],
+} as const;
+
+export const SHOPIFY_CONNECT_STEPS = [
+  "Checking Permissions",
+  "Fetching Connected Store Details",
+  "Subscribing To Store Updates",
+  "Setting Things Up",
+  "Done",
+] as const;
+
+export const STORE_PLATFORMS = [
+  {
+    value: "shopify",
+    label: "Shopify",
+    icon: "/shopify.svg",
+    description:
+      "Connect with your store alias. We'll send you to Shopify to authorize access.",
+  },
+  // Magento is commented out until its connect flow ships.
+  // {
+  //   value: "magento",
+  //   label: "Magento",
+  //   icon: "/magento-2.svg",
+  //   description:
+  //     "Connect with your store URL. We'll send you to Magento to authorize access.",
+  // },
+] as const;
+
+export type StorePlatform = (typeof STORE_PLATFORMS)[number]["value"];
+
+// Same formats the backend's ShopifyOAuthStartSerializer enforces: the client
+// ID is 32 hex chars; the secret is shpss_ + 32 hex chars, or 32 hex chars
+// in the legacy format.
+export const SHOPIFY_CLIENT_ID_RE = /^[0-9a-fA-F]{32}$/;
+export const SHOPIFY_CLIENT_SECRET_RE =
+  /^(shpss_[0-9a-fA-F]{32}|[0-9a-fA-F]{32})$/;
+// Longest value each accepts, so the inputs stop taking characters there.
+export const SHOPIFY_CLIENT_ID_MAX_LENGTH = 32;
+export const SHOPIFY_CLIENT_SECRET_MAX_LENGTH = 38;
+
+// Signup field limits, the same as the backend's register serializers; the
+// inputs stop taking characters there.
+export const SIGNUP_NAME_MAX_LENGTH = 100;
+export const SIGNUP_COMPANY_NAME_MAX_LENGTH = 255;
+export const SIGNUP_EMAIL_MAX_LENGTH = 254;
+
+// Longest agent name, the same as the backend's PersonaIdentity; the inputs
+// stop taking characters there.
+export const AGENT_NAME_MAX_LENGTH = 100;
+
+// sessionStorage flag set right before the hop to Shopify and cleared when
+// Shopify sends the user back; still set means they came back on their own.
+export const SHOPIFY_OAUTH_PENDING_KEY = "shopifyOauthPending";
+
+export const SocialAIPlatformOptions: {
+  readonly [key: string]: { label: string; icon: Icon; color: string };
+} = {
+  facebook: {
+    label: "Facebook",
+    icon: IconBrandFacebook,
+    color: "text-[#1877F2]",
+  },
+  instagram: {
+    label: "Instagram",
+    icon: IconBrandInstagram,
+    color: "text-[#E4405F]",
+  },
+  whatsapp: {
+    label: "WhatsApp",
+    icon: IconBrandWhatsapp,
+    color: "text-[#25D366]",
+  },
+};
+
+export const StatusBadges: {
+  readonly [key: string]: { label: string; bg: string; text: string };
+} = {
+  active: {
+    label: "Active",
+    bg: "bg-green-100",
+    text: "text-green-800",
+  },
+};
+
+/** Shared light highlight for filters with a non-default value. */
+export const ACTIVE_FILTER_STYLE =
+  "border-primary/40 bg-primary/10 text-primary";
+export const ACTIVE_QUEUE_STYLE =
+  "border-primary/40 bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary";
+export const ACTIVE_ASSIGNEE_STYLE =
+  "border-sky-300 bg-sky-50 text-sky-700 hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-950/30 dark:text-sky-300 dark:hover:bg-sky-950/50";
+export const ALL_FILTER_VALUE = "all" as const;
+/**
+ * date-fns format of the plain dates the date pickers emit and the APIs take
+ * as `from`/`to`. Everything that writes or reads those values uses it.
+ */
+export const API_DATE_FORMAT = "yyyy-MM-dd";
+/** date-fns format a picked day is shown in. */
+export const DISPLAY_DATE_FORMAT = "MMM dd, yyyy";
+export const ANY_FILTER_VALUE = "any" as const;
+export const DEFAULT_HELPDESK_QUEUE = "open" as const;
+export const DEFAULT_CUSTOMER_ORDERING = "-total_spent" as const;
+export const DEFAULT_ORDER_ORDERING = "-created_at" as const;
+
+// Settings → Email constants for validating the mailbox, polling for
+// forwarding confirmation and test messages, and showing Gmail setup steps.
+export const EMAIL_POLL_MS = 3000;
+// How long to wait for each email before suggesting what may be wrong.
+export const EMAIL_CONFIRMATION_WAIT_MS = 3 * 60 * 1000;
+export const EMAIL_TEST_WAIT_MS = 2 * 60 * 1000;
+export const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Gmail's steps. A new mailbox provider adds its own list here.
+export const GMAIL_STEPS = [
+  'In Gmail open Settings → See all settings → "Forwarding and POP/IMAP".',
+  'Click "Add a forwarding address", paste the address above, then Next → Proceed → OK.',
+  "Google emails a confirmation to that address. It appears on this page within a minute.",
+  'Confirm it in Gmail, then select "Forward a copy of incoming mail to" the new address and Save Changes.',
+  "Come back here and send the test email.",
+];
+
+// Knowledge storage: the share of the plan's vector storage used from which
+// the library shows a warning (yellow here, red once it is full).
+export const KNOWLEDGE_STORAGE_WARNING_SHARE = 0.9;
+
+// Knowledge limits, the same as the backend's `KNOWLEDGE_TITLE_MIN_LENGTH`,
+// `KNOWLEDGE_TITLE_MAX_LENGTH` and `KNOWLEDGE_ARTICLE_MAX_LENGTH`. The title is the same for every URL and
+// article; the article body counts visible text only.
+export const KNOWLEDGE_TITLE_MIN_LENGTH = 3;
+export const KNOWLEDGE_TITLE_MAX_LENGTH = 100;
+export const ARTICLE_BODY_MAX_LENGTH = 30_000;
+
+// The "category" of the knowledge that is filed under no knowledge category: its
+// value in the knowledge API's `knowledge_category` filter (the backend's
+// `KNOWLEDGE_UNCATEGORIZED_FILTER`), and the name it goes by in the page URL
+// (/knowledge/categories/uncategorized).
+export const KNOWLEDGE_UNCATEGORIZED_FILTER = "none";
+export const KNOWLEDGE_UNCATEGORIZED_ROUTE = "uncategorized";
+
+// The list of all the store's knowledge, whatever its category
+// (/knowledge/categories/all). With `?approval_waiting=true` it shows only the
+// pages the automatic import saved as drafts that wait for the user to publish
+// (the knowledge API's `approval_waiting` filter); the checklist drawer links there.
+export const KNOWLEDGE_ALL_ROUTE = "all";
+export const KNOWLEDGE_APPROVAL_WAITING_PARAM = "approval_waiting";
+export const KNOWLEDGE_APPROVAL_WAITING_HREF = `/knowledge/categories/${KNOWLEDGE_ALL_ROUTE}?${KNOWLEDGE_APPROVAL_WAITING_PARAM}=true`;
+
+// The Test AI page, opened by the Test AI button on the Knowledge screen: the
+// AI test chat on the left and, on the right, a panel with these two tabs.
+export const KNOWLEDGE_TEST_AI_HREF = "/knowledge/test-ai";
+export const KNOWLEDGE_TEST_AI_TABS = {
+  questions: "questions",
+  unanswered: "unanswered",
+} as const;
+export type KnowledgeTestAiTab =
+  (typeof KNOWLEDGE_TEST_AI_TABS)[keyof typeof KNOWLEDGE_TEST_AI_TABS];
+// How long a question typed into the Test AI chat may be. A typed test question
+// is short; the Ask buttons on the lists skip this limit, so a longer customer
+// question can still be asked (the backend accepts up to 500 characters).
+export const KNOWLEDGE_TEST_QUESTION_MIN_LENGTH = 3;
+export const KNOWLEDGE_TEST_QUESTION_MAX_LENGTH = 100;
+// What a Test AI answer says its products came from. Shopify is the only
+// platform a store can be connected with today.
+export const KNOWLEDGE_TEST_PRODUCT_SOURCE_LABEL = "Shopify Products";
+// AI credits one Test AI answer costs when the AI model runs.
+export const KNOWLEDGE_TEST_ANSWER_CREDITS = 1;
+// Said under the Test AI chat: it is never saved.
+export const KNOWLEDGE_TEST_CHAT_NOTICE =
+  "This chat isn't saved. It will be cleared when you switch pages or reload.";
+// Who wrote a Test AI chat message.
+export const KNOWLEDGE_TEST_SENDERS = { user: "user", ai: "ai" } as const;
+export type KnowledgeTestSender =
+  (typeof KNOWLEDGE_TEST_SENDERS)[keyof typeof KNOWLEDGE_TEST_SENDERS];
+export const KNOWLEDGE_UNANSWERED_PAGE_SIZE = 25;
+export const KNOWLEDGE_TEST_QUESTIONS_PAGE_SIZE = 25;
+// How many items of each kind a category holds, as the knowledge API's
+// `source_counts` keys it, in the order they are listed ("2 website pages ·
+// 1 document"), with the words for one and for several.
+export const KNOWLEDGE_SOURCE_COUNT_LABELS = [
+  { key: "urls", one: "website page", many: "website pages" },
+  { key: "documents", one: "document", many: "documents" },
+  { key: "articles", one: "article", many: "articles" },
+  { key: "faqs", one: "FAQ", many: "FAQs" },
+] as const;
+export const KNOWLEDGE_ALL_NAME = "All Knowledge";
+export const KNOWLEDGE_ALL_DESCRIPTION =
+  "Everything your assistant knows, across every category";
+export const KNOWLEDGE_APPROVAL_WAITING_NAME = "Waiting For Your Approval";
+export const KNOWLEDGE_APPROVAL_WAITING_DESCRIPTION =
+  "Pages found on your website that are saved as drafts. Check them and publish the ones your assistant should use.";
+
+// The Add knowledge screen's limits. The caps match the backend's
+// `KNOWLEDGE_MAX_FAQS_PER_REQUEST`, `KNOWLEDGE_MAX_URLS_PER_REQUEST` and
+// `KNOWLEDGE_DISCOVERY_MAX_SPECIFIC_PAGES`; the address length is its URL field's
+// `max_length`.
+export const KNOWLEDGE_FAQ_CAP = 20;
+// Pages and links that can be added in one request.
+export const KNOWLEDGE_WEBSITE_URL_CAP = 100;
+// Specific pages that can be listed in the field at once.
+export const KNOWLEDGE_SPECIFIC_PAGE_CAP = 20;
+export const KNOWLEDGE_FILE_CAP = 15;
+export const KNOWLEDGE_URL_MAX_LENGTH = 2048;
+// How long the pages field waits after typing stops before it is read.
+export const KNOWLEDGE_URL_INPUT_DELAY_MS = 500;
+
+// What knowledge filed under no knowledge category is called, and what its card
+// says about it.
+export const KNOWLEDGE_UNCATEGORIZED_NAME = "No Category";
+export const KNOWLEDGE_UNCATEGORIZED_DESCRIPTION =
+  "Knowledge that isn't filed under any category yet";
+
+// Progress of the automatic import of a new store's policy and help pages, as the
+// dashboard checklist's knowledge step reports it ("" when it never ran).
+export const KNOWLEDGE_SCAN_STATUS = {
+  QUEUED: "queued",
+  RUNNING: "running",
+  DONE: "done",
+  FAILED: "failed",
+} as const;
+export type KnowledgeScanStatus =
+  | ""
+  | (typeof KNOWLEDGE_SCAN_STATUS)[keyof typeof KNOWLEDGE_SCAN_STATUS];
+// The statuses in which the import is not complete yet.
+export const KNOWLEDGE_SCAN_ACTIVE_STATUSES: readonly KnowledgeScanStatus[] = [
+  KNOWLEDGE_SCAN_STATUS.QUEUED,
+  KNOWLEDGE_SCAN_STATUS.RUNNING,
+];
+// How often the checklist is re-read while the import is not complete.
+export const KNOWLEDGE_SCAN_POLL_MS = 5000;
+
+// The Help Desk ticket's language dropdown footer while no agent has changed
+// the language. Once one has, it says who changed it instead.
+export const LANGUAGE_DETECTED_NOTE =
+  "Detected by AI from the customer's messages. “Send in customer's language” uses this.";
+
+// The longest chat message, the same as the customer widget's
+// MAX_MESSAGE_LENGTH: Live Chat stops typing at it and turns Send off.
+export const MAX_MESSAGE_LENGTH = 1000;
+export const MESSAGE_TOO_LONG_TEXT =
+  "Your message is too long. Please shorten it and try again.";

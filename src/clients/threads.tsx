@@ -4,15 +4,32 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { PaginationState } from "@tanstack/react-table";
 
-import { FetchThreads } from "@/redux/api-slice/thread-slice";
+import {
+  FetchThreads,
+  FetchThreadTagOptions,
+} from "@/redux/api-slice/thread-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { PageHeading } from "@/components/custom/page-heading";
 import { ThreadsDataTable } from "@/components/custom/threads-data-table";
 import { threadsColumns } from "@/components/custom/threads-columns";
 import { useDebounce } from "@/hooks/use-debounce";
+import { getThreadHref } from "@/lib/helpers";
 import ThreadFilteration, {
   DEFAULT_THREAD_FILTERS,
   type ThreadFilterState,
 } from "@/components/custom/thread-filteration";
+
+const THREAD_FILTER_KEYS = [
+  "search",
+  "is_active",
+  "has_ticket",
+  "has_order",
+  "has_agent",
+  "handled_by",
+  "channel",
+  "from",
+  "to",
+] as const;
 
 export default function Threads() {
   const dispatch = useAppDispatch();
@@ -27,23 +44,34 @@ export default function Threads() {
     (state) => state.GetThreadReducer.FetchThreadsState,
   );
 
+  const {
+    FetchThreadTagOptionsData: tagOptions,
+    FetchThreadTagOptionsIsLoading: isLoadingTagOptions,
+  } = useAppSelector(
+    (state) => state.GetThreadReducer.FetchThreadTagOptionsState,
+  );
+
   // `useSearchParams`/`usePathname` are typed as nullable for migration compat;
   // normalise to stable, non-null values.
   const queryString = searchParams?.toString() ?? "";
   const basePath = pathname ?? "/threads";
 
-  // The currently opened thread (drawer) is driven by the `?thread=` query
-  // param so a specific thread can be deep-linked / shared.
-  const selectedThreadId = searchParams?.get("thread") ?? null;
-
-  // Controlled, server-side pagination. Defaults to 15 rows per page. The
+  // Controlled, server-side pagination. Defaults to 25 rows per page. The
   // active page is mirrored in the `?page=` query param (1-indexed) so a shared
   // link lands on the same page the thread lives on.
   const [pagination, setPagination] = useState<PaginationState>(() => {
     const pageParam = Number(searchParams?.get("page"));
     const pageIndex = pageParam > 1 ? Math.floor(pageParam) - 1 : 0;
-    return { pageIndex, pageSize: 15 };
+    return { pageIndex, pageSize: 25 };
   });
+
+  const [filters, setFilters] = useState<ThreadFilterState>(() => ({
+    ...DEFAULT_THREAD_FILTERS,
+    ...(Object.fromEntries(
+      THREAD_FILTER_KEYS.map((key) => [key, searchParams?.get(key) ?? ""]),
+    ) as Pick<ThreadFilterState, (typeof THREAD_FILTER_KEYS)[number]>),
+    tags: searchParams?.getAll("tag") ?? [],
+  }));
 
   // Keep the `?page=` param in sync with the active page. Guarded so it only
   // writes when the value actually changes, which avoids a sync loop when other
@@ -52,36 +80,35 @@ export default function Threads() {
     const params = new URLSearchParams(queryString);
     const desired =
       pagination.pageIndex > 0 ? String(pagination.pageIndex + 1) : null;
-    if ((params.get("page") ?? null) === desired) return;
     if (desired) params.set("page", desired);
     else params.delete("page");
+    THREAD_FILTER_KEYS.forEach((key) => {
+      const value = filters[key];
+      if (value) params.set(key, value);
+      else params.delete(key);
+    });
+    params.delete("tag");
+    filters.tags.forEach((tag) => {
+      params.append("tag", tag);
+    });
     const query = params.toString();
+    if (query === queryString) return;
     router.replace(query ? `${basePath}?${query}` : basePath, {
       scroll: false,
     });
-  }, [pagination.pageIndex, queryString, basePath, router]);
+  }, [pagination.pageIndex, queryString, basePath, router, filters]);
 
+  // Each thread opens as its own page; browser back returns to this list
+  // (the `?page=` param keeps the list position).
   const handleSelectThread = useCallback(
-    (threadId: string) => {
-      const params = new URLSearchParams(queryString);
-      params.set("thread", threadId);
-      // push so the browser back button closes the drawer.
-      router.push(`${basePath}?${params.toString()}`, { scroll: false });
+    (threadId: string, isActive: boolean) => {
+      if (isActive) {
+        router.push(`/support/?chat=${threadId}`);
+      } else {
+        router.push(`/threads/${threadId}`);
+      }
     },
-    [queryString, basePath, router],
-  );
-
-  const handleCloseThread = useCallback(() => {
-    const params = new URLSearchParams(queryString);
-    params.delete("thread");
-    const query = params.toString();
-    router.replace(query ? `${basePath}?${query}` : basePath, {
-      scroll: false,
-    });
-  }, [queryString, basePath, router]);
-
-  const [filters, setFilters] = useState<ThreadFilterState>(
-    DEFAULT_THREAD_FILTERS,
+    [router],
   );
 
   // Debounce the free-text search so we don't refetch on every keystroke.
@@ -93,38 +120,82 @@ export default function Threads() {
     storeCode,
     debouncedSearch,
     filters.is_active,
-    filters.user_type,
+
     filters.has_ticket,
+    filters.has_order,
+    filters.has_agent,
     filters.has_feedback,
     filters.feedback_rating,
+    filters.tags,
+    filters.handled_by,
+    filters.channel,
+    filters.from,
+    filters.to,
   ]);
   const [prevFilterSignature, setPrevFilterSignature] =
     useState(filterSignature);
+
   if (filterSignature !== prevFilterSignature) {
     setPrevFilterSignature(filterSignature);
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
   }
 
+  // Set by the "Past chats" link: only threads started before that one.
+  const beforeThreadId = searchParams?.get("before_thread_id") ?? undefined;
+
+  // Everything that narrows the list except the tag selection. The tag chips
+  // are counted against exactly this, so picking a tag never hides the others.
+  const baseFilters = useMemo(
+    () => ({
+      ...(debouncedSearch ? { search: debouncedSearch } : {}),
+      is_active: false,
+      ...(filters.user_type ? { user_type: filters.user_type } : {}),
+      ...(filters.has_ticket
+        ? { has_ticket: filters.has_ticket === "true" }
+        : {}),
+      ...(filters.has_order ? { has_order: filters.has_order === "true" } : {}),
+      ...(filters.has_agent ? { has_agent: filters.has_agent === "true" } : {}),
+      ...(filters.has_feedback
+        ? { has_feedback: filters.has_feedback === "true" }
+        : {}),
+      ...(filters.feedback_rating
+        ? { feedback_rating: filters.feedback_rating }
+        : {}),
+      ...(filters.handled_by ? { handled_by: filters.handled_by } : {}),
+      ...(filters.channel ? { channel: filters.channel } : {}),
+      ...(filters.from ? { from: filters.from } : {}),
+      ...(filters.to ? { to: filters.to } : {}),
+      ...(beforeThreadId ? { before_thread_id: beforeThreadId } : {}),
+    }),
+    [
+      debouncedSearch,
+      filters.user_type,
+      filters.has_ticket,
+      filters.has_order,
+      filters.has_agent,
+      filters.has_feedback,
+      filters.feedback_rating,
+      filters.handled_by,
+      filters.channel,
+      filters.from,
+      filters.to,
+      beforeThreadId,
+    ],
+  );
+
   // Fetch whenever the store, page, page size or filters change.
   // The API is 1-indexed, the table is 0-indexed.
   useEffect(() => {
     if (!storeCode) return;
-    const activeFilters = {
-      ...(debouncedSearch ? { search: debouncedSearch } : {}),
-      ...(filters.is_active ? { is_active: filters.is_active === "true" } : {}),
-      ...(filters.user_type ? { user_type: filters.user_type } : {}),
-      ...(filters.has_ticket ? { has_ticket: true } : {}),
-      ...(filters.has_feedback ? { has_feedback: true } : {}),
-      ...(filters.feedback_rating
-        ? { feedback_rating: filters.feedback_rating }
-        : {}),
-    };
     dispatch(
       FetchThreads({
         store_code: storeCode,
         page: pagination.pageIndex + 1,
         limit: pagination.pageSize,
-        filters: activeFilters,
+        filters: {
+          ...baseFilters,
+          ...(filters.tags.length ? { tags: filters.tags } : {}),
+        },
       }),
     );
   }, [
@@ -132,36 +203,36 @@ export default function Threads() {
     storeCode,
     pagination.pageIndex,
     pagination.pageSize,
-    debouncedSearch,
-    filters.is_active,
-    filters.user_type,
-    filters.has_ticket,
-    filters.has_feedback,
-    filters.feedback_rating,
+    baseFilters,
+    filters.tags,
   ]);
+
+  // The tag chips: only tags threads carry, with counts that follow the
+  // filters above — refetched when the store or any of them changes.
+  useEffect(() => {
+    if (!storeCode) return;
+    dispatch(
+      FetchThreadTagOptions({ store_code: storeCode, filters: baseFilters }),
+    );
+  }, [dispatch, storeCode, baseFilters]);
 
   const rows = useMemo(
     () => FetchThreadsListData?.results ?? [],
     [FetchThreadsListData],
   );
 
-  // Resolve the full thread object for the open drawer from the loaded page.
-  // May be null briefly on a freshly-opened shared link until the page loads —
-  // the drawer falls back to fetching by id in that window.
-  const selectedThread = useMemo(
-    () =>
-      selectedThreadId
-        ? (rows.find((thread) => thread.id === selectedThreadId) ?? null)
-        : null,
-    [rows, selectedThreadId],
-  );
-
   return (
-    <div className="flex flex-col gap-4 p-4">
+    <div className="flex flex-col gap-6 p-4">
+      <PageHeading
+        title="Threads"
+        description="Every conversation your AI assistant has handled — search, filter, and open any thread for its full transcript."
+      />
       <ThreadFilteration
         filters={filters}
         onChange={setFilters}
         onClear={() => setFilters(DEFAULT_THREAD_FILTERS)}
+        tagOptions={tagOptions}
+        isLoadingTagOptions={isLoadingTagOptions}
       />
       <ThreadsDataTable
         columns={threadsColumns}
@@ -170,10 +241,7 @@ export default function Threads() {
         pagination={pagination}
         onPaginationChange={setPagination}
         isLoading={FetchThreadsIsLoading}
-        selectedThreadId={selectedThreadId}
-        selectedThread={selectedThread}
         onSelectThread={handleSelectThread}
-        onCloseThread={handleCloseThread}
       />
     </div>
   );

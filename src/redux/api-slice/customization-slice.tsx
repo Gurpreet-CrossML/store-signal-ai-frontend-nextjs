@@ -18,15 +18,9 @@ export type WidgetQuickLink = {
   is_active: boolean;
 };
 
-export type CreateWidgetCustomizationPayload = {
-  store?: number;
-  primary_color?: string;
-  secondary_color?: string;
-  tertiary_color?: string;
-  welcome_message?: string;
-  greeting_message?: string;
-  quick_actions?: Omit<WidgetQuickAction, "id">[];
-  quick_links?: Omit<WidgetQuickLink, "id">[];
+export type AiDisclaimer = {
+  title?: string | null;
+  description?: string | null;
 };
 
 export type UpdateWidgetCustomizationPayload = {
@@ -34,10 +28,13 @@ export type UpdateWidgetCustomizationPayload = {
   primary_color?: string;
   secondary_color?: string;
   tertiary_color?: string;
+  logo?: string | null;
   welcome_message?: string;
   greeting_message?: string;
   quick_actions?: WidgetQuickAction[];
   quick_links?: WidgetQuickLink[];
+  ai_disclaimer_title?: string | null;
+  ai_disclaimer_description?: string | null;
 };
 
 export type WidgetCustomizationDataResponse = {
@@ -51,6 +48,8 @@ export type WidgetCustomizationDataResponse = {
   greeting_message: string;
   quick_actions: WidgetQuickAction[];
   quick_links: WidgetQuickLink[];
+  ai_disclaimer_title?: string | null;
+  ai_disclaimer_description?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -81,48 +80,13 @@ export const FetchWidgetCustomization = createAsyncThunk(
 
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch customization metrics, please try again later.",
+      toast.error("Couldn't fetch customization metrics.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
-    }
-  },
-);
-
-export const CreateWidgetCustomization = createAsyncThunk(
-  "customization/createWidgetCustomization",
-  async (
-    {
-      storeId,
-      payload,
-    }: { storeId: number; payload: CreateWidgetCustomizationPayload },
-    thunkAPI,
-  ) => {
-    try {
-      const response = await axiosInstance.post(
-        `${ENDPOINTS.widgetCustomization(storeId)}`,
-        payload,
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch customization metrics.",
       );
-      const data = response.data.data;
-
-      toast.success(
-        response?.data?.message || "Widget customization created successfully",
-      );
-      return data;
-    } catch (error) {
-      const response = isAxiosError(error) ? error.response : undefined;
-      const data = response?.data;
-
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to create widget customization, please try again later.",
-      });
-
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
     }
   },
 );
@@ -151,13 +115,13 @@ export const UpdateWidgetCustomization = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to update widget customization, please try again later.",
+      toast.error("Couldn't update widget customization.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't update widget customization.",
+      );
     }
   },
 );
@@ -202,6 +166,18 @@ export const UpdateWidgetCustomizationWithImage = createAsyncThunk(
       if (payload.quick_links !== undefined) {
         formData.append("quick_links", JSON.stringify(payload.quick_links));
       }
+      if (payload.ai_disclaimer_title !== undefined) {
+        formData.append(
+          "ai_disclaimer_title",
+          payload.ai_disclaimer_title ?? "",
+        );
+      }
+      if (payload.ai_disclaimer_description !== undefined) {
+        formData.append(
+          "ai_disclaimer_description",
+          payload.ai_disclaimer_description ?? "",
+        );
+      }
 
       const response = await axiosInstance.patch(
         `${ENDPOINTS.widgetCustomization(storeId)}`,
@@ -218,13 +194,13 @@ export const UpdateWidgetCustomizationWithImage = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to update widget customization, please try again later.",
+      toast.error("Couldn't update widget customization.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't update widget customization.",
+      );
     }
   },
 );
@@ -238,11 +214,6 @@ const CustomizationSlice = createSlice({
       FetchWidgetCustomizationIsError: null as null | string | object,
       FetchWidgetCustomizationData:
         null as null | WidgetCustomizationDataResponse,
-    },
-    CreateWidgetCustomizationState: {
-      CreateWidgetCustomizationIsLoading: false,
-      CreateWidgetCustomizationIsSuccess: false,
-      CreateWidgetCustomizationIsError: null as null | string | object,
     },
     UpdateWidgetCustomizationState: {
       UpdateWidgetCustomizationIsLoading: false,
@@ -274,26 +245,7 @@ const CustomizationSlice = createSlice({
         state.FetchWidgetCustomizationState.FetchWidgetCustomizationIsLoading = false;
         state.FetchWidgetCustomizationState.FetchWidgetCustomizationIsSuccess = false;
         state.FetchWidgetCustomizationState.FetchWidgetCustomizationIsError =
-          action.payload || "Something went wrong";
-      })
-      // CreateWidgetCustomization
-      .addCase(CreateWidgetCustomization.pending, (state) => {
-        state.CreateWidgetCustomizationState.CreateWidgetCustomizationIsLoading = true;
-        state.CreateWidgetCustomizationState.CreateWidgetCustomizationIsSuccess = false;
-        state.CreateWidgetCustomizationState.CreateWidgetCustomizationIsError =
-          null;
-      })
-      .addCase(CreateWidgetCustomization.fulfilled, (state, action) => {
-        state.CreateWidgetCustomizationState.CreateWidgetCustomizationIsLoading = false;
-        state.CreateWidgetCustomizationState.CreateWidgetCustomizationIsSuccess = true;
-        state.FetchWidgetCustomizationState.FetchWidgetCustomizationData =
-          action.payload;
-      })
-      .addCase(CreateWidgetCustomization.rejected, (state, action) => {
-        state.CreateWidgetCustomizationState.CreateWidgetCustomizationIsLoading = false;
-        state.CreateWidgetCustomizationState.CreateWidgetCustomizationIsSuccess = false;
-        state.CreateWidgetCustomizationState.CreateWidgetCustomizationIsError =
-          action.payload || "Something went wrong";
+          action.payload || "Couldn't load widget customization.";
       })
       // UpdateWidgetCustomization
       .addCase(UpdateWidgetCustomization.pending, (state) => {
@@ -312,7 +264,7 @@ const CustomizationSlice = createSlice({
         state.UpdateWidgetCustomizationState.UpdateWidgetCustomizationIsLoading = false;
         state.UpdateWidgetCustomizationState.UpdateWidgetCustomizationIsSuccess = false;
         state.UpdateWidgetCustomizationState.UpdateWidgetCustomizationIsError =
-          action.payload || "Something went wrong";
+          action.payload || "Couldn't update widget customization.";
       })
       // UpdateWidgetCustomizationWithImage
       .addCase(UpdateWidgetCustomizationWithImage.pending, (state) => {
@@ -334,7 +286,7 @@ const CustomizationSlice = createSlice({
         state.UpdateWidgetCustomizationWithImageState.UpdateWidgetCustomizationWithImageIsLoading = false;
         state.UpdateWidgetCustomizationWithImageState.UpdateWidgetCustomizationWithImageIsSuccess = false;
         state.UpdateWidgetCustomizationWithImageState.UpdateWidgetCustomizationWithImageIsError =
-          action.payload || "Something went wrong";
+          action.payload || "Couldn't update widget customization with image.";
       });
   },
 });

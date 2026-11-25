@@ -1,0 +1,3414 @@
+"use client";
+
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from "react";
+import ReactMarkdown, { type Components } from "react-markdown";
+import { LoadingState } from "@/components/custom/loading-state";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarHeader,
+  SidebarInset,
+  SidebarProvider,
+} from "@/components/ui/sidebar";
+import { cn, randomId } from "@/lib/utils";
+import { useIsBelowLg } from "@/hooks/use-narrow-viewport";
+import { ConversationRow } from "@/components/custom/conversation-row";
+import { AnimatePresence, motion } from "framer-motion";
+
+import { CheckboxMultiSelect } from "@/components/custom/checkbox-multi-select";
+import { CustomerAvatar } from "@/components/custom/customer-avatar";
+import { CustomerSegmentBadge } from "@/components/custom/customer-segment-badge";
+import {
+  AdminBadge,
+  AssigneeSelect,
+  type AgentOption,
+} from "@/components/custom/assignee-select";
+import { StaffRoleBadge } from "@/components/custom/staff-columns";
+import {
+  CustomerDetailsButton,
+  CustomerDetailsPanel,
+} from "@/components/custom/customer-details-panel";
+import {
+  CrmLinkButton,
+  CustomerContact,
+} from "@/components/custom/customer-header";
+import {
+  CreateTicketDialog,
+  type TicketCustomer,
+} from "@/components/custom/create-ticket-dialog";
+import { CloseChatDialog } from "@/components/custom/close-chat-dialog";
+import { LinkCustomerDialog } from "@/components/custom/link-customer-dialog";
+import { MultiSelectCombobox } from "@/components/custom/multi-select-combobox";
+import { SearchInput } from "@/components/custom/search-input";
+import { CardTitle } from "@/components/ui/card";
+import { Typography } from "@/components/ui/typography";
+import { LiveMessagePan } from "@/components/custom/message-pan";
+import { MessageIconCircular } from "@/components/icons/MessageIconCircular";
+import {
+  FetchCart,
+  FetchFreshdeskTicketId,
+  FetchThreadDetails,
+  FetchThreads,
+  CreateInternalNote,
+  ThreadCustomerLink,
+  FetchUserMetadata,
+  type Thread,
+  type ThreadMessage,
+  type HandlerEvent,
+  type ProductData,
+  FetchOrders,
+  UploadMessageAttachments,
+} from "@/redux/api-slice/thread-slice";
+import {
+  CreateSupportTicket,
+  FetchThreadTicketDraft,
+} from "@/redux/api-slice/support-ticket-slice";
+import {
+  FetchCustomerOrders,
+  SyncCustomerOrders,
+} from "@/redux/api-slice/order-slice";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { Spinner } from "@/components/ui/spinner";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  FetchAssignableStaff,
+  FetchStaff,
+} from "@/redux/api-slice/tenancy-slice";
+import { type StaffMember } from "@/redux/api-slice/tenancy-slice";
+import {
+  IconAlertTriangle,
+  IconArrowLeft,
+  IconFilter,
+  IconHeadset,
+  IconLock,
+  IconMoodSmile,
+  IconDotsVertical,
+  IconId,
+  IconNote,
+  IconPaperclip,
+  IconArrowBackUp,
+  IconSend,
+  IconShoppingBag,
+  IconMessageOff,
+  IconPlus,
+  IconTicket,
+  IconX,
+} from "@tabler/icons-react";
+import { AttachProductsDialog } from "@/components/custom/attach-products-dialog";
+import { useSession } from "next-auth/react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import Image from "next/image";
+import { toast } from "sonner";
+import {
+  ACTIVE_FILTER_STYLE,
+  ENDPOINTS,
+  MAX_MESSAGE_LENGTH,
+  MESSAGE_TOO_LONG_TEXT,
+} from "@/lib/config";
+import { can } from "@/lib/access-rules";
+import type { ThreadCloseReason } from "@/lib/thread-options";
+import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
+import { formatRelativeDateTime } from "@/lib/helpers";
+import {
+  useSupportDashboardEvents,
+  type SupportDashboardMessageEvent,
+  type SupportDashboardThreadUpdateEvent,
+} from "@/hooks/use-support-dashboard-events";
+
+// Extends the shared Thread type with a local read-state flag. Ideally
+// `is_read` becomes a real field on Thread (and maybe comes from the API),
+// but until then we track it client-side, defaulting to true on load.
+type ThreadWithReadState = Thread & { is_read?: boolean };
+type ThreadFilter = "needs_human" | "ai" | "with_agent" | "all";
+type SupportThreadFilters = {
+  channels: string[];
+  assignees: string[];
+};
+
+function hasAppliedThreadFilters(filters: SupportThreadFilters) {
+  return filters.channels.length > 0 || filters.assignees.length > 0;
+}
+
+const EMPTY_SUPPORT_THREAD_FILTERS: SupportThreadFilters = {
+  channels: [],
+  assignees: [],
+};
+
+const SUPPORT_CHANNEL_OPTIONS = [
+  { value: "web", label: "Web" },
+  { value: "whatsapp", label: "WhatsApp" },
+];
+
+// Message teasers render through react-markdown so formatting like **bold**
+// shows properly, but flattened to inline spans: block elements would break
+// the two-line clamp, and links/images don't belong inside a list row.
+const teaserInline = ({ children }: { children?: ReactNode }) => (
+  <span>{children} </span>
+);
+const TEASER_MARKDOWN_COMPONENTS: Components = {
+  p: teaserInline,
+  h1: teaserInline,
+  h2: teaserInline,
+  h3: teaserInline,
+  h4: teaserInline,
+  h5: teaserInline,
+  h6: teaserInline,
+  ul: teaserInline,
+  ol: teaserInline,
+  li: teaserInline,
+  blockquote: teaserInline,
+  pre: teaserInline,
+  a: ({ children }) => <span>{children}</span>,
+  img: () => null,
+};
+
+function normalizeThreads(threads: Thread[] | undefined) {
+  return (threads ?? []).map((thread) => ({
+    ...thread,
+    is_read: (thread as ThreadWithReadState).is_read ?? true,
+  }));
+}
+
+function getFilteredThreads(
+  threads: ThreadWithReadState[],
+  activeFilter: ThreadFilter,
+) {
+  if (activeFilter === "needs_human") {
+    return threads.filter((thread) => thread.need_escalation);
+  }
+  if (activeFilter === "ai") {
+    return threads.filter(
+      (thread) => thread.chat_handler === "ai" && !thread.need_escalation,
+    );
+  }
+  if (activeFilter === "with_agent") {
+    return threads.filter((thread) => thread.chat_handler === "human");
+  }
+
+  return threads;
+}
+
+function getThreadFilter(thread: {
+  chat_handler?: Thread["chat_handler"];
+  need_escalation?: boolean | null;
+}): ThreadFilter | null {
+  if (thread.need_escalation) return "needs_human";
+  if (thread.chat_handler === "human") return "with_agent";
+  if (thread.chat_handler === "ai") return "ai";
+  return null;
+}
+
+function formatWaitingDuration(startedAt: string, now: number) {
+  const startedAtMs = new Date(startedAt).getTime();
+  if (Number.isNaN(startedAtMs)) return "0s";
+
+  const totalSeconds = Math.max(0, Math.floor((now - startedAtMs) / 1000));
+  const seconds = totalSeconds % 60;
+  const totalMinutes = Math.floor(totalSeconds / 60);
+  const minutes = totalMinutes % 60;
+  const hours = Math.floor(totalMinutes / 60);
+
+  if (hours > 0) {
+    return `${hours}h ${String(minutes).padStart(2, "0")}m`;
+  }
+
+  if (totalMinutes > 0) {
+    return `${totalMinutes}m ${String(seconds).padStart(2, "0")}s`;
+  }
+
+  return `${seconds}s`;
+}
+
+type AttachmentStatus = "uploading" | "uploaded" | "error";
+
+type AttachmentUpload = {
+  id: string;
+  file: File;
+  previewUrl: string;
+  url: string | null;
+  status: AttachmentStatus;
+};
+
+/**
+ * Shared between Take Over and Return to AI so framer animates one into
+ * the other across the state change, instead of playing two unrelated
+ * fades.
+ */
+const HANDOVER_ACTION_ID = "thread-handover-action";
+
+// Roles allowed to answer live chats (the backend's "conversations" write
+// permission). Viewers and content managers can't be assigned a chat.
+const CHAT_HANDLER_ROLES = ["manager", "agent"];
+
+function getAgentInitials(name: string) {
+  return name
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+function ThreadChatControls({
+  activeThreadId,
+  isThreadActive = true,
+  hasMessages = true,
+  className,
+  connectedAgent,
+  connectedAgentName,
+  user,
+  userRole,
+  canReassign = false,
+  agents = [],
+  assignees = [],
+  chatSocketReady,
+  transitionState,
+  composerMessage,
+  setComposerMessage,
+  isSavingInternalNote,
+  attachments,
+  isEmojiPickerOpen,
+  setIsEmojiPickerOpen,
+  onTakeOver,
+  onReassign,
+  onReturnToAI,
+  onSendAgentMessage,
+  onSendInternalNote,
+  onFileSelection,
+  onEmojiSelect,
+  onRemoveAttachment,
+  onRetryAttachment,
+  attachedProducts = [],
+  setAttachedProducts,
+  storeCode = "",
+}: {
+  activeThreadId?: string | null;
+  isThreadActive?: boolean;
+  hasMessages?: boolean;
+  className?: string;
+  connectedAgent: string | null;
+  connectedAgentName?: string | null;
+  user: string | null;
+  userRole?: string | null;
+  canReassign?: boolean;
+  /** Everyone who may hold a chat: names and admin badges. */
+  agents?: AgentOption[];
+  /** Who the chat can be given to: active support agents and store managers. */
+  assignees?: AgentOption[];
+  chatSocketReady: boolean;
+  transitionState: "idle" | "taking_over" | "returning_to_ai";
+  composerMessage: string;
+  setComposerMessage: (value: string) => void;
+  isSavingInternalNote: boolean;
+  attachments: AttachmentUpload[];
+  isEmojiPickerOpen: boolean;
+  setIsEmojiPickerOpen: (value: boolean) => void;
+  onTakeOver: () => void;
+  onReassign: (email: string) => void;
+  onReturnToAI: () => void;
+  onSendAgentMessage: () => void;
+  onSendInternalNote: () => void;
+  onFileSelection: (event: ChangeEvent<HTMLInputElement>) => void;
+  onEmojiSelect: (emoji: string) => void;
+  onRemoveAttachment: (id: string) => void;
+  onRetryAttachment: (id: string) => void;
+  attachedProducts?: ProductData[];
+  setAttachedProducts?: (products: ProductData[]) => void;
+  storeCode?: string;
+}) {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const [isProductPickerOpen, setIsProductPickerOpen] = useState(false);
+
+  // Auto-grow the composer like a chat app, capped at a few lines.
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+  }, [composerMessage]);
+
+  if (!activeThreadId || !isThreadActive) {
+    return null;
+  }
+
+  // A chat an admin holds can only be reassigned by an admin (the backend
+  // enforces it too), so a manager sees the holder but can't change it.
+  const heldByAdmin = !!agents.find((a) => a.email === connectedAgent)?.isAdmin;
+  const iAmAdmin = !!agents.find((a) => a.email === user)?.isAdmin;
+  const lockedByAdmin = heldByAdmin && !iAmAdmin;
+  const reassignRoleLabel = userRole === "manager" ? "store manager" : "owner";
+
+  const isUploadingAttachments = attachments.some(
+    (attachment) => attachment.status === "uploading",
+  );
+  const hasFailedAttachments = attachments.some(
+    (attachment) => attachment.status === "error",
+  );
+  const inputsDisabled = transitionState !== "idle" || isUploadingAttachments;
+
+  // The same limit as the customer's widget: typing stops at it, the box
+  // turns red, sending is off, and the reason shows under the box like a
+  // form field's error (no toast).
+  const tooLong = composerMessage.length >= MAX_MESSAGE_LENGTH;
+  const changeComposerMessage = (value: string) =>
+    setComposerMessage(value.slice(0, MAX_MESSAGE_LENGTH));
+
+  const canSend =
+    !tooLong &&
+    (composerMessage.trim().length > 0 ||
+      attachments.length > 0 ||
+      attachedProducts.length > 0) &&
+    transitionState === "idle" &&
+    chatSocketReady &&
+    !isUploadingAttachments &&
+    !hasFailedAttachments;
+  const canSaveInternalNote =
+    !tooLong && composerMessage.trim().length > 0 && transitionState === "idle";
+
+  const handleEmojiClick = (emojiData: EmojiClickData) => {
+    onEmojiSelect(emojiData.emoji);
+  };
+
+  return (
+    <div
+      className={`relative mx-2 mb-2 flex flex-col gap-0 overflow-hidden rounded-xl border border-border/60 bg-background/95 shadow-xs sm:mx-3 sm:mb-3 ${className ?? ""}`}
+    >
+      {/* The three states of this bar are one thing changing, not three
+          things appearing. AnimatePresence keeps the outgoing state
+          mounted while the incoming one arrives — which is what lets the
+          handover button below morph between them rather than one
+          disappearing and another popping in somewhere else. */}
+      <AnimatePresence initial={false} mode="popLayout">
+        {!connectedAgent && (
+          <motion.div
+            key="ai-handling"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="order-1 border-b border-border/60 bg-background px-3 py-2 sm:px-4 sm:py-2.5"
+          >
+            <div
+              className={cn(
+                "flex gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3",
+                canReassign
+                  ? "flex-col"
+                  : "flex-row items-center justify-between",
+              )}
+            >
+              <div className="flex min-w-0 flex-1 items-center gap-3">
+                <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary sm:size-9">
+                  AI
+                </div>
+                <div className="min-w-0">
+                  <Typography
+                    variant="small"
+                    as="p"
+                    className="text-xs leading-normal sm:text-sm"
+                  >
+                    {hasMessages ? (
+                      <>
+                        <span className="sm:hidden">
+                          AI Assistant is replying
+                        </span>
+                        <span className="hidden sm:inline">
+                          AI Assistant is handling this conversation
+                        </span>
+                      </>
+                    ) : (
+                      "AI Assistant is ready"
+                    )}
+                  </Typography>
+                  <Typography variant="muted" className="text-xs sm:text-sm">
+                    {hasMessages ? (
+                      <>
+                        <span className="sm:hidden">
+                          Unassigned · take over to reply
+                        </span>
+                        <span className="hidden sm:inline">
+                          Take over anytime to reply as a human agent.
+                        </span>
+                      </>
+                    ) : (
+                      "It replies as soon as the customer sends a message. You can add internal notes anytime."
+                    )}
+                  </Typography>
+                </div>
+              </div>
+              <div
+                className={cn(
+                  "flex min-w-0 items-center justify-end gap-1.5 sm:ml-auto sm:w-auto sm:shrink-0 sm:gap-3",
+                  canReassign ? "w-full" : "ml-auto w-auto shrink-0",
+                )}
+              >
+                {canReassign && (
+                  <AssigneeSelect
+                    agents={assignees}
+                    currentAgent={null}
+                    disabled={transitionState !== "idle" || !chatSocketReady}
+                    onReassign={onReassign}
+                    hideLabel
+                    triggerClassName="rounded-lg sm:h-8 sm:rounded-md"
+                  />
+                )}
+                {activeThreadId && (
+                  // Same layoutId as Return to AI: framer treats the two as one
+                  // element and slides it from here into the composer, so the
+                  // control an agent just pressed is visibly where it went.
+                  <motion.div
+                    layoutId={HANDOVER_ACTION_ID}
+                    className="shrink-0"
+                  >
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="h-9 rounded-lg px-3 text-xs sm:h-8 sm:rounded-md sm:px-3 sm:text-sm"
+                      onClick={onTakeOver}
+                      disabled={
+                        transitionState !== "idle" ||
+                        !chatSocketReady ||
+                        !!(connectedAgent && connectedAgent !== user)
+                      }
+                    >
+                      <IconHeadset className="hidden h-4 w-4 sm:block" />
+                      <span className="sm:hidden">Take Over</span>
+                      <span className="hidden sm:inline">Take Over</span>
+                    </Button>
+                  </motion.div>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* LC-02: while the AI handles the chat the composer only takes
+            internal notes (staff-only; the customer never sees them). The
+            Take Over card above is untouched. */}
+        {(!connectedAgent || connectedAgent !== user) && (
+          <motion.div
+            key="internal-note-composer"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="order-2 p-2 sm:p-2.5"
+          >
+            <div
+              className={cn(
+                "overflow-hidden rounded-xl border border-amber-300/80 bg-amber-50 shadow-xs transition-shadow focus-within:border-amber-400 focus-within:shadow-sm dark:border-amber-700/70 dark:bg-amber-950/30",
+                tooLong && "border-red-600 focus-within:border-red-600",
+              )}
+            >
+              <div className="flex items-start gap-2 bg-amber-50 px-3 py-1.5 text-xs leading-snug text-amber-800 sm:text-xsm dark:bg-amber-950/30 dark:text-amber-100">
+                <IconLock className="mt-0.5 size-3 shrink-0 text-amber-700 sm:size-3 dark:text-amber-300" />
+                <span>
+                  Internal note only — visible to your team, never to the
+                  customer
+                </span>
+              </div>
+              <div className="min-h-16 px-3 pt-1 sm:min-h-20 sm:pt-1.5">
+                <textarea
+                  rows={1}
+                  placeholder="Add a note for your team."
+                  value={composerMessage}
+                  disabled={isSavingInternalNote || transitionState !== "idle"}
+                  onChange={(event) =>
+                    changeComposerMessage(event.target.value)
+                  }
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !event.shiftKey) {
+                      event.preventDefault();
+                      if (!tooLong) onSendInternalNote();
+                    }
+                  }}
+                  className="min-h-12 max-h-20 w-full resize-none bg-transparent py-0.5 text-sm leading-6 outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                />
+              </div>
+              <div className="flex items-center gap-3 bg-amber-50 px-3 py-1.5 text-xs text-amber-800 dark:bg-amber-950/30 dark:text-amber-100 sm:py-2">
+                <div className="ml-auto flex shrink-0 items-center gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={onSendInternalNote}
+                    disabled={
+                      tooLong ||
+                      composerMessage.trim().length === 0 ||
+                      isSavingInternalNote ||
+                      transitionState !== "idle"
+                    }
+                    title="Save Internal Note"
+                    className="h-8 bg-amber-700 px-3 text-xs text-white hover:bg-amber-800 sm:text-sm dark:bg-amber-600 dark:hover:bg-amber-500"
+                  >
+                    {isSavingInternalNote ? (
+                      <Spinner className="size-3.5 sm:size-4" />
+                    ) : (
+                      <IconNote className="size-3.5 sm:size-4" />
+                    )}
+                    Add Note
+                  </Button>
+                </div>
+              </div>
+              {tooLong && (
+                <p className="px-3 pb-2 text-xs text-destructive">
+                  {MESSAGE_TOO_LONG_TEXT}
+                </p>
+              )}
+            </div>
+          </motion.div>
+        )}
+
+        {connectedAgent && connectedAgent !== user && (
+          <motion.div
+            key="other-agent"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="order-1 flex flex-col gap-2 border-b border-border/60 bg-background px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-2.5"
+          >
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
+                {getAgentInitials(connectedAgentName || connectedAgent)}
+              </div>
+              <div className="min-w-0">
+                <Typography variant="small" as="p" className="leading-normal">
+                  <span className="inline-flex items-center gap-2">
+                    {connectedAgentName || connectedAgent} is replying
+                    {agents.find((a) => a.email === connectedAgent)
+                      ?.isAdmin && <AdminBadge />}
+                  </span>
+                </Typography>
+                <Typography variant="muted">
+                  {lockedByAdmin
+                    ? "Only an admin can reassign this chat."
+                    : canReassign
+                      ? `AI is paused · As a ${reassignRoleLabel}, you can take over or reassign.`
+                      : `AI is paused · You can add internal notes for ${connectedAgentName || "this agent"}.`}
+                </Typography>
+              </div>
+            </div>
+            <div className="flex w-full min-w-0 shrink-0 flex-nowrap items-center justify-end gap-1.5 sm:ml-auto sm:w-auto sm:gap-3">
+              {(canReassign || Boolean(connectedAgent)) && (
+                <AssigneeSelect
+                  agents={assignees}
+                  currentAgent={connectedAgent}
+                  currentAgentName={connectedAgentName}
+                  disabled={
+                    !canReassign ||
+                    transitionState !== "idle" ||
+                    !chatSocketReady ||
+                    lockedByAdmin
+                  }
+                  onReassign={onReassign}
+                  hideLabel
+                  triggerClassName="h-8 rounded-md"
+                />
+              )}
+              {canReassign && (
+                <Button
+                  type="button"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={onTakeOver}
+                  disabled={
+                    transitionState !== "idle" ||
+                    !chatSocketReady ||
+                    lockedByAdmin
+                  }
+                >
+                  <IconHeadset className="h-4 w-4" />
+                  Take Over
+                </Button>
+              )}
+            </div>
+          </motion.div>
+        )}
+
+        {connectedAgent === user && (
+          <motion.div
+            key="agent-status"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="order-1 flex flex-col gap-2 border-b border-border/60 bg-background px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-2.5"
+          >
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground sm:size-9">
+                {getAgentInitials(
+                  agents.find((agent) => agent.email === user)?.name || "You",
+                )}
+              </div>
+              <div className="min-w-0">
+                <Typography
+                  variant="small"
+                  as="p"
+                  className="text-xs leading-normal sm:text-sm"
+                >
+                  You&apos;re replying
+                </Typography>
+                <Typography variant="muted" className="text-xs sm:text-sm">
+                  AI is paused
+                </Typography>
+              </div>
+            </div>
+            <div className="flex w-full min-w-0 shrink-0 items-center justify-end gap-1.5 sm:w-auto sm:gap-3">
+              {(canReassign || Boolean(connectedAgent)) && (
+                <AssigneeSelect
+                  agents={assignees}
+                  currentAgent={connectedAgent}
+                  currentAgentName={connectedAgentName}
+                  disabled={
+                    !canReassign ||
+                    transitionState !== "idle" ||
+                    !chatSocketReady
+                  }
+                  onReassign={onReassign}
+                  hideLabel
+                  triggerClassName="h-8 rounded-md"
+                />
+              )}
+              <motion.div layoutId={HANDOVER_ACTION_ID} className="shrink-0">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-2 text-xs border-primary text-primary hover:bg-primary/10 hover:text-primary sm:px-3 sm:text-sm"
+                  onClick={onReturnToAI}
+                  disabled={transitionState !== "idle" || !chatSocketReady}
+                >
+                  <IconArrowBackUp className="size-3.5 sm:size-4" />
+                  Hand Back To AI
+                </Button>
+              </motion.div>
+            </div>
+          </motion.div>
+        )}
+
+        {connectedAgent === user && (
+          <motion.div
+            key="composer"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className={cn(
+              "order-2 m-2 overflow-hidden rounded-lg border border-border/60 bg-background shadow-xs transition-shadow focus-within:border-primary/50 focus-within:shadow-sm sm:m-2.5",
+              tooLong && "border-red-600 focus-within:border-red-600",
+            )}
+          >
+            {isEmojiPickerOpen && (
+              <div className="border-b border-border/50 p-2">
+                <EmojiPicker
+                  onEmojiClick={handleEmojiClick}
+                  width="100%"
+                  height={320}
+                  theme={Theme.AUTO}
+                  previewConfig={{ showPreview: false }}
+                  searchPlaceholder="Search emoji…"
+                />
+              </div>
+            )}
+
+            {attachedProducts.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 border-b border-border/50 p-2">
+                {attachedProducts.map((product, idx) => (
+                  <div
+                    key={`${product.id}-${idx}`}
+                    className="flex items-center gap-1.5 rounded-lg border border-border/60 bg-muted/60 py-1 pl-1.5 pr-2 text-xs text-foreground"
+                  >
+                    {product.image ? (
+                      <Image
+                        src={product.image}
+                        alt={product.name}
+                        width={20}
+                        height={20}
+                        unoptimized
+                        className="size-5 rounded object-contain bg-background shrink-0"
+                      />
+                    ) : (
+                      <IconShoppingBag className="size-4 text-muted-foreground shrink-0" />
+                    )}
+                    <span className="max-w-[120px] truncate font-medium">
+                      {product.name}
+                    </span>
+                    {product.price && (
+                      <span className="text-muted-foreground text-[10px]">
+                        {product.price}
+                      </span>
+                    )}
+                    {setAttachedProducts && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setAttachedProducts(
+                            attachedProducts.filter((p) => p.id !== product.id),
+                          )
+                        }
+                        className="ml-0.5 text-muted-foreground hover:text-foreground"
+                      >
+                        <IconX className="size-3.5" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {attachments.length > 0 && (
+              <div className="flex flex-wrap gap-2 border-b border-border/50 p-2">
+                {attachments.map((attachment) => {
+                  const isImage = attachment.file.type.startsWith("image/");
+                  const isUploading = attachment.status === "uploading";
+                  const isError = attachment.status === "error";
+
+                  return (
+                    <div
+                      key={attachment.id}
+                      className="group relative flex items-center gap-2 rounded-xl border border-border/60 bg-muted/60 py-1.5 pl-1.5 pr-2.5 text-xs text-muted-foreground"
+                    >
+                      <div className="relative h-8 w-8 shrink-0">
+                        {isImage ? (
+                          <Image
+                            src={attachment.previewUrl}
+                            alt={attachment.file.name}
+                            width={32}
+                            height={32}
+                            unoptimized
+                            className={`h-8 w-8 rounded-lg object-cover ${
+                              isUploading ? "opacity-40" : ""
+                            } ${isError ? "opacity-60" : ""}`}
+                          />
+                        ) : (
+                          <div
+                            className={`flex h-8 w-8 items-center justify-center rounded-lg bg-background/70 ${
+                              isUploading ? "opacity-40" : ""
+                            }`}
+                          >
+                            <IconPaperclip className="h-4 w-4" />
+                          </div>
+                        )}
+                        {isUploading && (
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <Spinner className="size-4" />
+                          </div>
+                        )}
+                        {isError && (
+                          <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-background/60">
+                            <IconAlertTriangle className="size-4 text-destructive" />
+                          </div>
+                        )}
+                      </div>
+                      <span className="max-w-35 truncate">
+                        {attachment.file.name}
+                      </span>
+                      {isError && (
+                        <button
+                          type="button"
+                          className="font-medium text-primary underline-offset-2 hover:underline"
+                          onClick={() => onRetryAttachment(attachment.id)}
+                        >
+                          Retry
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        disabled={isUploading}
+                        className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-background/80 text-muted-foreground opacity-0 shadow-sm transition-opacity group-hover:opacity-100 hover:bg-background hover:text-foreground disabled:cursor-not-allowed disabled:opacity-0"
+                        onClick={() => onRemoveAttachment(attachment.id)}
+                        title={isUploading ? "Uploading…" : "Remove Attachment"}
+                      >
+                        <IconX className="h-3 w-3" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Text input row */}
+            <div className="min-h-16 px-2.5 pt-2 sm:min-h-20 sm:px-3 sm:pt-3">
+              <textarea
+                ref={textareaRef}
+                rows={1}
+                placeholder={
+                  isUploadingAttachments
+                    ? "Uploading image…"
+                    : "Type your reply…"
+                }
+                value={composerMessage}
+                disabled={inputsDisabled}
+                onChange={(event) => changeComposerMessage(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && !event.shiftKey) {
+                    event.preventDefault();
+                    if (!tooLong) onSendAgentMessage();
+                  }
+                }}
+                className="min-h-12 max-h-24 w-full resize-none bg-transparent py-0.5 text-xs leading-5 outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm sm:leading-6"
+              />
+            </div>
+
+            {/* Toolbar: emoji + attach + hint on the left, send on the right */}
+            <div className="flex flex-nowrap items-center gap-1 p-1.5 sm:p-2">
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon-sm"
+                disabled={inputsDisabled}
+                aria-pressed={isEmojiPickerOpen}
+                className={cn(
+                  "size-7 sm:size-8",
+                  isEmojiPickerOpen && "ring-2 ring-ring/40",
+                )}
+                onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
+                title="Add Emoji"
+              >
+                <IconMoodSmile className="size-4" />
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon-sm"
+                disabled={inputsDisabled}
+                onClick={() => fileInputRef.current?.click()}
+                title="Attach Image Or File"
+                className="size-7 sm:size-8"
+              >
+                <IconPaperclip className="size-4" />
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon-sm"
+                disabled={inputsDisabled}
+                onClick={() => setIsProductPickerOpen(true)}
+                title="Attach Products (Max 10)"
+                className={cn(
+                  "size-7 sm:size-8",
+                  attachedProducts.length > 0 &&
+                    "text-primary border-primary/40 ring-1 ring-primary/40",
+                )}
+              >
+                <IconShoppingBag className="size-4" />
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept="image/*"
+                disabled={inputsDisabled}
+                onChange={onFileSelection}
+                className="hidden"
+              />
+              {setAttachedProducts && storeCode && (
+                <AttachProductsDialog
+                  open={isProductPickerOpen}
+                  onOpenChange={setIsProductPickerOpen}
+                  storeCode={storeCode}
+                  selectedProducts={attachedProducts}
+                  onApplyProducts={setAttachedProducts}
+                  maxProducts={10}
+                />
+              )}
+              <Typography
+                variant="muted"
+                as="span"
+                className="ml-2 hidden min-w-0 flex-1 truncate sm:inline"
+              >
+                {isUploadingAttachments
+                  ? "Uploading attachment…"
+                  : "Enter to send · Shift + Enter for a new line"}
+              </Typography>
+              <div className="ml-auto flex w-auto min-w-0 shrink-0 items-center justify-end gap-1.5 sm:gap-2">
+                {attachedProducts.length > 0 && (
+                  <Typography
+                    variant="muted"
+                    as="span"
+                    className="hidden 2xl:inline"
+                  >
+                    {attachedProducts.length} Product
+                    {attachedProducts.length > 1 ? "s" : ""}
+                  </Typography>
+                )}
+                {attachments.length > 0 && (
+                  <Typography
+                    variant="muted"
+                    as="span"
+                    className="hidden 2xl:inline"
+                  >
+                    {attachments.length} Attached
+                  </Typography>
+                )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2 text-xs sm:h-8 sm:px-3 sm:text-sm"
+                  onClick={onSendInternalNote}
+                  disabled={!canSaveInternalNote || isSavingInternalNote}
+                  title="Save this text as an internal note"
+                >
+                  <IconNote className="size-3.5 sm:size-4" />
+                  <span className="hidden xl:inline">
+                    Send As Internal Note
+                  </span>
+                  <span className="xl:hidden">Note</span>
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-7 px-2 text-xs sm:h-8 sm:px-3 sm:text-sm"
+                  onClick={onSendAgentMessage}
+                  disabled={!canSend}
+                  title={
+                    isUploadingAttachments
+                      ? "Waiting for upload…"
+                      : "Send reply to customer"
+                  }
+                >
+                  <IconSend className="size-3.5 sm:size-4" />
+                  Send
+                </Button>
+              </div>
+            </div>
+            {tooLong && (
+              <p className="px-3 pb-2 text-xs text-destructive">
+                {MESSAGE_TOO_LONG_TEXT}
+              </p>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {transitionState !== "idle" && (
+        <div className="fixed inset-0 z-70 flex items-center justify-center bg-background/70 backdrop-blur-sm">
+          <div className="flex min-w-70 flex-col items-center gap-3 rounded-lg border bg-background p-6 shadow-lg">
+            <Spinner className="size-6" />
+            <div className="text-center">
+              <Typography variant="medium" as="p">
+                {transitionState === "taking_over"
+                  ? "Connecting…"
+                  : "Returning to AI…"}
+              </Typography>
+              <Typography variant="muted">
+                {transitionState === "taking_over"
+                  ? "Taking over this conversation"
+                  : "Handing conversation back to AI assistant"}
+              </Typography>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const useNotificationSound = (soundUrl: string = "/notification_sound.mp3") => {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const play = useCallback(() => {
+    if (!audioRef.current) {
+      audioRef.current = new Audio(soundUrl);
+      audioRef.current.volume = 0.5;
+    }
+    // reset so rapid consecutive messages still replay the sound
+    audioRef.current.currentTime = 0;
+    audioRef.current.play().catch((err) => {
+      // browsers block autoplay until user has interacted with the page
+      console.warn("Notification sound blocked:", err);
+    });
+  }, [soundUrl]);
+
+  return play;
+};
+
+/** chat_thread.id is a uuid; anything else cannot be a thread. */
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export default function Support() {
+  const dispatch = useAppDispatch();
+  const storeCode = useAppSelector(
+    (state) => state.GetStoresReducer.selectedStore,
+  );
+  const { FetchThreadsListData, FetchThreadsIsLoading, FetchThreadsIsSuccess } =
+    useAppSelector((state) => state.GetThreadReducer.FetchThreadsState);
+  const { FetchThreadDetailsIsLoading } = useAppSelector(
+    (state) => state.GetThreadReducer.FetchThreadDetailsState,
+  );
+  const { CreateInternalNoteIsLoading } = useAppSelector(
+    (state) => state.GetThreadReducer.CreateInternalNoteState,
+  );
+  const { FetchFreshdeskTicketIdData, FetchFreshdeskTicketIdIsLoading } =
+    useAppSelector(
+      (state) => state.GetThreadReducer.FetchFreshdeskTicketIdState,
+    );
+  const { FetchCartData, FetchCartDataIsLoading } = useAppSelector(
+    (state) => state.GetThreadReducer.FetchCartDataState,
+  );
+  const { FetchOrderData, FetchOrderDataIsLoading } = useAppSelector(
+    (state) => state.GetThreadReducer.FetchOrderDataState,
+  );
+  const { FetchUserMetadataData, FetchUserMetadataIsLoading } = useAppSelector(
+    (state) => state.GetThreadReducer.FetchUserMetadataState,
+  );
+  const { SyncCustomerOrdersIsLoading } = useAppSelector(
+    (state) => state.GetOrderReducer.SyncCustomerOrdersState,
+  );
+  const { FetchCustomerOrdersData } = useAppSelector(
+    (state) => state.GetOrderReducer.FetchCustomerOrdersState,
+  );
+
+  const ordersWithAdminUrls = useMemo(() => {
+    const adminUrlsByOrderId = new Map(
+      FetchCustomerOrdersData.results.map((order) => [
+        order.order_id,
+        order.admin_url ?? null,
+      ]),
+    );
+
+    return FetchOrderData.map((order) => ({
+      ...order,
+      admin_url:
+        order.admin_url ?? adminUrlsByOrderId.get(order.order_id) ?? null,
+    }));
+  }, [FetchCustomerOrdersData.results, FetchOrderData]);
+
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  // The open chat lives in the URL (?chat=<id>) so conversations can be
+  // shared with teammates and deep-linked directly.
+  const chatParam = searchParams?.get("chat") ?? null;
+
+  // Local, mutable copy of the thread list. Seeded from Redux (is_read
+  // defaults to true), then patched in place by the dashboard socket (new
+  // messages / thread_closed events) without waiting on a refetch.
+  const [previousThreadsData, setPreviousThreadsData] =
+    useState(FetchThreadsListData);
+  const [localThreads, setLocalThreads] = useState<ThreadWithReadState[]>(() =>
+    normalizeThreads(FetchThreadsListData?.results),
+  );
+  // The list Redux holds on arrival can be another page's (the Threads page
+  // shares it). Picking a chat from it falls back to its first one and
+  // rewrites ?chat= before this page's own list lands, so a deep link to a
+  // chat lost its target.
+  const [listOnArrival] = useState(FetchThreadsListData);
+  const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
+  // Below `lg` there is room for the chat list or the conversation, not
+  // both. This only picks which one shows there. A chat id in the URL (a
+  // deep link, or a refresh after the user opened one) shows the
+  // conversation; with none, it shows the list. That only holds because
+  // narrow screens never open a chat on their own — see `fallbackThreadId`
+  // — so an id in the URL means the user chose it.
+  const isBelowLg = useIsBelowLg();
+  const [portraitView, setPortraitView] = useState<"list" | "conversation">(
+    chatParam ? "conversation" : "list",
+  );
+  const [threadMessages, setThreadMessages] = useState<ThreadMessage[]>([]);
+  const [handlerEvents, setHandlerEvents] = useState<HandlerEvent[]>([]);
+  const [connectedAgent, setConnectedAgent] = useState<string | null>(null);
+  const [connectedAgentServerName, setConnectedAgentServerName] = useState<
+    string | null
+  >(null);
+  const [chatSocketReady, setChatSocketReady] = useState(false);
+  const [transitionState, setTransitionState] = useState<
+    "idle" | "taking_over" | "returning_to_ai"
+  >("idle");
+  const [composerMessage, setComposerMessage] = useState("");
+  const [isCustomerTyping, setIsCustomerTyping] = useState(false);
+  const [attachments, setAttachments] = useState<AttachmentUpload[]>([]);
+  const [attachedProducts, setAttachedProducts] = useState<ProductData[]>([]);
+
+  // Attaching a real customer to a chat a guest started, offered from the
+  // conversation header where the guest's name sits.
+  const [isLinkCustomerOpen, setIsLinkCustomerOpen] = useState(false);
+  // Below `xl` the customer details open as a sheet from the header.
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [isCreateTicketOpen, setIsCreateTicketOpen] = useState(false);
+  const [isCloseChatOpen, setIsCloseChatOpen] = useState(false);
+  const [isLinkingCustomer, setIsLinkingCustomer] = useState(false);
+  const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
+  const [threadListWidth, setThreadListWidth] = useState(320);
+  const [customerPanelWidth, setCustomerPanelWidth] = useState(380);
+  const [threadSearch, setThreadSearch] = useState("");
+  const [debouncedThreadSearch, setDebouncedThreadSearch] = useState("");
+
+  const startResize = useCallback(
+    (side: "threads" | "customer", event: ReactPointerEvent) => {
+      event.preventDefault();
+      const startX = event.clientX;
+      const initialWidth =
+        side === "threads" ? threadListWidth : customerPanelWidth;
+      const handleMove = (moveEvent: PointerEvent) => {
+        const delta = moveEvent.clientX - startX;
+        const nextWidth =
+          side === "threads" ? initialWidth + delta : initialWidth - delta;
+        const boundedWidth = Math.min(
+          side === "threads" ? 420 : 520,
+          Math.max(side === "threads" ? 260 : 280, nextWidth),
+        );
+        if (side === "threads") setThreadListWidth(boundedWidth);
+        else setCustomerPanelWidth(boundedWidth);
+      };
+      const stopResize = () => {
+        window.removeEventListener("pointermove", handleMove);
+        window.removeEventListener("pointerup", stopResize);
+        document.body.style.cursor = "";
+      };
+      document.body.style.cursor = "col-resize";
+      window.addEventListener("pointermove", handleMove);
+      window.addEventListener("pointerup", stopResize, { once: true });
+    },
+    [customerPanelWidth, threadListWidth],
+  );
+  const [readFilter, setReadFilter] = useState<ThreadFilter>(() => {
+    const filter = searchParams?.get("filter");
+    return filter === "needs_human" ||
+      filter === "ai" ||
+      filter === "with_agent" ||
+      filter === "all"
+      ? filter
+      : "all";
+  });
+  const [hasManualTabSelection, setHasManualTabSelection] = useState(false);
+  const [isThreadFilterOpen, setIsThreadFilterOpen] = useState(false);
+  const [appliedThreadFilters, setAppliedThreadFilters] =
+    useState<SupportThreadFilters>(() => ({
+      ...EMPTY_SUPPORT_THREAD_FILTERS,
+      channels: searchParams?.get("channel")
+        ? [searchParams.get("channel") as string]
+        : [],
+    }));
+  const [draftThreadFilters, setDraftThreadFilters] =
+    useState<SupportThreadFilters>(EMPTY_SUPPORT_THREAD_FILTERS);
+  const [replyWithAILoadingId, setReplyWithAILoadingId] = useState<
+    string | number | null
+  >(null);
+
+  const { data: session } = useSession();
+  // Same rules as the nav (see `can`): admins always may; everyone else needs
+  // the permission from their role. The backend enforces this too — checking
+  // here spares a round trip and says why.
+  const canHandleChats = can(session?.user, "conversations", { write: true });
+  // Owners and managers may assign a chat to another agent.
+  const canReassign = can(session?.user, "reassignment", { write: true });
+  const staff: StaffMember[] = useAppSelector(
+    (state) => state.GetTenancyReducer.staff,
+  );
+  const agents = useMemo<AgentOption[]>(() => {
+    const myEmail = session?.user?.email ?? "";
+    const iAmAdmin =
+      !!session?.user?.is_staff || session?.user?.role === "admin";
+    const list: AgentOption[] = staff
+      .filter(
+        (member) =>
+          member.is_active &&
+          (member.is_staff ||
+            member.role === "admin" ||
+            (!!member.role && CHAT_HANDLER_ROLES.includes(member.role))),
+      )
+      .map((member) => {
+        const isAdmin = member.is_staff || member.role === "admin";
+        return {
+          email: member.email,
+          name:
+            `${member.first_name} ${member.last_name}`.trim() || member.email,
+          isAdmin,
+          // Admins stay visible (so you can see who holds a chat), but only
+          // an owner can assign to one — the backend refuses a manager.
+          disabled: isAdmin && !iAmAdmin,
+        };
+      });
+    // An admin can always assign the chat to themselves, even if they are
+    // missing from the staff list.
+    if (canReassign && myEmail && !list.some((a) => a.email === myEmail)) {
+      list.unshift({
+        email: myEmail,
+        name: session?.user?.name || myEmail,
+        isAdmin: iAmAdmin,
+      });
+    }
+    return list.map((agent) =>
+      agent.email === myEmail
+        ? { ...agent, name: `${agent.name} (you)` }
+        : agent,
+    );
+  }, [
+    staff,
+    canReassign,
+    session?.user?.email,
+    session?.user?.name,
+    session?.user?.is_staff,
+    session?.user?.role,
+  ]);
+
+  // Who a chat can be given to; the backend sends only active support
+  // agents and store managers.
+  const assignableStaff: StaffMember[] = useAppSelector(
+    (state) => state.GetTenancyReducer.assignableStaff,
+  );
+  const assignees = useMemo<AgentOption[]>(() => {
+    const myEmail = session?.user?.email ?? "";
+    return assignableStaff.map((member) => {
+      const name =
+        `${member.first_name} ${member.last_name}`.trim() || member.email;
+      return {
+        email: member.email,
+        name: member.email === myEmail ? `${name} (you)` : name,
+        role: member.role,
+      };
+    });
+  }, [assignableStaff, session?.user?.email]);
+
+  const connectedAgentName = useMemo(() => {
+    if (!connectedAgent) return null;
+    if (connectedAgentServerName) return connectedAgentServerName;
+    const match = agents.find((agent) => agent.email === connectedAgent);
+    if (match) return match.name;
+    return connectedAgent === session?.user?.email
+      ? session?.user?.name || connectedAgent
+      : connectedAgent;
+  }, [
+    agents,
+    connectedAgent,
+    connectedAgentServerName,
+    session?.user?.email,
+    session?.user?.name,
+  ]);
+
+  useEffect(() => {
+    connectedAgentNameRef.current = connectedAgentName;
+  }, [connectedAgentName]);
+
+  // Only owners and managers can reassign, and only they need the agent list
+  // (the staff API refuses everyone else). Fetch the shared company staff roster
+  // from Redux so the assignee filter and reassignment controls use the same
+  // source of truth. Keyed on the boolean, not the session object, so a session
+  // refresh doesn't fetch it again.
+  useEffect(() => {
+    if (!canReassign) return;
+    void dispatch(FetchStaff());
+    void dispatch(FetchAssignableStaff());
+  }, [canReassign, dispatch]);
+
+  const wsRef = useRef<WebSocket | null>(null);
+  // Settles the close request in flight: "sent" once the server echoes it,
+  // "refused" when it is rejected. See handleCloseChat.
+  const closeAckRef = useRef<((result: "sent" | "refused") => void) | null>(
+    null,
+  );
+  const connectedAgentRef = useRef<string | null>(null);
+  const connectedAgentNameRef = useRef<string | null>(null);
+  const activeThreadIdRef = useRef<string | null>(null);
+  // Customer typing is transient. This timer recovers from a missing stop
+  // event when the widget/browser disconnects while it is typing.
+  const customerTypingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  // Last ?chat= value already applied to local state — stops the render-time
+  // URL sync from re-applying a stale param right after a click updates
+  // state but before the router has caught up.
+  const [appliedChatParam, setAppliedChatParam] = useState<string | null>(null);
+
+  // Generate a unique client ID for this session. This is used to identify messages sent by this client, so we can ignore them when they come back from the server.
+  const [clientID] = useState<string | null>(randomId());
+
+  // Reset the socket-mutable copy when Redux supplies a new response. React
+  // applies this guarded render-time adjustment before committing children,
+  // avoiding an extra render with stale thread data.
+  if (FetchThreadsListData !== previousThreadsData) {
+    setPreviousThreadsData(FetchThreadsListData);
+    setLocalThreads(normalizeThreads(FetchThreadsListData?.results));
+  }
+
+  const threadsReady =
+    FetchThreadsIsSuccess &&
+    !FetchThreadsIsLoading &&
+    FetchThreadsListData !== listOnArrival;
+  const hasAppliedFilters = hasAppliedThreadFilters(appliedThreadFilters);
+  const activeReadFilter =
+    threadsReady &&
+    hasAppliedFilters &&
+    !hasManualTabSelection &&
+    readFilter !== "all" &&
+    localThreads.length > 0 &&
+    getFilteredThreads(localThreads, readFilter).length === 0
+      ? "all"
+      : readFilter;
+  const filterScopedThreads = useMemo(
+    () => getFilteredThreads(localThreads, activeReadFilter),
+    [activeReadFilter, localThreads],
+  );
+
+  // If the URL points at a chat in the selected filter, open it. Otherwise,
+  // fall back to the first filtered chat so a stale selection never stays open.
+  const urlThreadExists =
+    !!chatParam &&
+    filterScopedThreads.some((thread) => thread.id === chatParam);
+  // No first-chat default on a narrow screen: there the list is the landing
+  // view and a chat opens only when tapped.
+  const fallbackThreadId = isBelowLg
+    ? null
+    : (filterScopedThreads[0]?.id ?? null);
+  const desiredThreadId =
+    threadsReady && (urlThreadExists || fallbackThreadId)
+      ? urlThreadExists
+        ? chatParam
+        : fallbackThreadId
+      : null;
+
+  if (
+    threadsReady &&
+    (selectedThreadId !== desiredThreadId ||
+      appliedChatParam !== (chatParam ?? null))
+  ) {
+    setSelectedThreadId(desiredThreadId);
+    setAttachments([]);
+    setAttachedProducts([]);
+    setAppliedChatParam(chatParam ?? null);
+  }
+
+  const selectedThreadStillExists =
+    desiredThreadId !== null &&
+    filterScopedThreads.some((thread) => thread.id === desiredThreadId);
+  // chat_thread.id is a uuid column, so anything else — a stale ?chat=
+  // value, a ticket number pasted into the URL — makes every thread-scoped
+  // query fail in Postgres and come back as a 500. Refusing it here turns
+  // seven failing requests into none, and the screen falls back to "no
+  // conversation selected" rather than a pane of broken cards.
+  const activeThreadId =
+    selectedThreadStillExists && UUID_PATTERN.test(desiredThreadId)
+      ? desiredThreadId
+      : null;
+
+  const handleLinkCustomer = async (customerId: string) => {
+    if (!storeCode || !activeThreadId) return;
+    setIsLinkingCustomer(true);
+    try {
+      const result = await dispatch(
+        ThreadCustomerLink({ storeCode, threadId: activeThreadId, customerId }),
+      );
+      if (ThreadCustomerLink.fulfilled.match(result)) {
+        setIsLinkCustomerOpen(false);
+        // The customer lives on the thread rows, so the list is what has to
+        // come back — the header and the panel both read identity from it.
+        dispatch(
+          FetchThreads({
+            store_code: storeCode,
+            page: 1,
+            limit: 50,
+            filters: { is_active: true },
+          }),
+        );
+      }
+    } finally {
+      setIsLinkingCustomer(false);
+    }
+  };
+
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
+    const safePathname = pathname ?? "/";
+    const expectedFilterParam =
+      activeReadFilter === "all" ? null : activeReadFilter;
+    const filterParamMatches =
+      (searchParams?.get("filter") ?? null) === expectedFilterParam;
+
+    if (expectedFilterParam) {
+      params.set("filter", expectedFilterParam);
+    } else {
+      params.delete("filter");
+    }
+
+    if (!activeThreadId) {
+      if (!threadsReady) return;
+      if (!chatParam && filterParamMatches) return;
+      params.delete("chat");
+      const query = params.toString();
+      router.replace(query ? `${safePathname}?${query}` : safePathname, {
+        scroll: false,
+      });
+      return;
+    }
+
+    if (chatParam === activeThreadId && filterParamMatches) return;
+
+    params.set("chat", activeThreadId);
+    const query = params.toString();
+    router.replace(query ? `${safePathname}?${query}` : safePathname, {
+      scroll: false,
+    });
+  }, [
+    activeThreadId,
+    chatParam,
+    pathname,
+    activeReadFilter,
+    router,
+    searchParams,
+    threadsReady,
+  ]);
+
+  const playNotificationSound = useNotificationSound();
+
+  // The open conversation is read by definition. Keep that as derived state
+  // so defaulting or advancing to the first thread needs no effect.
+  const visibleThreads = useMemo(
+    () =>
+      localThreads.map((thread) =>
+        thread.id === activeThreadId && thread.is_read === false
+          ? { ...thread, is_read: true }
+          : thread,
+      ),
+    [activeThreadId, localThreads],
+  );
+  const [waitingTimerNow, setWaitingTimerNow] = useState(() => Date.now());
+  const hasWaitingThreads = useMemo(
+    () =>
+      visibleThreads.some(
+        (thread) => thread.need_escalation && thread.escalation_time,
+      ),
+    [visibleThreads],
+  );
+
+  useEffect(() => {
+    if (!hasWaitingThreads) return;
+
+    const interval = window.setInterval(() => {
+      setWaitingTimerNow(Date.now());
+    }, 1000);
+
+    return () => window.clearInterval(interval);
+  }, [hasWaitingThreads]);
+
+  const selectedThread = useMemo(
+    () => visibleThreads.find((thread) => thread.id === activeThreadId) ?? null,
+    [activeThreadId, visibleThreads],
+  );
+  const selectedHandler =
+    selectedThread?.chat_handler === "human"
+      ? selectedThread.chat_handler_user
+      : null;
+  // Prefer the thread record for the controls: it survives refreshes and a
+  // WebSocket reconnect, unlike the transient connection event state.
+  const displayedConnectedAgent = selectedThread
+    ? (selectedHandler?.email ?? null)
+    : connectedAgent;
+  const displayedConnectedAgentName = selectedThread
+    ? (selectedHandler?.name ?? null)
+    : connectedAgentName;
+  const showAiResponding = selectedThread?.ai_responding === true;
+  const hasCustomerMessage = threadMessages.some(
+    (message) => message.role === "user",
+  );
+  const hasAgentOrAiMessage = threadMessages.some(
+    (message) =>
+      message.role === "assistant" && message.message_type !== "internal",
+  );
+  const isAssignedAgent = Boolean(
+    selectedHandler?.email &&
+    session?.user?.email &&
+    selectedHandler.email.toLowerCase() === session.user.email.toLowerCase(),
+  );
+  const canCreateTicket =
+    hasCustomerMessage &&
+    hasAgentOrAiMessage &&
+    selectedThread?.chat_handler === "human" &&
+    isAssignedAgent;
+
+  useEffect(() => {
+    console.log("selectedThread>>>", selectedThread);
+  }, [selectedThread]);
+  const threadTabCounts = useMemo(
+    () => ({
+      needs_human: visibleThreads.filter((thread) => thread.need_escalation)
+        .length,
+      ai: visibleThreads.filter(
+        (thread) => thread.chat_handler === "ai" && !thread.need_escalation,
+      ).length,
+      with_agent: visibleThreads.filter(
+        (thread) => thread.chat_handler === "human",
+      ).length,
+      all: visibleThreads.length,
+    }),
+    [visibleThreads],
+  );
+
+  const filteredThreads = useMemo(
+    () => getFilteredThreads(visibleThreads, activeReadFilter),
+    [activeReadFilter, visibleThreads],
+  );
+
+  useEffect(() => {
+    if (!storeCode) return;
+
+    dispatch(
+      FetchThreads({
+        store_code: storeCode,
+        page: 1,
+        limit: 50,
+        filters: {
+          is_active: true,
+          // Resolved server-side so it can reach customer email, name and
+          // order ids — none of which are on the thread rows themselves.
+          ...(debouncedThreadSearch ? { search: debouncedThreadSearch } : {}),
+          ...(appliedThreadFilters.channels.length
+            ? { channel: appliedThreadFilters.channels }
+            : {}),
+          ...(appliedThreadFilters.assignees.length
+            ? { assignee: appliedThreadFilters.assignees }
+            : {}),
+        },
+      }),
+    );
+  }, [appliedThreadFilters, dispatch, storeCode, debouncedThreadSearch]);
+
+  useEffect(() => {
+    const timeout = setTimeout(
+      () => setDebouncedThreadSearch(threadSearch.trim()),
+      300,
+    );
+    return () => clearTimeout(timeout);
+  }, [threadSearch]);
+
+  useEffect(() => {
+    if (!activeThreadId || !storeCode) {
+      return;
+    }
+
+    // All thread data loads in parallel — the side panels must not wait on
+    // the messages request, or the previous thread's data lingers on screen
+    // until it finishes.
+    const loadThreadData = () => {
+      setThreadMessages([]);
+      setHandlerEvents([]);
+      void dispatch(FetchThreadDetails(activeThreadId))
+        .unwrap()
+        .then((result) => {
+          // Ignore late responses after the user has switched threads.
+          if (activeThreadIdRef.current === activeThreadId) {
+            setThreadMessages(result.messages ?? []);
+            setHandlerEvents(result.handler_events ?? []);
+            // Refresh the typing state from the thread details. The list can
+            // still contain `true` when the AI finished while this thread was
+            // not open and therefore had no active chat socket.
+            setLocalThreads((prev) =>
+              prev.map((thread) =>
+                thread.id === activeThreadId
+                  ? { ...thread, ai_responding: result.ai_responding }
+                  : thread,
+              ),
+            );
+            // Threads added over the socket have no phone or past-chat
+            // count; fill them in from this thread's details.
+            if (result.customer) {
+              const { phone, past_threads_count } = result.customer;
+              setLocalThreads((prev) =>
+                prev.map((thread) =>
+                  thread.id === activeThreadId && thread.customer
+                    ? {
+                        ...thread,
+                        customer: {
+                          ...thread.customer,
+                          phone,
+                          past_threads_count,
+                        },
+                      }
+                    : thread,
+                ),
+              );
+            }
+          }
+        })
+        .catch(() => {
+          // Errors surface via the slice's fetch state; keep messages empty.
+        });
+      // Summary, AI insight and feedback sequence are deliberately not
+      // fetched here. They belong to the Threads detail screen, which
+      // renders them; this one never read the results, so opening a
+      // conversation fired three requests whose responses were dropped.
+      dispatch(FetchCart(activeThreadId));
+      dispatch(FetchUserMetadata(activeThreadId));
+      dispatch(
+        FetchFreshdeskTicketId({
+          threadId: activeThreadId,
+          customerId: selectedThread?.customer?.id,
+          storeCode,
+        }),
+      );
+      dispatch(FetchOrders(activeThreadId));
+      if (selectedThread?.customer?.id && storeCode) {
+        dispatch(
+          FetchCustomerOrders({
+            storeCode,
+            customerId: selectedThread.customer.id,
+          }),
+        );
+      }
+    };
+
+    loadThreadData();
+  }, [dispatch, activeThreadId, storeCode, selectedThread?.customer?.id]);
+
+  const handleThreadMessageAdded = useCallback((message: ThreadMessage) => {
+    setThreadMessages((prev) => [...prev, message]);
+  }, []);
+
+  const handleTakeOver = useCallback(async () => {
+    if (!canHandleChats) {
+      toast.error("Permission Issue!", {
+        description: "You do not have permission to perform this action.",
+      });
+      return;
+    }
+
+    if (
+      !activeThreadId ||
+      !wsRef.current ||
+      wsRef.current.readyState !== WebSocket.OPEN
+    ) {
+      setTransitionState("idle");
+      return;
+    }
+
+    try {
+      setTransitionState("taking_over");
+      wsRef.current.send(
+        JSON.stringify({
+          action_type: "handler_change",
+          chat_handler: "human",
+        }),
+      );
+    } catch (error) {
+      console.error(error);
+      setTransitionState("idle");
+    }
+  }, [activeThreadId, canHandleChats]);
+
+  // Owner and manager: hands the chat to another agent. Sent over the same
+  // handler_change channel as Take Over, naming the agent to assign.
+  const handleReassign = useCallback(
+    (email: string) => {
+      if (!canReassign) {
+        toast.error("Permission Issue!", {
+          description: "You do not have permission to perform this action.",
+        });
+        return;
+      }
+
+      if (
+        !activeThreadId ||
+        !wsRef.current ||
+        wsRef.current.readyState !== WebSocket.OPEN
+      ) {
+        setTransitionState("idle");
+        return;
+      }
+
+      try {
+        const assigningToAI = !email;
+        setTransitionState(assigningToAI ? "returning_to_ai" : "taking_over");
+        wsRef.current.send(
+          JSON.stringify({
+            action_type: "handler_change",
+            chat_handler: assigningToAI ? "ai" : "human",
+            ...(assigningToAI ? {} : { chat_handler_user: email }),
+          }),
+        );
+      } catch (error) {
+        console.error(error);
+        setTransitionState("idle");
+      }
+    },
+    [activeThreadId, canReassign],
+  );
+
+  const handleReturnToAI = useCallback(async () => {
+    if (!canHandleChats) {
+      toast.error("Permission Issue!", {
+        description: "You do not have permission to perform this action.",
+      });
+      return;
+    }
+
+    if (
+      !activeThreadId ||
+      !wsRef.current ||
+      wsRef.current.readyState !== WebSocket.OPEN
+    ) {
+      setTransitionState("idle");
+      return;
+    }
+
+    try {
+      setTransitionState("returning_to_ai");
+      wsRef.current.send(
+        JSON.stringify({ action_type: "handler_change", chat_handler: "ai" }),
+      );
+    } catch (error) {
+      console.error(error);
+      setTransitionState("idle");
+    }
+  }, [activeThreadId, canHandleChats]);
+
+  // Uploads a batch of newly-selected files immediately (one POST for the
+  // whole batch, matching the "images" multi-append shape of the API) and
+  // patches each attachment's status/url in place as the response resolves.
+  const uploadAttachments = useCallback(
+    async (threadId: string, items: AttachmentUpload[]) => {
+      const formData = new FormData();
+      formData.append("thread_id", threadId);
+      items.forEach((item) => formData.append("images", item.file));
+
+      try {
+        const result = await dispatch(
+          UploadMessageAttachments({ formData }),
+        ).unwrap();
+
+        setAttachments((prev) =>
+          prev.map((attachment) => {
+            const index = items.findIndex((item) => item.id === attachment.id);
+            if (index === -1) return attachment;
+            const image = result[index];
+            return {
+              ...attachment,
+              url: image.url,
+              status: image?.url ? "uploaded" : "error",
+            };
+          }),
+        );
+
+        if (result.every((image: AttachmentUpload) => !image.url)) {
+          toast.error("Upload failed", {
+            description: "Could not upload the selected image(s).",
+          });
+        }
+      } catch (error) {
+        console.error("Failed to upload attachment(s)", error);
+        setAttachments((prev) =>
+          prev.map((attachment) =>
+            items.some((item) => item.id === attachment.id)
+              ? { ...attachment, status: "error" }
+              : attachment,
+          ),
+        );
+        toast.error("Upload failed", {
+          description: "Could not upload the selected image(s). Try again.",
+        });
+      }
+    },
+    [dispatch],
+  );
+
+  const handleSendAgentMessage = useCallback(() => {
+    const message = composerMessage.trim();
+    const isUploadingAttachments = attachments.some(
+      (attachment) => attachment.status === "uploading",
+    );
+    const hasFailedAttachments = attachments.some(
+      (attachment) => attachment.status === "error",
+    );
+
+    if (isUploadingAttachments) {
+      toast.error("Please wait", {
+        description: "Attachments are still uploading.",
+      });
+      return;
+    }
+
+    if (hasFailedAttachments) {
+      toast.error("Attachment failed", {
+        description: "Remove or retry the failed attachment before sending.",
+      });
+      return;
+    }
+
+    const imageUrls = attachments
+      .filter(
+        (attachment) => attachment.status === "uploaded" && attachment.url,
+      )
+      .map((attachment) => attachment.url as string);
+
+    if (
+      (!message && imageUrls.length === 0 && attachedProducts.length === 0) ||
+      !wsRef.current ||
+      wsRef.current.readyState !== WebSocket.OPEN
+    ) {
+      toast.error("Chat connection unavailable", {
+        description: "Please wait for the chat connection, then try again.",
+      });
+      return;
+    }
+
+    handleThreadMessageAdded({
+      id: randomId(),
+      role: "assistant",
+      message: message,
+      created_at: new Date().toISOString(),
+      messaged_by: session?.user?.name || session?.user?.email || "Agent",
+      messaged_by_email: session?.user?.email,
+      image_url: imageUrls,
+      json_content:
+        attachedProducts.length > 0 ? { products: attachedProducts } : {},
+    });
+
+    wsRef.current.send(
+      JSON.stringify({
+        message,
+        client_id: clientID,
+        image_url: imageUrls,
+        products: attachedProducts,
+      }),
+    );
+
+    setComposerMessage("");
+    setAttachments([]);
+    setAttachedProducts([]);
+    setIsEmojiPickerOpen(false);
+  }, [
+    composerMessage,
+    attachments,
+    attachedProducts,
+    clientID,
+    handleThreadMessageAdded,
+    session?.user?.email,
+    session?.user?.name,
+  ]);
+
+  const handleSendInternalNote = useCallback(async () => {
+    const message = composerMessage.trim();
+    if (!message || !activeThreadId) return;
+    try {
+      const note = await dispatch(
+        CreateInternalNote({ threadId: activeThreadId, message }),
+      ).unwrap();
+
+      handleThreadMessageAdded(note);
+      setComposerMessage("");
+    } catch {
+      // The thunk displays the API error and keeps the note available to retry.
+    }
+  }, [activeThreadId, dispatch, handleThreadMessageAdded, composerMessage]);
+
+  const handleReplyWithAI = useCallback(
+    (message_id: number | string) => {
+      if (!wsRef.current) return;
+
+      setReplyWithAILoadingId(message_id);
+
+      // Tell the backend to generate an AI reply for this specific user turn.
+      // Adjust the payload shape to match whatever your socket/API expects.
+      wsRef.current.send(
+        JSON.stringify({
+          action_type: "reply_with_ai",
+          message_id: message_id,
+          client_id: clientID,
+        }),
+      );
+
+      toast.success("Asked AI to reply", {
+        description: "Generating a response for this message…",
+      });
+    },
+    [clientID],
+  );
+
+  const handleFileSelection = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(event.target.files ?? []);
+      event.target.value = "";
+      if (!files.length || !activeThreadId) {
+        return;
+      }
+
+      const newAttachments: AttachmentUpload[] = files.map((file) => ({
+        id: randomId(),
+        file,
+        previewUrl: URL.createObjectURL(file),
+        url: null,
+        status: "uploading",
+      }));
+
+      setAttachments((prev) => [...prev, ...newAttachments]);
+      void uploadAttachments(activeThreadId, newAttachments);
+    },
+    [activeThreadId, uploadAttachments],
+  );
+
+  const handleEmojiSelect = useCallback((emoji: string) => {
+    // Past the message limit the emoji is not added, as typing stops there.
+    setComposerMessage((prev) =>
+      `${prev}${emoji}`.length > MAX_MESSAGE_LENGTH ? prev : `${prev}${emoji}`,
+    );
+    setIsEmojiPickerOpen(false);
+  }, []);
+
+  const removeAttachment = useCallback((id: string) => {
+    setAttachments((prev) => {
+      const target = prev.find((attachment) => attachment.id === id);
+      if (target) URL.revokeObjectURL(target.previewUrl);
+      return prev.filter((attachment) => attachment.id !== id);
+    });
+  }, []);
+
+  const retryAttachment = useCallback(
+    (id: string) => {
+      if (!activeThreadId) return;
+      setAttachments((prev) => {
+        const target = prev.find((attachment) => attachment.id === id);
+        if (!target) return prev;
+
+        const retried: AttachmentUpload = { ...target, status: "uploading" };
+        void uploadAttachments(activeThreadId, [retried]);
+
+        return prev.map((attachment) =>
+          attachment.id === id ? retried : attachment,
+        );
+      });
+    },
+    [activeThreadId, uploadAttachments],
+  );
+
+  const handleSelectThread = useCallback(
+    (threadId: string) => {
+      // Close the previously open thread's chat socket immediately on click,
+      // rather than waiting for the effect below to notice the id changed.
+      if (threadId !== activeThreadIdRef.current) {
+        wsRef.current?.close();
+        wsRef.current = null;
+      }
+      setLocalThreads((prev) =>
+        prev.map((thread) =>
+          thread.id === threadId && thread.is_read === false
+            ? { ...thread, is_read: true }
+            : thread,
+        ),
+      );
+      setSelectedThreadId(threadId);
+      setPortraitView("conversation");
+      setAttachments([]);
+      setAppliedChatParam(threadId);
+      const params = new URLSearchParams(searchParams?.toString() ?? "");
+      params.set("chat", threadId);
+      router.replace(`${pathname}?${params.toString()}`, {
+        scroll: false,
+      });
+    },
+    [router, pathname, searchParams],
+  );
+
+  // Closing is the customer's call: this only asks their widget for feedback.
+  // The chat closes with this reason when they submit it, and goes back to the
+  // AI if they skip. Either way the agent is done with it, so move on to the
+  // next chat — but only once the server confirmed the request: leaving sooner
+  // closes this chat's socket while the server is still saving it.
+  const handleCloseChat = useCallback(
+    async (reason: ThreadCloseReason) => {
+      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+        toast.error("Not connected", {
+          description: "Reconnecting to the chat. Please try again.",
+        });
+        return;
+      }
+
+      const outcome = new Promise<"sent" | "refused" | "timeout">((resolve) => {
+        const timer = setTimeout(() => resolve("timeout"), 8_000);
+        closeAckRef.current = (result) => {
+          clearTimeout(timer);
+          resolve(result);
+        };
+      });
+      wsRef.current.send(
+        JSON.stringify({ action_type: "request_close", reason }),
+      );
+      setIsCloseChatOpen(false);
+
+      const result = await outcome;
+      closeAckRef.current = null;
+      if (result === "timeout") {
+        toast.error("Couldn't request feedback", {
+          description: "The server did not respond. Please try again.",
+        });
+        return;
+      }
+      // A refusal was already explained by the socket handler.
+      if (result === "refused") return;
+
+      toast.success("Feedback requested", {
+        description:
+          "The chat closes once the customer submits their feedback.",
+      });
+
+      const index = visibleThreads.findIndex(
+        (thread) => thread.id === activeThreadId,
+      );
+      const nextThread = visibleThreads[index + 1] ?? visibleThreads[index - 1];
+      if (nextThread) handleSelectThread(nextThread.id);
+    },
+    [activeThreadId, handleSelectThread, visibleThreads],
+  );
+
+  // Insert or patch a thread in localThreads based on an incoming dashboard
+  // "message" event. Existing threads keep their position; brand-new
+  // threads are prepended. Marks the thread unread unless it's the one
+  // currently open.
+  const upsertThreadFromMessage = useCallback(
+    (data: SupportDashboardMessageEvent) => {
+      const belongsToOpenThread = data.thread_id === activeThreadIdRef.current;
+
+      setLocalThreads((prev) => {
+        const existingIndex = prev.findIndex((t) => t.id === data.thread_id);
+
+        if (existingIndex === -1) {
+          const newThread: ThreadWithReadState = {
+            id: data.thread_id,
+            last_message: data.message,
+            last_message_at: data.created_at,
+            cart_total: 0,
+            is_active: data.is_active,
+            total_messages: 1,
+            created_at: new Date().toISOString(),
+            customer: data.customer ?? null,
+            source: data.source ?? null,
+            chat_handler: data.chat_handler,
+            chat_handler_user: data.chat_handler_user ?? null,
+            ai_responding: data.ai_responding ?? false,
+            need_escalation: data.need_escalation ?? false,
+            escalation_time: data.escalation_time ?? null,
+            is_read: belongsToOpenThread,
+          } as ThreadWithReadState;
+          return [newThread, ...prev];
+        }
+
+        const existingThread = prev[existingIndex];
+        const updatedThread: ThreadWithReadState = {
+          ...existingThread,
+          // The event's customer is only id, name and email — merge it so
+          // the phone and past-thread count from the list survive.
+          customer: data.customer
+            ? { ...existingThread.customer, ...data.customer }
+            : existingThread.customer,
+          source: data.source ?? existingThread.source,
+          last_message: data.message,
+          last_message_at: data.created_at,
+          is_active: data.is_active,
+          chat_handler: data.chat_handler ?? existingThread.chat_handler,
+          chat_handler_user:
+            "chat_handler_user" in data
+              ? (data.chat_handler_user ?? null)
+              : existingThread.chat_handler_user,
+          ai_responding: data.ai_responding ?? existingThread.ai_responding,
+          need_escalation:
+            data.need_escalation ?? existingThread.need_escalation,
+          escalation_time:
+            "escalation_time" in data
+              ? (data.escalation_time ?? null)
+              : existingThread.escalation_time,
+          total_messages: (existingThread.total_messages ?? 0) + 1,
+          is_read: belongsToOpenThread,
+        };
+
+        const rest = prev.filter((thread) => thread.id !== data.thread_id);
+        return [updatedThread, ...rest];
+      });
+
+      if (!belongsToOpenThread) {
+        playNotificationSound();
+      }
+    },
+    [playNotificationSound],
+  );
+
+  useEffect(() => {
+    activeThreadIdRef.current = activeThreadId;
+  }, [activeThreadId]);
+
+  const removeClosedThread = useCallback((threadId: string) => {
+    setLocalThreads((prev) => prev.filter((t) => t.id !== threadId));
+  }, []);
+
+  const patchThreadFromUpdate = useCallback(
+    (data: SupportDashboardThreadUpdateEvent) => {
+      setLocalThreads((prev) =>
+        prev.map((thread) =>
+          thread.id === data.thread_id
+            ? {
+                ...thread,
+                chat_handler: data.chat_handler ?? thread.chat_handler,
+                chat_handler_user:
+                  "chat_handler_user" in data
+                    ? (data.chat_handler_user ?? null)
+                    : thread.chat_handler_user,
+                ai_responding: data.ai_responding ?? thread.ai_responding,
+                need_escalation: data.need_escalation ?? thread.need_escalation,
+                escalation_time:
+                  "escalation_time" in data
+                    ? (data.escalation_time ?? null)
+                    : thread.escalation_time,
+              }
+            : thread,
+        ),
+      );
+    },
+    [],
+  );
+
+  useSupportDashboardEvents((event) => {
+    if (event.action_type === "message") {
+      if (!event.data.is_active) {
+        removeClosedThread(event.data.thread_id);
+        return;
+      }
+      upsertThreadFromMessage(event.data);
+      return;
+    }
+
+    if (event.action_type === "thread_updated") {
+      // A chat another agent now holds leaves a support agent's list (the
+      // server stops sending its messages too).
+      const holderId = event.data.chat_handler_user?.id;
+      if (
+        session?.user?.queue_only &&
+        holderId &&
+        holderId !== session.user.user_id
+      ) {
+        removeClosedThread(event.data.thread_id);
+        return;
+      }
+
+      if (
+        event.data.thread_id === activeThreadId &&
+        activeReadFilter !== "all"
+      ) {
+        const currentThread = localThreads.find(
+          (thread) => thread.id === event.data.thread_id,
+        );
+        const updatedThread = {
+          ...currentThread,
+          chat_handler: event.data.chat_handler ?? currentThread?.chat_handler,
+          need_escalation:
+            event.data.need_escalation ??
+            currentThread?.need_escalation ??
+            false,
+        };
+        const hasAppliedFilters =
+          appliedThreadFilters.channels.length > 0 ||
+          appliedThreadFilters.assignees.length > 0;
+
+        if (hasAppliedFilters) {
+          const projectedThreads = localThreads.map((thread) =>
+            thread.id === event.data.thread_id
+              ? { ...thread, ...updatedThread }
+              : thread,
+          );
+          if (
+            projectedThreads.length > 0 &&
+            getFilteredThreads(projectedThreads, activeReadFilter).length === 0
+          ) {
+            setReadFilter("all");
+          }
+        } else {
+          const nextFilter = getThreadFilter(updatedThread);
+          if (nextFilter && nextFilter !== activeReadFilter) {
+            setReadFilter(nextFilter);
+          }
+        }
+      }
+
+      patchThreadFromUpdate(event.data);
+      if (event.data.thread_id === activeThreadId) {
+        setTransitionState("idle");
+      }
+      return;
+    }
+
+    if (event.action_type === "thread_closed") {
+      removeClosedThread(event.data.thread_id);
+      return;
+    }
+
+    if (event.action_type === "message_feedback") {
+      if (event.data.thread_id !== activeThreadIdRef.current) return;
+
+      setThreadMessages((messages) =>
+        messages.map((message) =>
+          String(message.id) === String(event.data.chat_message_id)
+            ? {
+                ...message,
+                feedback_rating: event.data.rating,
+                feedback_message: event.data.feedback_message,
+              }
+            : message,
+        ),
+      );
+    }
+  });
+
+  // ---- Per-thread chat socket: opens/closes as the selected thread changes. ----
+  useEffect(() => {
+    if (
+      !activeThreadId ||
+      !selectedThread?.is_active ||
+      !session?.user?.access_token
+    ) {
+      wsRef.current?.close();
+      wsRef.current = null;
+      return;
+    }
+
+    if (wsRef.current) {
+      setChatSocketReady(false);
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+
+    const url = ENDPOINTS.chatSocket(activeThreadId, session.user.access_token);
+    const ws = new WebSocket(url);
+    wsRef.current = ws;
+
+    // Set when the effect is torn down before the handshake finishes, so
+    // the socket can be closed cleanly once it opens instead of being
+    // aborted mid-connect.
+    let cancelled = false;
+
+    ws.onopen = () => {
+      if (cancelled) {
+        ws.close(1000, "superseded");
+        return;
+      }
+      setChatSocketReady(true);
+      console.info("Agent connected");
+    };
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+
+      if (data?.success && data?.action_type === "message" && data?.chunk) {
+        return;
+      }
+
+      // LC-02: the AI started/finished a turn. Carries no message, so it must
+      // not fall through to the message branch (its empty final_update would
+      // be appended as a blank message).
+      if (
+        data?.success &&
+        typeof data?.ai_responding === "boolean" &&
+        !data?.final_update?.id &&
+        data?.action_type !== "handler_change"
+      ) {
+        const threadId = activeThreadIdRef.current;
+        setLocalThreads((prev) =>
+          prev.map((thread) =>
+            thread.id === threadId
+              ? { ...thread, ai_responding: data.ai_responding }
+              : thread,
+          ),
+        );
+        return;
+      }
+
+      if (!data?.success && data?.action_type === "handler_change") {
+        toast.error("Permission Issue!", {
+          description:
+            data?.message ||
+            "You do not have permission to perform this action.",
+        });
+        // Refused because another agent holds the chat: show who.
+        if (data?.chat_handler_user) {
+          setConnectedAgent(data.chat_handler_user);
+          connectedAgentRef.current = data.chat_handler_user;
+        }
+        setTransitionState("idle");
+        return;
+      }
+
+      if (!data?.success && data?.action_type === "request_close") {
+        closeAckRef.current?.("refused");
+        toast.error("Couldn't close the chat", {
+          description: data?.message || "Please try again.",
+        });
+        return;
+      }
+
+      if (data?.success && data?.action_type === "close_feedback_skipped") {
+        toast.info("Customer skipped the feedback", {
+          description: "The chat stays open and was handed back to the AI.",
+        });
+        return;
+      }
+
+      // Refusals with no action_type (e.g. a read-only role) would otherwise
+      // be dropped below, leaving Take Over stuck on "Connecting…".
+      if (!data?.success && data?.message) {
+        toast.error("Permission Issue!", { description: data.message });
+        setTransitionState("idle");
+        return;
+      }
+
+      if (
+        !data?.success ||
+        (data?.sender === "agent" &&
+          connectedAgentRef.current === session?.user?.email &&
+          data?.client_id === clientID)
+      ) {
+        return;
+      }
+
+      if (data?.success && data?.action_type === "connection") {
+        if (data?.chat_handler === "human" && data?.chat_handler_user) {
+          setConnectedAgent(data?.chat_handler_user);
+          setConnectedAgentServerName(data?.chat_handler_user_name ?? null);
+          connectedAgentRef.current = data?.chat_handler_user;
+        } else {
+          setConnectedAgent(null);
+          setConnectedAgentServerName(null);
+          connectedAgentRef.current = null;
+        }
+        return;
+      }
+
+      if (data?.success && data?.action_type === "typing") {
+        if (data?.sender === "customer") {
+          const isTyping = Boolean(data?.is_typing);
+          setIsCustomerTyping(isTyping);
+          if (customerTypingTimeoutRef.current) {
+            clearTimeout(customerTypingTimeoutRef.current);
+          }
+          customerTypingTimeoutRef.current = isTyping
+            ? setTimeout(() => setIsCustomerTyping(false), 5_000)
+            : null;
+        }
+        return;
+      }
+
+      if (data?.success && data?.action_type === "handler_change") {
+        const nextAgentName =
+          data?.chat_handler === "human" && data?.chat_handler_user
+            ? (data?.chat_handler_user_name ?? data.chat_handler_user)
+            : null;
+        const previousAgentName = connectedAgentNameRef.current;
+        // Prefer the handover the server saved (same row a reload returns,
+        // with who assigned it and where it sits in the transcript); fall back
+        // to deriving it from the change for an older backend.
+        if (data?.assignment) {
+          setHandlerEvents((prev) =>
+            prev.some((e) => String(e.id) === String(data.assignment.id))
+              ? prev
+              : [
+                  ...prev,
+                  {
+                    ...data.assignment,
+                    // The server flags which side is this user; the notice
+                    // compares emails, so map the flags onto mine.
+                    from_agent_email: data.assignment.from_is_you
+                      ? session?.user?.email
+                      : null,
+                    to_agent_email: data.assignment.to_is_you
+                      ? session?.user?.email
+                      : null,
+                    assigned_by_email: data.assignment.assigned_by_is_you
+                      ? session?.user?.email
+                      : null,
+                  } as HandlerEvent,
+                ],
+          );
+        } else if (nextAgentName !== previousAgentName) {
+          setHandlerEvents((prev) => [
+            ...prev,
+            {
+              id: randomId(),
+              action: data?.chat_handler === "human" ? "assigned" : "released",
+              from_agent_name: previousAgentName,
+              to_agent_name: nextAgentName,
+              assigned_by_name: data?.assigned_by_name ?? null,
+              created_at: new Date().toISOString(),
+            },
+          ]);
+        }
+        if (data?.chat_handler === "human" && data?.chat_handler_user) {
+          setConnectedAgent(data?.chat_handler_user);
+          setConnectedAgentServerName(data?.chat_handler_user_name ?? null);
+          connectedAgentRef.current = data?.chat_handler_user;
+        } else {
+          setConnectedAgent(null);
+          setConnectedAgentServerName(null);
+          connectedAgentRef.current = null;
+        }
+        setTransitionState("idle");
+        return;
+      }
+
+      // The close-feedback request is saved as a message too, so it shows in the
+      // transcript live as it does after a reload.
+      if (
+        data?.success &&
+        (data?.action_type === "message" ||
+          data?.action_type === "close_feedback_request") &&
+        data?.final_update
+      ) {
+        const isCartAction = Boolean(
+          data.sender === "assistant" &&
+          data.final_update.json_content?.cart_action &&
+          !data.final_update.json_content?.needs_clarification,
+        );
+        if (data?.action_type === "close_feedback_request") {
+          closeAckRef.current?.("sent");
+        }
+        handleThreadMessageAdded({
+          id: isCartAction
+            ? `cart-action-${activeThreadIdRef.current}`
+            : data?.final_update?.id,
+          role: data?.final_update?.role,
+          message: data?.final_update?.message,
+          json_content: data?.final_update?.json_content || {},
+          message_type: data?.final_update?.message_type,
+          agent_name: data?.final_update?.agent_name || data?.agent_name,
+          confidence: data?.final_update?.confidence,
+          source_used: data?.final_update?.source_used,
+          created_at:
+            data?.final_update?.created_at || new Date().toISOString(),
+          messaged_by:
+            data?.sender === "agent"
+              ? (data?.chat_handler_user_name ??
+                connectedAgentNameRef.current ??
+                "Agent")
+              : "",
+          image_url: data?.final_update?.image_url || null,
+        });
+        setReplyWithAILoadingId(null);
+        return;
+      }
+
+      if (
+        data?.success &&
+        data?.action_type === "cart_action_result" &&
+        data?.final_update
+      ) {
+        const result = data.final_update;
+        setThreadMessages((current) => {
+          const pendingIndex = current.findLastIndex(
+            (message) =>
+              String(message.id).startsWith("cart-action-") &&
+              message.json_content?.cart_action,
+          );
+
+          if (pendingIndex === -1) return [...current, result];
+
+          const updated = [...current];
+          updated[pendingIndex] = { ...updated[pendingIndex], ...result };
+          return updated;
+        });
+        setReplyWithAILoadingId(null);
+        return;
+      }
+
+      if (
+        data?.success &&
+        data?.action_type === "ai_action" &&
+        data?.final_update
+      ) {
+        handleThreadMessageAdded({
+          id: data.final_update.id,
+          role: data.final_update.role,
+          message: data.final_update.message,
+          message_type: data.final_update.message_type,
+          agent_name: data.final_update.agent_name || data.agent_name,
+          source_used: data.final_update.source_used,
+          created_at: data.final_update.created_at || new Date().toISOString(),
+          messaged_by: data?.sender === "agent" ? "agent" : "",
+        });
+      }
+    };
+
+    ws.onclose = (event) => {
+      if (wsRef.current === ws) {
+        wsRef.current = null;
+        setChatSocketReady(false);
+      }
+      // 1000 is a clean close and 1001 is the page going away — both are us
+      // leaving, not a fault. Anything else is worth knowing about, and the
+      // code and reason here are the only real diagnostics a WebSocket
+      // gives; the error event carries none.
+      if (cancelled || event.code === 1000 || event.code === 1001) {
+        console.info("Agent disconnected");
+        return;
+      }
+      console.warn(
+        `Live chat socket closed unexpectedly (${event.code}${
+          event.reason ? `: ${event.reason}` : ""
+        })`,
+      );
+    };
+
+    ws.onerror = () => {
+      if (wsRef.current === ws) {
+        setChatSocketReady(false);
+      }
+      // Deliberately silent. A WebSocket error event carries no detail by
+      // design — logging it prints "[object Event]" and nothing more. A
+      // close event always follows, and that one says what happened.
+    };
+
+    return () => {
+      cancelled = true;
+      setIsCustomerTyping(false);
+      if (customerTypingTimeoutRef.current) {
+        clearTimeout(customerTypingTimeoutRef.current);
+        customerTypingTimeoutRef.current = null;
+      }
+      // Closing a socket that is still CONNECTING aborts the handshake and
+      // fires an error event, which is where the console noise came from:
+      // this effect re-runs whenever the open thread changes. Only an open
+      // socket is closed here; a connecting one closes itself in onopen.
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.close(1000, "thread changed");
+      }
+      if (wsRef.current === ws) {
+        wsRef.current = null;
+        setChatSocketReady(false);
+      }
+    };
+    // Reconnect only when the listed inputs change; clientID and the session
+    // email are stable for the life of the page.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    activeThreadId,
+    handleThreadMessageAdded,
+    selectedThread?.is_active,
+    session?.user?.access_token,
+  ]);
+
+  // Addressed by the customer, not the thread: syncing is a fact about a
+  // shopper's history, and the thread-scoped route resolved to this same
+  // customer before doing anything. A guest has none, so there is nothing
+  // to refresh — the button is disabled rather than failing on click.
+  const syncCustomerId = selectedThread?.customer?.id ?? null;
+
+  const handleOrdersSync = async () => {
+    if (!storeCode || !activeThreadId || !syncCustomerId) return;
+    try {
+      await dispatch(
+        SyncCustomerOrders({ storeCode, customerId: syncCustomerId }),
+      ).unwrap();
+
+      dispatch(FetchOrders(activeThreadId));
+      toast.success("Order Sync", {
+        description: "Orders synced successfully.",
+      });
+    } catch {
+      // The thunk has already said what went wrong.
+    }
+  };
+
+  // Below `lg` the conversation shows only when a chat is open and chosen;
+  // otherwise the list does.
+  const showConversationBelowLg =
+    portraitView === "conversation" && activeThreadId !== null;
+
+  return (
+    <SidebarProvider
+      // The chat list scales with the screen: 350px on a large monitor, but
+      // about 280px at a 1280px laptop width, where a fixed 350px left the
+      // conversation squeezed between the list and the details panel.
+      style={{ "--sidebar-width": `${threadListWidth}px` } as CSSProperties}
+      className="h-app-screen min-h-0 w-full overflow-hidden"
+    >
+      {/* Conversations list — the nested sidebar from the sidebar-09 block. */}
+      {/* The list panel is content, not chrome: white like Help Desk's
+          ticket list, with the same 4rem header over a controls strip. Only
+          the app's own navigation stays on the grey sidebar surface. */}
+      <Sidebar
+        collapsible="none"
+        className={cn(
+          "relative w-full border-r bg-background desktop:flex desktop:w-(--sidebar-width)",
+          showConversationBelowLg ? "hidden" : "flex",
+        )}
+      >
+        <div
+          role="separator"
+          aria-label="Resize thread list"
+          onPointerDown={(event) => startResize("threads", event)}
+          className="absolute inset-y-0 right-[-3px] z-20 hidden w-1 cursor-col-resize desktop:block"
+        />
+        <SidebarHeader className="gap-0 p-0">
+          <div className="flex h-16 shrink-0 items-center justify-between gap-2 border-b px-4">
+            <CardTitle className="flex items-center gap-2">
+              Live Chats
+            </CardTitle>
+          </div>
+
+          <div className="flex flex-col gap-2.5 border-b px-4 py-2.5">
+            <div className="flex items-center gap-2">
+              <div className="min-w-0 flex-1">
+                <SearchInput
+                  value={threadSearch}
+                  onChange={setThreadSearch}
+                  placeholder="Name, email, phone, order"
+                  label="Search conversations"
+                />
+              </div>
+              <Popover
+                open={isThreadFilterOpen}
+                onOpenChange={(open) => {
+                  setIsThreadFilterOpen(open);
+                  if (open) {
+                    setDraftThreadFilters({
+                      channels: [...appliedThreadFilters.channels],
+                      assignees: [...appliedThreadFilters.assignees],
+                    });
+                  }
+                }}
+              >
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon-sm"
+                    className={cn(
+                      "relative shrink-0",
+                      hasAppliedThreadFilters(appliedThreadFilters) &&
+                        ACTIVE_FILTER_STYLE,
+                    )}
+                    aria-label="Filter conversations"
+                  >
+                    <IconFilter className="size-4" />
+                    {appliedThreadFilters.channels.length +
+                      appliedThreadFilters.assignees.length >
+                    0 ? (
+                      <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
+                        {appliedThreadFilters.channels.length +
+                          appliedThreadFilters.assignees.length}
+                      </span>
+                    ) : null}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent
+                  align="end"
+                  className="w-[calc(100vw-2rem)] max-w-80 p-0"
+                >
+                  <div className="border-b px-4 py-3">
+                    <CardTitle>Filter Conversations</CardTitle>
+                  </div>
+                  <div className="space-y-5 p-4">
+                    <fieldset>
+                      <legend className="mb-2">
+                        <Typography variant="small" as="span">
+                          Channel
+                        </Typography>
+                      </legend>
+                      <MultiSelectCombobox
+                        options={SUPPORT_CHANNEL_OPTIONS}
+                        value={draftThreadFilters.channels}
+                        onValueChange={(channels) =>
+                          setDraftThreadFilters((current) => ({
+                            ...current,
+                            channels,
+                          }))
+                        }
+                        placeholder="Search channels…"
+                        emptyMessage="No channels found."
+                      />
+                    </fieldset>
+
+                    {/* Store owners and managers only: they hand chats out.
+                        The list is active support agents and store managers. */}
+                    {canReassign && (
+                      <fieldset>
+                        <legend className="mb-2">
+                          <Typography variant="small" as="span">
+                            Assignee
+                          </Typography>
+                        </legend>
+                        <CheckboxMultiSelect
+                          options={assignees.map((agent) => ({
+                            value: agent.email,
+                            label: agent.name,
+                            hint: agent.email,
+                            badge: agent.role && (
+                              <StaffRoleBadge role={agent.role} />
+                            ),
+                          }))}
+                          value={draftThreadFilters.assignees}
+                          onChange={(next) =>
+                            setDraftThreadFilters((current) => ({
+                              ...current,
+                              assignees: next,
+                            }))
+                          }
+                          placeholder="Choose assignees"
+                          searchPlaceholder="Search name or email"
+                          emptyMessage="No assignees found."
+                        />
+                      </fieldset>
+                    )}
+                  </div>
+                  <div className="flex justify-between border-t p-3">
+                    {appliedThreadFilters.channels.length +
+                      appliedThreadFilters.assignees.length >
+                    0 ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setDraftThreadFilters(EMPTY_SUPPORT_THREAD_FILTERS);
+                          setAppliedThreadFilters(EMPTY_SUPPORT_THREAD_FILTERS);
+                          setHasManualTabSelection(false);
+                          setIsThreadFilterOpen(false);
+                        }}
+                      >
+                        Clear
+                      </Button>
+                    ) : (
+                      <span />
+                    )}
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setAppliedThreadFilters({
+                          channels: [...draftThreadFilters.channels],
+                          assignees: [...draftThreadFilters.assignees],
+                        });
+                        setHasManualTabSelection(false);
+                        setIsThreadFilterOpen(false);
+                      }}
+                    >
+                      Apply Filters
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+            {/* Each tab is as wide as its label plus an equal share of the
+                rest: equal columns squeezed "Human 15" past its own pill. */}
+            <div className="flex gap-1 rounded-xl bg-muted/60 p-1">
+              {(
+                [
+                  { key: "all", label: "All" },
+                  { key: "needs_human", label: "Human" },
+                  { key: "ai", label: "AI" },
+                  { key: "with_agent", label: "Agent" },
+                ] as const
+              ).map((option) => (
+                <button
+                  key={option.key}
+                  type="button"
+                  onClick={() => {
+                    setHasManualTabSelection(true);
+                    setReadFilter(option.key);
+
+                    const params = new URLSearchParams(
+                      searchParams?.toString() ?? "",
+                    );
+
+                    if (option.key === "all") {
+                      params.delete("filter");
+                    } else {
+                      params.set("filter", option.key);
+                    }
+
+                    params.delete("chat");
+
+                    const query = params.toString();
+
+                    const basePath = pathname ?? "";
+
+                    router.replace(query ? `${basePath}?${query}` : basePath, {
+                      scroll: false,
+                    });
+                  }}
+                  className={cn(
+                    "flex flex-auto items-center justify-center gap-1 rounded-lg px-1.5 py-2 text-xs font-medium whitespace-nowrap transition-colors",
+                    activeReadFilter === option.key
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {option.label}
+                  <span
+                    className={cn(
+                      "rounded-md px-1.5 text-xs",
+                      option.key === "needs_human"
+                        ? "bg-red-50 text-red-700"
+                        : activeReadFilter === option.key
+                          ? "bg-primary/10 text-primary"
+                          : "bg-muted text-foreground/70",
+                    )}
+                  >
+                    {threadTabCounts[option.key]}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </SidebarHeader>
+        <SidebarContent>
+          <SidebarGroup className="px-2 py-1">
+            <SidebarGroupContent>
+              {FetchThreadsIsLoading ? (
+                <LoadingState label="Loading conversations…" />
+              ) : filteredThreads.length ? (
+                filteredThreads.map((thread: ThreadWithReadState) => {
+                  const isUnread = thread.is_read === false;
+                  const isWhatsapp = thread.source === "whatsapp";
+                  const channelLabel = isWhatsapp ? "WhatsApp" : "Web";
+                  const handlerLabel =
+                    thread.chat_handler === "human"
+                      ? thread.chat_handler_user?.email?.toLowerCase() ===
+                        session?.user?.email?.toLowerCase()
+                        ? "You"
+                        : thread.chat_handler_user?.name || "Agent"
+                      : "AI";
+                  const waitingLabel =
+                    thread.need_escalation && thread.escalation_time
+                      ? `Waiting ${formatWaitingDuration(
+                          thread.escalation_time,
+                          waitingTimerNow,
+                        )}`
+                      : null;
+
+                  return (
+                    <ConversationRow
+                      key={thread.id}
+                      active={thread.id === activeThreadId}
+                      activeClassName={
+                        thread.need_escalation
+                          ? "-mx-2 w-[calc(100%+1rem)] rounded-none border-l-4 border-red-600 bg-red-50 pl-4! pr-5! hover:bg-red-50 dark:border-red-400 dark:bg-red-950/30 dark:hover:bg-red-950/30"
+                          : "-mx-2 w-[calc(100%+1rem)] rounded-none border-l-4 border-primary bg-primary/5 pl-4! pr-5! hover:bg-primary/[0.03] dark:bg-primary/10 dark:hover:bg-primary/10"
+                      }
+                      hoverClassName={
+                        thread.need_escalation
+                          ? "-mx-2 w-[calc(100%+1rem)] rounded-none pl-5! pr-5! hover:bg-red-50 dark:hover:bg-red-950/30"
+                          : "-mx-2 w-[calc(100%+1rem)] rounded-none pl-5! pr-5! hover:bg-primary/[0.03] dark:hover:bg-primary/10"
+                      }
+                      onSelect={() => handleSelectThread(thread.id)}
+                      unread={isUnread}
+                      avatar={
+                        <CustomerAvatar
+                          name={thread.customer?.name || thread.customer?.email}
+                          online={thread.is_active}
+                        />
+                      }
+                      title={
+                        thread.customer?.name ||
+                        thread.customer?.email ||
+                        "Guest"
+                      }
+                      timestamp={formatRelativeDateTime(thread.last_message_at)}
+                      indicator={
+                        isUnread ? (
+                          <span className="size-2 shrink-0 rounded-full bg-primary" />
+                        ) : null
+                      }
+                      preview={
+                        <ReactMarkdown components={TEASER_MARKDOWN_COMPONENTS}>
+                          {thread.last_message || "No messages yet."}
+                        </ReactMarkdown>
+                      }
+                      previewLines={1}
+                      footer={
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <Badge
+                            variant="secondary"
+                            className="h-5 rounded-md px-1.5 text-xs font-normal"
+                          >
+                            {channelLabel}
+                          </Badge>
+                          <Badge
+                            variant="secondary"
+                            className={cn(
+                              "h-5 rounded-md border-0 px-1.5 text-xs font-medium",
+                              thread.chat_handler === "human"
+                                ? "bg-blue-100 text-blue-700 hover:bg-blue-100"
+                                : "bg-violet-100 text-violet-700 hover:bg-violet-100",
+                            )}
+                          >
+                            {thread.chat_handler === "human" && (
+                              <IconHeadset className="size-3" />
+                            )}
+                            {handlerLabel}
+                          </Badge>
+                          <CustomerSegmentBadge
+                            segment={thread.customer_segment}
+                            className="rounded-md px-1.5"
+                          />
+                          {waitingLabel && (
+                            <Badge
+                              variant="secondary"
+                              className="h-5 rounded-md bg-red-50 px-1.5 text-xs font-normal text-red-700"
+                            >
+                              {waitingLabel}
+                            </Badge>
+                          )}
+                        </div>
+                      }
+                    />
+                  );
+                })
+              ) : threadSearch || activeReadFilter !== "all" ? (
+                <div className="flex flex-col items-center justify-center gap-1 p-6 text-center">
+                  <Typography variant="small" as="p">
+                    {activeReadFilter === "needs_human"
+                      ? "No Chats Need Human Help"
+                      : activeReadFilter === "ai"
+                        ? "No AI-Handled Chats"
+                        : activeReadFilter === "with_agent"
+                          ? "No Chats With Agents"
+                          : "No Matches"}
+                  </Typography>
+                  <Typography variant="muted">
+                    {threadSearch
+                      ? "Try a different name or keyword."
+                      : "Try a different filter."}
+                  </Typography>
+                </div>
+              ) : (
+                <div className="p-4 text-center">
+                  <Typography variant="muted">
+                    No active chats for this store yet.
+                  </Typography>
+                </div>
+              )}
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
+      </Sidebar>
+
+      {/* Conversation + thread details. */}
+      <SidebarInset
+        className={cn(
+          "min-h-0 min-w-0 overflow-hidden desktop:flex",
+          showConversationBelowLg ? "flex" : "hidden",
+        )}
+      >
+        {activeThreadId ? (
+          <div className="flex h-full min-h-0">
+            <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
+              <header className="flex h-16 shrink-0 items-center border-b bg-background px-2 sm:px-4">
+                <div className="flex min-w-0 w-full items-center justify-between gap-1.5 sm:gap-3">
+                  <div className="flex min-w-0 flex-1 items-center gap-2.5">
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      aria-label="Back to chat list"
+                      className="-ml-2 shrink-0 desktop:hidden"
+                      onClick={() => {
+                        // Closes the chat, not just the pane: its id would
+                        // otherwise stay in the URL and a refresh would
+                        // reopen it.
+                        setPortraitView("list");
+                        const params = new URLSearchParams(
+                          searchParams?.toString() ?? "",
+                        );
+                        params.delete("chat");
+                        const query = params.toString();
+                        router.replace(
+                          query ? `${pathname}?${query}` : (pathname ?? "/"),
+                          { scroll: false },
+                        );
+                      }}
+                    >
+                      <IconArrowLeft />
+                    </Button>
+                    <CustomerAvatar
+                      name={
+                        selectedThread?.customer?.name ||
+                        selectedThread?.customer?.email
+                      }
+                      online={selectedThread?.is_active}
+                    />
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1">
+                        <CardTitle className="truncate leading-tight">
+                          {selectedThread?.customer?.name ||
+                            selectedThread?.customer?.email ||
+                            "Guest"}
+                        </CardTitle>
+                        <CrmLinkButton
+                          customerId={selectedThread?.customer?.id}
+                          onLinkCustomer={
+                            activeThreadId
+                              ? () => setIsLinkCustomerOpen(true)
+                              : undefined
+                          }
+                        />
+                      </div>
+                      {/* Contact rather than a status line: who you are
+                          talking to is what an agent needs from a header,
+                          and who is handling the thread is already said by
+                          the take-over banner above the composer. */}
+                      <div className="flex min-w-0 items-center gap-2">
+                        <CustomerContact
+                          email={selectedThread?.customer?.email}
+                          phone={selectedThread?.customer?.phone}
+                          // Orders keep the last thread's rows until the new
+                          // ones land; reading them sooner would show the
+                          // previous customer's phone.
+                          orders={
+                            FetchOrderDataIsLoading ? null : FetchOrderData
+                          }
+                        />
+                        <CustomerSegmentBadge
+                          segment={selectedThread?.customer_segment}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="shrink-0">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          className="sm:hidden"
+                          aria-label="Conversation actions"
+                        >
+                          <IconDotsVertical className="size-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        align="end"
+                        className="w-48 sm:hidden"
+                      >
+                        <DropdownMenuItem
+                          onSelect={() => setIsDetailsOpen(true)}
+                        >
+                          <IconId className="size-4" />
+                          Customer Details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          disabled={!canCreateTicket}
+                          onSelect={() => setIsCreateTicketOpen(true)}
+                        >
+                          <IconTicket className="size-4" />
+                          Create Ticket
+                        </DropdownMenuItem>
+                        {selectedThread?.is_active && canHandleChats ? (
+                          <DropdownMenuItem
+                            variant="destructive"
+                            disabled={
+                              !session?.user?.email ||
+                              displayedConnectedAgent !== session.user.email
+                            }
+                            onSelect={() => setIsCloseChatOpen(true)}
+                          >
+                            <IconMessageOff className="size-4" />
+                            Close Chat
+                          </DropdownMenuItem>
+                        ) : null}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    <div className="hidden items-center gap-3 sm:flex">
+                      <CustomerDetailsButton
+                        onClick={() => setIsDetailsOpen(true)}
+                      />
+                      {/* Same look as Create Ticket in Help Desk. */}
+                      <Button
+                        size="sm"
+                        disabled={!canCreateTicket}
+                        onClick={() => setIsCreateTicketOpen(true)}
+                      >
+                        <IconPlus data-icon="inline-start" />
+                        Create Ticket
+                      </Button>
+                      {selectedThread?.is_active && canHandleChats && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          // Only the agent the chat is assigned to may close it.
+                          disabled={
+                            !session?.user?.email ||
+                            displayedConnectedAgent !== session.user.email
+                          }
+                          title={
+                            displayedConnectedAgent === session?.user?.email
+                              ? "Close this chat"
+                              : "Only the assigned agent can close this chat"
+                          }
+                          onClick={() => setIsCloseChatOpen(true)}
+                        >
+                          <IconMessageOff className="size-4" />
+                          Close Chat
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </header>
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                {FetchThreadDetailsIsLoading ? (
+                  <div className="flex h-full items-center justify-center">
+                    <LoadingState label="Loading conversation…" />
+                  </div>
+                ) : (
+                  <div className="flex min-h-0 flex-1 flex-col">
+                    <div className="min-h-0 flex-1 overflow-y-auto p-1 sm:p-3">
+                      {/* Assignments and take-overs show even before the first
+                          message; "No Messages Yet" is only for a chat with
+                          nothing in it at all. */}
+                      {threadMessages.length > 0 || handlerEvents.length > 0 ? (
+                        <LiveMessagePan
+                          messages={threadMessages}
+                          handlerEvents={handlerEvents}
+                          customerName={selectedThread?.customer?.name}
+                          onReplyWithAI={
+                            connectedAgent === session?.user?.email
+                              ? handleReplyWithAI
+                              : undefined
+                          }
+                          replyWithAILoadingId={replyWithAILoadingId}
+                        />
+                      ) : (
+                        <div className="flex h-full flex-col items-center justify-center gap-1 p-6 text-center">
+                          <div className="mb-3 flex size-16 items-center justify-center rounded-full bg-primary/10 text-primary">
+                            <MessageIconCircular className="size-8" />
+                          </div>
+                          <Typography
+                            variant="small"
+                            as="p"
+                            className="text-lg font-semibold"
+                          >
+                            No Messages Yet
+                          </Typography>
+                          <Typography
+                            variant="muted"
+                            className="max-w-md text-sm leading-relaxed"
+                          >
+                            {selectedThread?.customer?.name ||
+                              selectedThread?.customer?.email ||
+                              "This customer"}{" "}
+                            opened the chat but hasn&apos;t written anything.
+                            {selectedThread?.chat_handler === "human" &&
+                            selectedThread.chat_handler_user?.name
+                              ? ` ${selectedThread.chat_handler_user.email?.toLowerCase() === session?.user?.email?.toLowerCase() ? "You" : selectedThread.chat_handler_user.name} will reply as soon as they do.`
+                              : " The AI Assistant will reply as soon as they do."}
+                          </Typography>
+                        </div>
+                      )}
+                    </div>
+                    {showAiResponding && (
+                      <div className="flex shrink-0 justify-end border-t bg-background px-4 py-2">
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span className="flex gap-1">
+                            <span className="size-1.5 animate-bounce rounded-full bg-primary [animation-delay:-0.2s]" />
+                            <span className="size-1.5 animate-bounce rounded-full bg-primary [animation-delay:-0.1s]" />
+                            <span className="size-1.5 animate-bounce rounded-full bg-primary" />
+                          </span>
+                          AI is typing…
+                        </div>
+                      </div>
+                    )}
+                    {isCustomerTyping && (
+                      <div className="flex shrink-0 justify-start border-t bg-background px-4 py-2">
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span className="flex gap-1">
+                            <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:-0.2s]" />
+                            <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:-0.1s]" />
+                            <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground" />
+                          </span>
+                          Customer is typing…
+                        </div>
+                      </div>
+                    )}
+                    {selectedThread?.is_active &&
+                    !can(session?.user, "conversations", { write: true }) ? (
+                      // Read-only role: can watch the chat, not join it.
+                      <div className="border-t p-4 text-center">
+                        <Typography variant="muted">
+                          Your role can view this conversation but not reply or
+                          take it over.
+                        </Typography>
+                      </div>
+                    ) : selectedThread?.is_active ? (
+                      <ThreadChatControls
+                        activeThreadId={activeThreadId}
+                        isThreadActive={selectedThread.is_active}
+                        hasMessages={threadMessages.length > 0}
+                        className="border-t"
+                        connectedAgent={displayedConnectedAgent}
+                        connectedAgentName={displayedConnectedAgentName}
+                        user={session?.user?.email || null}
+                        userRole={session?.user?.role}
+                        canReassign={canReassign}
+                        agents={agents}
+                        assignees={assignees}
+                        chatSocketReady={chatSocketReady}
+                        onReassign={handleReassign}
+                        transitionState={transitionState}
+                        composerMessage={composerMessage}
+                        setComposerMessage={setComposerMessage}
+                        isSavingInternalNote={CreateInternalNoteIsLoading}
+                        attachments={attachments}
+                        isEmojiPickerOpen={isEmojiPickerOpen}
+                        setIsEmojiPickerOpen={setIsEmojiPickerOpen}
+                        onTakeOver={handleTakeOver}
+                        onReturnToAI={handleReturnToAI}
+                        onSendAgentMessage={handleSendAgentMessage}
+                        onSendInternalNote={handleSendInternalNote}
+                        onFileSelection={handleFileSelection}
+                        onEmojiSelect={handleEmojiSelect}
+                        onRemoveAttachment={removeAttachment}
+                        onRetryAttachment={retryAttachment}
+                        attachedProducts={attachedProducts}
+                        setAttachedProducts={setAttachedProducts}
+                        storeCode={storeCode ?? ""}
+                      />
+                    ) : null}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <CustomerDetailsPanel
+              open={isDetailsOpen}
+              onOpenChange={setIsDetailsOpen}
+              currentThreadId={activeThreadId}
+              customerData={selectedThread?.customer || null}
+              userMetadata={FetchUserMetadataData}
+              userMetadataLoading={FetchUserMetadataIsLoading}
+              orders={ordersWithAdminUrls}
+              ordersLoading={FetchOrderDataIsLoading}
+              onOrdersSync={handleOrdersSync}
+              orderSyncLoading={SyncCustomerOrdersIsLoading}
+              tickets={{
+                data: FetchFreshdeskTicketIdData ?? [],
+                loading: FetchFreshdeskTicketIdIsLoading,
+              }}
+              cart={{ data: FetchCartData, loading: FetchCartDataIsLoading }}
+              dockedWidth={customerPanelWidth}
+              onResizeStart={(event) => startResize("customer", event)}
+            />
+          </div>
+        ) : (
+          <div className="flex h-full flex-col items-center justify-center gap-1 p-6 text-center">
+            <div className="mb-3 flex size-16 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <MessageIconCircular className="size-8" />
+            </div>
+            <Typography
+              variant="small"
+              as="p"
+              className="text-lg font-semibold"
+            >
+              No Active Chats
+            </Typography>
+            <Typography
+              variant="muted"
+              className="max-w-md text-sm leading-relaxed"
+            >
+              {activeReadFilter === "needs_human"
+                ? "Chats needing human help will appear here."
+                : activeReadFilter === "ai"
+                  ? "AI-handled chats will appear here."
+                  : activeReadFilter === "with_agent"
+                    ? "Chats assigned to agents will appear here."
+                    : "New active chats will appear here when customers message in."}
+            </Typography>
+          </div>
+        )}
+      </SidebarInset>
+      <CloseChatDialog
+        // Keyed by thread so a reason picked for one chat never carries to the next.
+        key={activeThreadId}
+        open={isCloseChatOpen}
+        onOpenChange={setIsCloseChatOpen}
+        onConfirm={handleCloseChat}
+      />
+      {storeCode ? (
+        <CreateTicketDialog
+          open={isCreateTicketOpen}
+          onOpenChange={setIsCreateTicketOpen}
+          storeCode={storeCode}
+          // Seeded from the conversation on screen: the shopper is already
+          // known here, and making the agent search for them again is the
+          // retyping this dialog exists to remove.
+          initialCustomer={
+            selectedThread?.customer?.id
+              ? ({
+                  kind: "record",
+                  id: selectedThread.customer.id,
+                  name: selectedThread.customer.name,
+                  email: selectedThread.customer.email,
+                } satisfies TicketCustomer)
+              : selectedThread?.customer?.email
+                ? ({
+                    kind: "email",
+                    email: selectedThread.customer.email,
+                  } satisfies TicketCustomer)
+                : null
+          }
+          onDraft={async () => {
+            if (!activeThreadId) return null;
+            const result = await dispatch(
+              FetchThreadTicketDraft({
+                storeCode,
+                threadId: activeThreadId,
+              }),
+            );
+            return FetchThreadTicketDraft.fulfilled.match(result)
+              ? result.payload
+              : null;
+          }}
+          // Addressed by the open thread, which the backend stores on the
+          // ticket — so the conversation that produced it stays reachable
+          // from the help desk.
+          onSubmit={async (payload) => {
+            if (!activeThreadId) return { ok: false };
+            const result = await dispatch(
+              CreateSupportTicket({
+                storeCode,
+                threadId: activeThreadId,
+                payload,
+              }),
+            );
+            const ok = CreateSupportTicket.fulfilled.match(result);
+            if (ok) {
+              dispatch(
+                FetchFreshdeskTicketId({
+                  threadId: activeThreadId,
+                  customerId: selectedThread?.customer?.id,
+                  storeCode,
+                }),
+              );
+            }
+            return ok ? { ok: true } : { ok: false, payload: result.payload };
+          }}
+        />
+      ) : null}
+      {storeCode ? (
+        <LinkCustomerDialog
+          open={isLinkCustomerOpen}
+          onOpenChange={setIsLinkCustomerOpen}
+          storeCode={storeCode}
+          linking={isLinkingCustomer}
+          onLink={(customer) => handleLinkCustomer(customer.customer_id)}
+        />
+      ) : null}
+    </SidebarProvider>
+  );
+}

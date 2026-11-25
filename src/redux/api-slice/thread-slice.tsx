@@ -3,17 +3,47 @@ import { axiosInstance } from "@/redux/axios-config";
 import { ENDPOINTS } from "@/lib/config";
 import { toast } from "sonner";
 import { isAxiosError } from "axios";
+import type {
+  ThreadCloseReason,
+  ThreadClosedByType,
+} from "@/lib/thread-options";
+import type { CustomerSegment } from "@/redux/api-slice/customer-slice";
 
 type ThreadFilters = {
   from?: string;
   to?: string;
   search?: string;
   is_active?: boolean;
+  need_escalation?: boolean;
   user_type?: string;
   has_ticket?: boolean;
+  has_order?: boolean;
+  has_agent?: boolean;
   has_feedback?: boolean;
   feedback_rating?: string;
+  tags?: (string | ThreadTagData)[];
+  handled_by?: string;
+  channel?: string | string[];
+  assignee?: string[];
+  before_thread_id?: string;
 };
+
+/**
+ * A tag as the threads endpoints return it.
+ *
+ * Declared here rather than imported from the support-ticket slice, which
+ * already imports from this file — the shape is identical, so `TagBadge`
+ * takes either without a conversion.
+ */
+export type ThreadTagData = {
+  id?: number;
+  name: string;
+  color: string;
+  description: string;
+};
+
+/** A tag chip on the Threads page: a store ticket tag and its thread count. */
+export type ThreadTagOption = Required<ThreadTagData> & { count: number };
 
 export type FeedbackEntry = {
   id: number;
@@ -31,9 +61,23 @@ type GetThreadsArgs = {
   page?: number;
   limit?: number;
   filters?: ThreadFilters;
+  skipListStateUpdate?: boolean;
 };
 
 export type Customer = {
+  // Null for a guest — decides which tickets endpoint the UI calls.
+  id: number | null;
+  name: string;
+  email: string;
+  phone?: string | null;
+  registered_at?: string | null;
+  total_spent?: string | number | null;
+  orders_count?: number | null;
+  past_threads_count?: number;
+};
+
+export type ThreadHandlerUser = {
+  id: number;
   name: string;
   email: string;
 };
@@ -42,11 +86,21 @@ export type Thread = {
   id: string;
   name: string | null;
   customer: Customer | null;
+  /** The customer's segment when they were linked to this chat; kept after. */
+  customer_segment?: CustomerSegment;
+  source?: "native" | "webhook" | "whatsapp" | null;
+  chat_handler?: "ai" | "human";
+  chat_handler_user?: ThreadHandlerUser | null;
+  ai_responding: boolean;
+  need_escalation: boolean;
+  escalation_time: string | null;
   is_active: boolean;
   total_messages: number;
   created_at: string;
+  last_message_at: string | null;
+  cart_total: number;
   ended_at: string | null;
-  tags?: string[];
+  tags?: (string | ThreadTagData)[];
   last_message?: string | null;
 };
 
@@ -93,34 +147,90 @@ export type CartDetails = {
   sub_total: string;
 };
 
+export type ProductComparisonBlock = {
+  product_id: string;
+  comparison_message: string;
+};
+
+/** Ticket card raised from a chat, by the AI or an agent. */
+export type TicketDetails = {
+  ticket_id: string | number;
+  subject?: string;
+  description: string;
+  customer_name: string;
+  customer_email: string;
+  created_at: string;
+};
+
+/** One question from the card shown to a shopper in the widget. */
+export type ClarifyingQuestion = {
+  question: string;
+  options: string[];
+  multi_select?: boolean;
+  from_catalogue?: boolean;
+};
+
 export type ThreadJsonContent = {
+  questions?: ClarifyingQuestion[];
   products?: ProductData[];
+  related_products?: ProductData[];
+  comparison_block?: ProductComparisonBlock[] | null;
   order_details?: OrderDetail;
   cart_details?: CartDetails;
+  cart_action?: string;
   order_id?: string;
   order_verification_step?: string;
   suggestions?: string[];
+  ticket_details?: TicketDetails;
+  /** Mirrors ChatHistory.confidence for resilient session reloads. */
+  confidence?: number | null;
+  /** Mirrors ChatHistory.source_used for resilient session reloads. */
+  source_used?: string;
 };
 
 export type ThreadMessage = {
+  id: string | number;
   role: string;
   message: string;
+  message_type?: "user_message" | "reply" | "internal" | "ai_action" | string;
+  agent_name?: string | null;
+  confidence?: number | null;
+  source_used?: string;
   json_content?: ThreadJsonContent;
   image_url?: string | string[] | null;
+  created_at: string;
+  messaged_by: string;
+  /** Sender's email, to show "You" for the signed-in agent. */
+  messaged_by_email?: string | null;
+  /** Latest feedback the customer attached to this message. */
+  feedback_rating?: string | null;
+  /** Optional written comment attached to the message feedback. */
+  feedback_message?: string | null;
+};
+
+/** One handover of a chat; a null agent name means the AI. */
+export type HandlerEvent = {
+  id: number | string;
+  action: string;
+  from_agent_name: string | null;
+  to_agent_name: string | null;
+  assigned_by_name: string | null;
+  /** Emails, so the UI can show "You" for the signed-in user. */
+  from_agent_email?: string | null;
+  to_agent_email?: string | null;
+  assigned_by_email?: string | null;
+  after_message_id?: number | null;
   created_at: string;
 };
 
 export type ProductVariant = {
-  variant_id: string;
-  title: string;
-  price: {
-    amount: string;
-    currency: string;
-  };
-  options: { name: string; value: string }[];
-  available_for_sale: boolean;
+  variant_id: number;
+  variant_name: string;
+  variant_price: string | null;
   compare_at_price: string | null;
-  discount: string | null;
+  available_for_sale: boolean;
+  discount_percentage: number | null;
+  options: { name: string; value: string }[];
 };
 
 export type ProductData = {
@@ -131,7 +241,40 @@ export type ProductData = {
   price: string;
   product_url: string;
   available_for_sale: boolean;
+  discount_percentage?: number | null;
   variants?: ProductVariant[];
+};
+
+/** One row of the paginated `/products/` list, picked in Attach Products. */
+export type ProductListItem = {
+  id: string;
+  name: string;
+  external_id: number;
+  price: string | null;
+  sale_price: string | null;
+  /** These are absent on an older backend, like `variants`. */
+  currency?: string;
+  discount_percentage?: number | null;
+  description?: string;
+  url: string;
+  images: { url: string; alt?: string; position?: number }[];
+  variants?: {
+    id: string;
+    external_id: number;
+    name: string;
+    price: string | null;
+    sale_price: string | null;
+    discount_percentage?: number | null;
+    stock_quantity: number | null;
+    options: Record<string, string>;
+  }[];
+};
+
+export type ProductListResponse = {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: ProductListItem[];
 };
 
 export type ThreadVerdict = {
@@ -151,11 +294,17 @@ export type ThreadDetails = {
   store: number;
   customer_name: string | null;
   customer_email: string | null;
+  /** Identity, plus the phone and past-thread count the side panel shows. */
+  customer: { id: number; phone: string; past_threads_count: number } | null;
   is_active: boolean;
+  close_reason?: ThreadCloseReason | null;
+  closed_by_type?: ThreadClosedByType | null;
+  closed_by_name?: string | null;
   total_messages: number;
   created_at: string;
   ended_at: string | null;
   messages: ThreadMessage[];
+  handler_events?: HandlerEvent[];
   verdict: ThreadVerdict;
   followup_level: number;
 };
@@ -182,28 +331,27 @@ export type AIInsightResponse = {
   next_actionable_items: string[];
 };
 
+export type CartData = {
+  qty: number;
+  sku: string;
+  name: string;
+  price: string;
+  currency: string;
+  product_id: number;
+  product_url: string;
+  product_image: string;
+};
+
 export type CartDataResponse = {
   thread_id: string;
   initial_cart_data: {
-    qty: number;
-    sku: string;
-    name: string;
-    price: string;
-    currency: string;
-    product_id: number;
-    product_url: string;
-    product_image: string;
-  }[];
+    items: CartData[];
+    total: string;
+  };
   updated_cart_data: {
-    qty: number;
-    sku: string;
-    name: string;
-    price: string;
-    currency: string;
-    product_id: number;
-    product_url: string;
-    product_image: string;
-  }[];
+    items: CartData[];
+    total: string;
+  };
 };
 
 export type UserMetadata = {
@@ -214,22 +362,153 @@ export type UserMetadata = {
   device_type: string;
   browser: string;
   os: string;
+  /** Product pages the shopper opened, in viewing order. */
+  viewed_products: ViewedProduct[];
 };
+
+export type ViewedProduct = {
+  id: string;
+  name: string;
+  url: string;
+  image: string;
+  /** Sale price when there is one, in the store's `currency`. */
+  price: string | null;
+  currency: string;
+};
+
+/** Normalised slugs, never the helpdesk provider's numeric codes. */
+export type TicketStatus =
+  | "open"
+  | "snoozed"
+  | "resolved"
+  | "closed"
+  | "reopen";
+export type TicketPriority = "low" | "normal" | "high" | "urgent";
 
 export type ThreadTicketData = {
   id: number;
-  thread: string;
-  customer: number;
-  ticket_id: number;
+  ticket_id: string;
   subject: string;
   description: string;
-  requester_id: number;
-  email_config_id: number | null;
-  platform_created_at: string | null;
-  platform_updated_at: string | null;
+  status: TicketStatus;
+  priority: TicketPriority;
+  channel: string;
+  is_read: boolean;
+  /** The conversation it was raised from — lets the UI jump back to it. */
+  thread_id: string;
+  /** Deep link to the provider, or null for tickets that live only here. */
+  ticket_url: string | null;
   created_at: string;
   updated_at: string;
 };
+
+export type OrderItemData = {
+  sku: string;
+  name: string;
+  quantity: number;
+  price: string;
+  product_id: number;
+  total_price: string | number;
+  price_incl_tax: string | number;
+  total_tax_price: string | number;
+};
+
+export type OrderShippingAddress = {
+  city: string;
+  email: string;
+  street: string[];
+  postcode: string;
+  firstname: string;
+  telephone: string;
+  country_id: string;
+  address1: string;
+  address2: string;
+  company: string;
+  country: string;
+  country_code: string;
+  first_name: string;
+  last_name: string;
+  latitude: string;
+  name: string;
+  longitude: string;
+  phone: string;
+  province: string;
+  province_code: string;
+  zip: string;
+  lastname: string;
+};
+
+export type OrderData = {
+  id: number;
+  order_id: string;
+  order_number: string;
+  created_at: string;
+  currency: string;
+  total_price: string;
+  subtotal_price: string;
+  total_tax: string;
+  total_shipping: string;
+  total_discounts: string;
+  financial_status: string | null;
+  fulfillment_status: string | null;
+  gateway: string;
+  shipping_method: string | null;
+  shipping_address: OrderShippingAddress;
+  /** Phone on the order itself, when its shipping address has none. */
+  customer_phone?: string | null;
+  items: OrderItemData[];
+  /**
+   * Deep link to this order in the store's own admin, for the actions we
+   * deliberately do not reimplement — refunds, cancellations, edits.
+   *
+   * Built server-side rather than here: the shape differs per platform
+   * (Shopify's admin.shopify.com/store/<handle>/orders/<id> against
+   * Magento's own admin path), and nothing the client holds identifies the
+   * store's admin host. Absent until the backend sends it, in which case
+   * the button simply does not render.
+   */
+  admin_url?: string | null;
+  /** Product image per ordered variant (`product_id` of an item). */
+  item_images?: Record<string, string>;
+};
+
+export type ThreadCounts = {
+  active: number;
+  needsHuman: number;
+};
+
+export const FetchThreadCounts = createAsyncThunk<
+  ThreadCounts,
+  { store_code: string }
+>("ThreadCounts", async ({ store_code }, thunkAPI) => {
+  try {
+    const response = await axiosInstance.get(
+      `${ENDPOINTS.fetchThreadCounts()}?store_code=${encodeURIComponent(store_code)}`,
+    );
+    return response.data.data;
+  } catch (error) {
+    const data = isAxiosError(error) ? error.response?.data : undefined;
+    return thunkAPI.rejectWithValue(data || "Unable to fetch thread counts.");
+  }
+});
+
+/**
+ * `&key=value` pairs for a set of thread filters.
+ *
+ * Values are URI-encoded (a tag like "Return & Refund" would otherwise split
+ * the query at the "&"); arrays repeat the key so a value that contains a
+ * comma survives too. Empty when there is nothing to send.
+ */
+function filterQuery(filters: ThreadFilters): string {
+  return Object.entries(filters)
+    .flatMap(([key, value]) =>
+      (Array.isArray(value) ? value : [value]).map(
+        (item) =>
+          `&${encodeURIComponent(key)}=${encodeURIComponent(String(item))}`,
+      ),
+    )
+    .join("");
+}
 
 export const FetchThreads = createAsyncThunk<ThreadsResponse, GetThreadsArgs>(
   "Threads",
@@ -243,14 +522,8 @@ export const FetchThreads = createAsyncThunk<ThreadsResponse, GetThreadsArgs>(
     thunkAPI,
   ) => {
     try {
-      const filteration =
-        "&" +
-        Object.entries(filters)
-          .map(([key, value]) => `${key}=${value}`)
-          .join("&");
-
       const response = await axiosInstance.get(
-        `${ENDPOINTS.fetchThreads()}?store_code=${store_code}&page=${page}&page_size=${limit}${filteration !== "&" ? filteration : ""}`,
+        `${ENDPOINTS.fetchThreads()}?store_code=${store_code}&page=${page}&page_size=${limit}${filterQuery(filters)}`,
       );
       const data = response.data.data;
 
@@ -259,13 +532,11 @@ export const FetchThreads = createAsyncThunk<ThreadsResponse, GetThreadsArgs>(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch the threads, please try again later.",
+      toast.error("Couldn't fetch the threads.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch the threads.");
     }
   },
 );
@@ -284,13 +555,44 @@ export const FetchThreadDetails = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch the thread details, please try again later.",
+      toast.error("Couldn't fetch the thread details.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch the thread details.",
+      );
+    }
+  },
+);
+
+export const CreateInternalNote = createAsyncThunk(
+  "CreateInternalNote",
+  async (
+    { threadId, message }: { threadId: string; message: string },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.post(
+        ENDPOINTS.createInternalNote(),
+        {
+          thread_id: threadId,
+          message,
+        },
+      );
+
+      return response.data.data as ThreadMessage;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Couldn't save the internal note.", {
+        description: data?.message || "Please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't save the internal note.",
+      );
     }
   },
 );
@@ -309,13 +611,13 @@ export const FetchUserMetadata = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch the user metadata, please try again later.",
+      toast.error("Couldn't fetch the user metadata.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch the user metadata.",
+      );
     }
   },
 );
@@ -334,13 +636,13 @@ export const FetchConversationSummary = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch the conversation summary, please try again later.",
+      toast.error("Couldn't fetch the conversation summary.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch the conversation summary.",
+      );
     }
   },
 );
@@ -359,13 +661,13 @@ export const FetchFeedbackSequence = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch the feedback sequence, please try again later.",
+      toast.error("Couldn't fetch the feedback sequence.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch the feedback sequence.",
+      );
     }
   },
 );
@@ -382,12 +684,43 @@ export const FetchTags = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message || "Unable to fetch the tags, please try again later.",
+      toast.error("Couldn't fetch the tags.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch the tags.");
+    }
+  },
+);
+
+/**
+ * The tags threads carry, each with its thread count, for the Threads page tag
+ * chips. Counted against the given filters (the tag filter itself aside), so
+ * the chips follow whatever the list is currently narrowed to.
+ */
+export const FetchThreadTagOptions = createAsyncThunk(
+  "ThreadTagOptions",
+  async (
+    {
+      store_code = "",
+      filters = {},
+    }: { store_code?: string; filters?: ThreadFilters } = {},
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchThreadTagOptions()}?store_code=${encodeURIComponent(store_code)}${filterQuery(filters)}`,
+      );
+      return response.data.data as ThreadTagOption[];
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Couldn't fetch tag options.", {
+        description: data?.message || "Please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch tag options.");
     }
   },
 );
@@ -406,13 +739,39 @@ export const FetchAIInsight = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch the AI insights, please try again later.",
+      toast.error("Couldn't fetch the AI insights.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch the AI insights.",
+      );
+    }
+  },
+);
+
+export const GenerateAIInsight = createAsyncThunk(
+  "GenerateAIInsight",
+  async (threadId: string, thunkAPI) => {
+    try {
+      const response = await axiosInstance.post(
+        ENDPOINTS.generateAIInsight(threadId),
+        {},
+        // Several model calls in one request.
+        { timeout: 90_000 },
+      );
+      return response.data.data as AIInsightResponse;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Couldn't generate the AI insights.", {
+        description: data?.message || "Please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't generate the AI insights.",
+      );
     }
   },
 );
@@ -433,24 +792,96 @@ export const FetchCart = createAsyncThunk(
 
       // A 404 simply means no cart data exists for this thread — not an error worth surfacing.
       if (response?.status !== 404) {
-        toast.error("Uh oh! Something went wrong.", {
-          description:
-            data?.message ||
-            "Unable to fetch the cart data, please try again later.",
+        toast.error("Couldn't fetch the cart data.", {
+          description: data?.message || "Please try again later.",
         });
       }
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch the cart data.");
+    }
+  },
+);
+
+/** Attach an existing customer record to a chat a guest started. */
+export const ThreadCustomerLink = createAsyncThunk(
+  "ThreadCustomerLink",
+  async (
+    {
+      storeCode,
+      threadId,
+      customerId,
+    }: { storeCode: string; threadId: string; customerId: string },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.post(
+        `${ENDPOINTS.threadCustomerLink(threadId)}?store_code=${storeCode}`,
+        { customer_id: customerId },
+        { useBackend: true },
+      );
+      toast.success("Customer linked to this conversation.");
+      return response.data?.data ?? response.data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Couldn't link the customer", {
+        description: data?.message || "Please try again later.",
+      });
+      return thunkAPI.rejectWithValue(data || "Couldn't link the customer");
     }
   },
 );
 
 export const FetchFreshdeskTicketId = createAsyncThunk(
   "FreshdeskTicketId",
-  async (threadId: string, thunkAPI) => {
+  async (
+    {
+      threadId,
+      customerId,
+      storeCode,
+    }: { threadId: string; customerId?: number | null; storeCode: string },
+    thunkAPI,
+  ) => {
     try {
+      // A logged-in customer gets every ticket they've raised with this
+      // store; a guest only has the one conversation to show.
+      const url = customerId
+        ? ENDPOINTS.fetchCustomerTickets(customerId)
+        : ENDPOINTS.fetchThreadTickets(threadId);
+
       const response = await axiosInstance.get(
-        ENDPOINTS.fetchFreshdeskTicketId(threadId),
+        `${url}?store_code=${storeCode}`,
+        { useBackend: true },
+      );
+      // Paginated envelope — the card only renders the first page.
+      return response.data.data?.results ?? [];
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Couldn't fetch the Support ticket ID.", {
+        description: data?.message || "Please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch the Support ticket ID.",
+      );
+    }
+  },
+);
+
+export const UploadMessageAttachments = createAsyncThunk(
+  "UploadMessageAttachments",
+  async ({ formData }: { formData: FormData }, thunkAPI) => {
+    try {
+      const response = await axiosInstance.post(
+        ENDPOINTS.uploadAttachments(),
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        },
       );
       const data = response.data.data;
 
@@ -459,13 +890,68 @@ export const FetchFreshdeskTicketId = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch the Freshdesk ticket ID, please try again later.",
+      toast.error("Could not upload the selected image(s).", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(data || "Please try again later.");
+    }
+  },
+);
+
+export const FetchOrders = createAsyncThunk(
+  "OrderData",
+  async (threadId: string, thunkAPI) => {
+    try {
+      const response = await axiosInstance.get(
+        ENDPOINTS.fetchOrderData(threadId),
+      );
+      const data = response.data.data;
+
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      // A 404 simply means no cart data exists for this thread — not an error worth surfacing.
+      if (response?.status !== 404) {
+        toast.error("Couldn't fetch the cart data.", {
+          description: data?.message || "Please try again later.",
+        });
+      }
+
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch the cart data.");
+    }
+  },
+);
+
+export const FetchProducts = createAsyncThunk(
+  "FetchProducts",
+  async (
+    {
+      storeCode,
+      search = "",
+      page = 1,
+    }: { storeCode: string; search?: string; page?: number },
+    thunkAPI,
+  ) => {
+    try {
+      const params = new URLSearchParams({
+        store_code: storeCode,
+        page: String(page),
+      });
+      if (search.trim()) params.set("search", search.trim());
+
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchProducts()}?${params.toString()}`,
+        { useBackend: true },
+      );
+      return (response.data?.data ?? null) as ProductListResponse | null;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      return thunkAPI.rejectWithValue(
+        response?.data || "Couldn't fetch products.",
+      );
     }
   },
 );
@@ -473,6 +959,12 @@ export const FetchFreshdeskTicketId = createAsyncThunk(
 const ThreadSlice = createSlice({
   name: "Thread",
   initialState: {
+    FetchThreadCountsState: {
+      FetchThreadCountsIsLoading: false,
+      FetchThreadCountsIsSuccess: false,
+      FetchThreadCountsIsError: null as null | string | object | unknown,
+      FetchThreadCountsData: { active: 0, needsHuman: 0 } as ThreadCounts,
+    },
     FetchThreadsState: {
       FetchThreadsIsLoading: false,
       FetchThreadsIsSuccess: false,
@@ -489,6 +981,11 @@ const ThreadSlice = createSlice({
       FetchThreadDetailsIsSuccess: false,
       FetchThreadDetailsIsError: null as null | string | object | unknown,
       FetchThreadDetailsData: {} as ThreadDetails,
+    },
+    CreateInternalNoteState: {
+      CreateInternalNoteIsLoading: false,
+      CreateInternalNoteIsSuccess: false,
+      CreateInternalNoteIsError: null as null | string | object | unknown,
     },
     FetchUserMetadataState: {
       FetchUserMetadataIsLoading: false,
@@ -514,11 +1011,23 @@ const ThreadSlice = createSlice({
       FetchTagsIsError: null as null | string | object | unknown,
       FetchTags: [] as string[],
     },
+    FetchThreadTagOptionsState: {
+      FetchThreadTagOptionsIsLoading: false,
+      FetchThreadTagOptionsIsSuccess: false,
+      FetchThreadTagOptionsIsError: null as null | string | object | unknown,
+      FetchThreadTagOptionsData: [] as ThreadTagOption[],
+    },
     FetchAIInsightState: {
       FetchAIInsightIsLoading: false,
       FetchAIInsightIsSuccess: false,
       FetchAIInsightIsError: null as null | string | object | unknown,
       FetchAIInsightData: {} as AIInsightResponse,
+    },
+    GenerateAIInsightState: {
+      GenerateAIInsightIsLoading: false,
+      GenerateAIInsightIsSuccess: false,
+      GenerateAIInsightIsError: null as null | string | object | unknown,
+      GenerateAIInsightData: {} as AIInsightResponse,
     },
     FetchCartDataState: {
       FetchCartDataIsLoading: false,
@@ -532,21 +1041,56 @@ const ThreadSlice = createSlice({
       FetchFreshdeskTicketIdIsError: null as null | string | object | unknown,
       FetchFreshdeskTicketIdData: [] as ThreadTicketData[],
     },
+    UploadMessageAttachmentsState: {
+      UploadMessageAttachmentsIsLoading: false,
+      UploadMessageAttachmentsIsSuccess: false,
+      UploadMessageAttachmentsIsError: null as null | string | object | unknown,
+    },
+    FetchOrderDataState: {
+      FetchOrderDataIsLoading: false,
+      FetchOrderDataIsSuccess: false,
+      FetchOrderDataIsError: null as null | string | object | unknown,
+      FetchOrderData: [] as OrderData[],
+    },
+    FetchProductsState: {
+      FetchProductsIsLoading: false,
+      FetchProductsIsSuccess: false,
+      FetchProductsIsError: null as null | string | object | unknown,
+      FetchProductsData: null as ProductListResponse | null,
+    },
   },
   reducers: {},
   extraReducers: (builder) => {
     builder
-      .addCase(FetchThreads.pending, (state) => {
+      .addCase(FetchThreadCounts.pending, (state) => {
+        state.FetchThreadCountsState.FetchThreadCountsIsLoading = true;
+        state.FetchThreadCountsState.FetchThreadCountsIsError = null;
+        state.FetchThreadCountsState.FetchThreadCountsIsSuccess = false;
+      })
+      .addCase(FetchThreadCounts.fulfilled, (state, action) => {
+        state.FetchThreadCountsState.FetchThreadCountsIsLoading = false;
+        state.FetchThreadCountsState.FetchThreadCountsData = action.payload;
+        state.FetchThreadCountsState.FetchThreadCountsIsSuccess = true;
+      })
+      .addCase(FetchThreadCounts.rejected, (state, action) => {
+        state.FetchThreadCountsState.FetchThreadCountsIsLoading = false;
+        state.FetchThreadCountsState.FetchThreadCountsIsError = action.payload;
+        state.FetchThreadCountsState.FetchThreadCountsIsSuccess = false;
+      })
+      .addCase(FetchThreads.pending, (state, action) => {
+        if (action.meta.arg?.skipListStateUpdate) return;
         state.FetchThreadsState.FetchThreadsIsLoading = true;
         state.FetchThreadsState.FetchThreadsIsError = null;
         state.FetchThreadsState.FetchThreadsIsSuccess = false;
       })
       .addCase(FetchThreads.fulfilled, (state, action) => {
+        if (action.meta.arg?.skipListStateUpdate) return;
         state.FetchThreadsState.FetchThreadsIsLoading = false;
         state.FetchThreadsState.FetchThreadsListData = action.payload;
         state.FetchThreadsState.FetchThreadsIsSuccess = true;
       })
       .addCase(FetchThreads.rejected, (state, action) => {
+        if (action.meta.arg?.skipListStateUpdate) return;
         state.FetchThreadsState.FetchThreadsIsLoading = false;
         state.FetchThreadsState.FetchThreadsIsError = action.payload;
         state.FetchThreadsState.FetchThreadsIsSuccess = false;
@@ -566,6 +1110,21 @@ const ThreadSlice = createSlice({
         state.FetchThreadDetailsState.FetchThreadDetailsIsError =
           action.payload;
         state.FetchThreadDetailsState.FetchThreadDetailsIsSuccess = false;
+      })
+      .addCase(CreateInternalNote.pending, (state) => {
+        state.CreateInternalNoteState.CreateInternalNoteIsLoading = true;
+        state.CreateInternalNoteState.CreateInternalNoteIsError = null;
+        state.CreateInternalNoteState.CreateInternalNoteIsSuccess = false;
+      })
+      .addCase(CreateInternalNote.fulfilled, (state) => {
+        state.CreateInternalNoteState.CreateInternalNoteIsLoading = false;
+        state.CreateInternalNoteState.CreateInternalNoteIsSuccess = true;
+      })
+      .addCase(CreateInternalNote.rejected, (state, action) => {
+        state.CreateInternalNoteState.CreateInternalNoteIsLoading = false;
+        state.CreateInternalNoteState.CreateInternalNoteIsError =
+          action.payload;
+        state.CreateInternalNoteState.CreateInternalNoteIsSuccess = false;
       })
       .addCase(FetchUserMetadata.pending, (state) => {
         state.FetchUserMetadataState.FetchUserMetadataIsLoading = true;
@@ -632,6 +1191,23 @@ const ThreadSlice = createSlice({
         state.FetchTagsState.FetchTagsIsError = action.payload;
         state.FetchTagsState.FetchTagsIsSuccess = false;
       })
+      .addCase(FetchThreadTagOptions.pending, (state) => {
+        state.FetchThreadTagOptionsState.FetchThreadTagOptionsIsLoading = true;
+        state.FetchThreadTagOptionsState.FetchThreadTagOptionsIsError = null;
+        state.FetchThreadTagOptionsState.FetchThreadTagOptionsIsSuccess = false;
+      })
+      .addCase(FetchThreadTagOptions.fulfilled, (state, action) => {
+        state.FetchThreadTagOptionsState.FetchThreadTagOptionsIsLoading = false;
+        state.FetchThreadTagOptionsState.FetchThreadTagOptionsData =
+          action.payload;
+        state.FetchThreadTagOptionsState.FetchThreadTagOptionsIsSuccess = true;
+      })
+      .addCase(FetchThreadTagOptions.rejected, (state, action) => {
+        state.FetchThreadTagOptionsState.FetchThreadTagOptionsIsLoading = false;
+        state.FetchThreadTagOptionsState.FetchThreadTagOptionsIsError =
+          action.payload;
+        state.FetchThreadTagOptionsState.FetchThreadTagOptionsIsSuccess = false;
+      })
       .addCase(FetchAIInsight.pending, (state) => {
         state.FetchAIInsightState.FetchAIInsightIsLoading = true;
         state.FetchAIInsightState.FetchAIInsightIsError = null;
@@ -646,6 +1222,23 @@ const ThreadSlice = createSlice({
         state.FetchAIInsightState.FetchAIInsightIsLoading = false;
         state.FetchAIInsightState.FetchAIInsightIsError = action.payload;
         state.FetchAIInsightState.FetchAIInsightIsSuccess = false;
+      })
+      .addCase(GenerateAIInsight.pending, (state) => {
+        state.GenerateAIInsightState.GenerateAIInsightIsLoading = true;
+        state.GenerateAIInsightState.GenerateAIInsightIsError = null;
+        state.GenerateAIInsightState.GenerateAIInsightIsSuccess = false;
+      })
+      .addCase(GenerateAIInsight.fulfilled, (state, action) => {
+        state.GenerateAIInsightState.GenerateAIInsightIsLoading = false;
+        state.GenerateAIInsightState.GenerateAIInsightData = action.payload;
+        state.GenerateAIInsightState.GenerateAIInsightIsSuccess = true;
+        // The page shows the fetched insights, so the new ones go there too.
+        state.FetchAIInsightState.FetchAIInsightData = action.payload;
+      })
+      .addCase(GenerateAIInsight.rejected, (state, action) => {
+        state.GenerateAIInsightState.GenerateAIInsightIsLoading = false;
+        state.GenerateAIInsightState.GenerateAIInsightIsError = action.payload;
+        state.GenerateAIInsightState.GenerateAIInsightIsSuccess = false;
       })
       .addCase(FetchCart.pending, (state) => {
         state.FetchCartDataState.FetchCartDataIsLoading = true;
@@ -678,6 +1271,52 @@ const ThreadSlice = createSlice({
         state.FetchFreshdeskTicketIdState.FetchFreshdeskTicketIdIsError =
           action.payload;
         state.FetchFreshdeskTicketIdState.FetchFreshdeskTicketIdIsSuccess = false;
+      })
+      .addCase(UploadMessageAttachments.pending, (state) => {
+        state.UploadMessageAttachmentsState.UploadMessageAttachmentsIsLoading = true;
+        state.UploadMessageAttachmentsState.UploadMessageAttachmentsIsError =
+          null;
+        state.UploadMessageAttachmentsState.UploadMessageAttachmentsIsSuccess = false;
+      })
+      .addCase(UploadMessageAttachments.fulfilled, (state) => {
+        state.UploadMessageAttachmentsState.UploadMessageAttachmentsIsLoading = false;
+        state.UploadMessageAttachmentsState.UploadMessageAttachmentsIsSuccess = true;
+      })
+      .addCase(UploadMessageAttachments.rejected, (state, action) => {
+        state.UploadMessageAttachmentsState.UploadMessageAttachmentsIsLoading = false;
+        state.UploadMessageAttachmentsState.UploadMessageAttachmentsIsError =
+          action.payload;
+        state.UploadMessageAttachmentsState.UploadMessageAttachmentsIsSuccess = false;
+      })
+      .addCase(FetchOrders.pending, (state) => {
+        state.FetchOrderDataState.FetchOrderDataIsLoading = true;
+        state.FetchOrderDataState.FetchOrderDataIsError = null;
+        state.FetchOrderDataState.FetchOrderDataIsSuccess = false;
+      })
+      .addCase(FetchOrders.fulfilled, (state, action) => {
+        state.FetchOrderDataState.FetchOrderDataIsLoading = false;
+        state.FetchOrderDataState.FetchOrderData = action.payload;
+        state.FetchOrderDataState.FetchOrderDataIsSuccess = true;
+      })
+      .addCase(FetchOrders.rejected, (state, action) => {
+        state.FetchOrderDataState.FetchOrderDataIsLoading = false;
+        state.FetchOrderDataState.FetchOrderDataIsError = action.payload;
+        state.FetchOrderDataState.FetchOrderDataIsSuccess = false;
+      })
+      .addCase(FetchProducts.pending, (state) => {
+        state.FetchProductsState.FetchProductsIsLoading = true;
+        state.FetchProductsState.FetchProductsIsError = null;
+        state.FetchProductsState.FetchProductsIsSuccess = false;
+      })
+      .addCase(FetchProducts.fulfilled, (state, action) => {
+        state.FetchProductsState.FetchProductsIsLoading = false;
+        state.FetchProductsState.FetchProductsData = action.payload;
+        state.FetchProductsState.FetchProductsIsSuccess = true;
+      })
+      .addCase(FetchProducts.rejected, (state, action) => {
+        state.FetchProductsState.FetchProductsIsLoading = false;
+        state.FetchProductsState.FetchProductsIsError = action.payload;
+        state.FetchProductsState.FetchProductsIsSuccess = false;
       });
   },
 });

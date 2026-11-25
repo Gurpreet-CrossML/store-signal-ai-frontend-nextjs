@@ -1,7 +1,8 @@
 "use client";
 
-import { Pie, PieChart } from "recharts";
+import { Label, Pie, PieChart } from "recharts";
 
+import { InfoIcon } from "@/components/custom/info-icon";
 import {
   Card,
   CardContent,
@@ -17,9 +18,6 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-
-export const description =
-  "A pie chart showing the distribution of customer feedback sentiments (positive, neutral, negative) based on the FetchFeedbackInsights API data.";
 
 const chartConfig = {
   positive: {
@@ -41,16 +39,26 @@ export function SentimentsPieChart({
 }: {
   data: { sentiment: string; score: number; fill: string }[];
 }) {
+  const totalScore = data.reduce((total, item) => total + item.score, 0);
+  const percentageFor = (sentiment: string) => {
+    const score = data.find((item) => item.sentiment === sentiment)?.score ?? 0;
+    return totalScore > 0 ? Math.round((score / totalScore) * 100) : 0;
+  };
+
   return (
     <Card className="flex flex-col">
-      <CardHeader className="items-center pb-0">
-        <CardTitle>Sentiment Distribution</CardTitle>
+      <CardHeader className="items-center">
+        <CardTitle className="flex items-center gap-1.5">
+          Sentiment Distribution
+          <InfoIcon text="Breaks down customer feedback into positive, neutral, and negative sentiment so you can see how customers feel about their interactions overall." />
+        </CardTitle>
         <CardDescription>Customer feedback analysis</CardDescription>
       </CardHeader>
-      <CardContent className="flex-1 pb-0">
+
+      <CardContent className="flex-1">
         <ChartContainer
           config={chartConfig}
-          className="mx-auto aspect-square max-h-[250px]"
+          className="mx-auto aspect-square w-full max-w-[250px]"
         >
           <PieChart>
             <ChartTooltip
@@ -63,10 +71,44 @@ export function SentimentsPieChart({
               nameKey="sentiment"
               innerRadius={60}
               strokeWidth={5}
-            />
+            >
+              <Label
+                content={({ viewBox }) => {
+                  if (!viewBox || !("cx" in viewBox) || !("cy" in viewBox)) {
+                    return null;
+                  }
+
+                  return (
+                    <text x={viewBox.cx} y={viewBox.cy} textAnchor="middle">
+                      <tspan
+                        x={viewBox.cx}
+                        dy="-4"
+                        className="fill-foreground text-2xl font-semibold"
+                      >
+                        {percentageFor("positive")}%
+                      </tspan>
+                      <tspan
+                        x={viewBox.cx}
+                        dy="22"
+                        className="fill-muted-foreground text-xs"
+                      >
+                        Positive
+                      </tspan>
+                    </text>
+                  );
+                }}
+              />
+            </Pie>
             <ChartLegend
-              content={<ChartLegendContent nameKey="sentiment" />}
-              className="-translate-y-2 flex-wrap gap-2 *:basis-1/4 *:justify-center"
+              content={
+                <ChartLegendContent
+                  nameKey="sentiment"
+                  formatter={(label) =>
+                    `${label} ${percentageFor(String(label).toLowerCase())}%`
+                  }
+                  className="-translate-y-2 gap-2 whitespace-nowrap"
+                />
+              }
             />
           </PieChart>
         </ChartContainer>

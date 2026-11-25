@@ -1,4 +1,6 @@
-import { db } from "@/lib/db";
+import { alias } from "drizzle-orm/pg-core";
+import { getDb } from "@/lib/tenant-context";
+import { queueScope, storeIdScope, scopedThreadFilter } from "@/db/access";
 import { FEEDBACK_RATING_VALUES } from "@/lib/config";
 import {
   chatThread,
@@ -6,10 +8,16 @@ import {
   store,
   chatHistory,
   aiInsights,
+  aiInsightsTicketTags,
+  ticketTag,
   chatbotFeedback,
   supportTicket,
   userMetadata,
   sessionResolutionVerdict,
+  chatCustomerorder,
+  chatThreadAssignment,
+  authUser,
+  product,
 } from "@/lib/drizzle/schema";
 import {
   and,
@@ -18,6 +26,7 @@ import {
   desc,
   eq,
   ilike,
+  inArray,
   isNull,
   isNotNull,
   max,
@@ -25,6 +34,39 @@ import {
   sql,
   SQL,
 } from "drizzle-orm";
+import {
+  OrderData,
+  OrderItemData,
+  OrderShippingAddress,
+  ViewedProduct,
+} from "@/redux/api-slice/thread-slice";
+
+/** The agent who closed a thread — a second join of auth_user. */
+const closedByUser = alias(authUser, "closed_by_user");
+
+/**
+ * Name of the agent who closed a thread: their full name, else their email,
+ * else null when no agent closed it (mirrors get_user_display_name).
+ */
+function closedByName(user: {
+  firstName: string | null;
+  lastName: string | null;
+  email: string | null;
+}): string | null {
+  return (
+    `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() ||
+    user.email ||
+    null
+  );
+}
+
+/** A store ticket tag linked to a thread's analysis. */
+export type ThreadTagRecord = {
+  id: number;
+  name: string;
+  color: string;
+  description: string;
+};
 
 /**
  * Filters accepted by the thread list endpoint, mirroring
@@ -32,15 +74,46 @@ import {
  */
 export type ListThreadsFilters = {
   store_code?: string;
-  from?: string; // YYYY-MM-DD
-  to?: string; // YYYY-MM-DD
+  from?: string; // YYYY-MM-DD or ISO 8601 datetime
+  to?: string; // YYYY-MM-DD or ISO 8601 datetime
   is_active?: string;
   search?: string;
   user_type?: string;
   has_ticket?: string;
+  has_order?: string; // thread has a real order attributed to it (Thread.orders)
+  has_agent?: string; // a human agent took the thread over at any point
   has_feedback?: string;
   feedback_rating?: string; // very_bad | bad | neutral | good | excellent
+  tags?: string[]; // ticket-tag names; matches threads linked to ANY of them
+  handled_by?: string; // ai | human
+  channel?: string[]; // whatsapp | web (native/webhook)
+  assignee?: string[]; // auth.User email values
+  need_escalation?: string;
+  before_thread_id?: string; // only threads started before this one
 };
+
+/**
+ * Channel condition on chat_thread, mirroring the UI's derivation: WhatsApp,
+ * or Web for everything else. Unknown values are ignored; `undefined` when no
+ * channel is selected, so callers add no filter.
+ */
+export function threadChannelScope(
+  channels: string | string[] = [],
+): SQL | undefined {
+  return or(
+    ...[channels].flat().flatMap((channel) => {
+      if (channel === "whatsapp") {
+        return [eq(chatThread.source, "whatsapp")];
+      }
+      if (channel === "web") {
+        return [
+          sql`(${chatThread.source} IS NULL OR ${chatThread.source} <> 'whatsapp')`,
+        ];
+      }
+      return [];
+    }),
+  );
+}
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -54,31 +127,112 @@ function toDateString(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
+const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function parseDateTimeFilter(
+  value: string,
+  edge: "start" | "end",
+): Date | undefined {
+  // A bare date is an IST calendar day, like Django's created_at__date__range
+  // (TIME_ZONE = "Asia/Kolkata") and the dashboard's localDateRange.
+  if (DATE_ONLY_RE.test(value)) {
+    return new Date(
+      `${value}T${edge === "start" ? "00:00:00.000" : "23:59:59.999"}+05:30`,
+    );
+  }
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+}
+
 type ThreadListRow = {
   id: string;
   name: string | null;
+  source: string | null;
   followup_level: number;
   is_active: boolean;
+  ai_responding: boolean;
+  need_escalation: boolean;
+  escalation_time: string | null;
   total_messages: number;
   created_at: string;
+  last_message_at: string | null;
+  cart_total: string | number;
   ended_at: string | null;
+  customer_id: number | null;
+  customer_segment: string;
   customer_first_name: string | null;
   customer_last_name: string | null;
   customer_email: string | null;
+  customer_phone: string | null;
+  customer_registered_at: string | null;
+  customer_total_spent: string | number | null;
+  customer_orders_count: number | null;
+  customer_past_threads_count: number;
+  chat_handler: string;
+  chat_handler_user_id: number | null;
+  chat_handler_user_first_name: string | null;
+  chat_handler_user_last_name: string | null;
+  chat_handler_user_email: string | null;
 };
 
 export type ThreadListItem = {
   id: string;
   name: string | null;
-  customer: { name: string | null; email: string | null };
+  source: string | null;
+  chat_handler: string;
+  chat_handler_user: { id: number; name: string; email: string } | null;
+  need_escalation: boolean;
+  escalation_time: string | null;
+  /** The customer's segment when they were linked to this chat; kept after. */
+  customer_segment: string;
+  customer: {
+    id: number | null;
+    name: string | null;
+    email: string | null;
+    phone: string;
+    registered_at: string | null;
+    total_spent: string | number | null;
+    orders_count: number | null;
+    past_threads_count: number;
+  };
   followup_level: number;
   is_active: boolean;
+  ai_responding: boolean;
   total_messages: number;
   created_at: string;
+  last_message_at: string | null;
+  cart_total: number;
   ended_at: string | null;
-  tags: string[];
+  tags: ThreadTagRecord[];
   last_message: string;
 };
+
+/** Count active chats and active chats waiting for human support. */
+export async function get_thread_counts(storeCode?: string) {
+  const conditions = [eq(chatThread.isActive, true)];
+  const storeScope = storeIdScope(chatThread.storeId, storeCode);
+  if (storeScope) conditions.push(storeScope);
+  // An agent counts only their own chats and the unassigned queue.
+  const queue = queueScope(chatThread.chatHandlerUserId);
+  if (queue) conditions.push(queue);
+
+  const [counts] = await getDb()
+    .select({
+      active: count(),
+      needsHuman:
+        sql<number>`count(*) filter (where ${chatThread.needEscalation} = true)`.mapWith(
+          Number,
+        ),
+    })
+    .from(chatThread)
+    .where(and(...conditions));
+
+  return counts;
+}
+
+/** Threads the customer started in this store before this one. */
+const pastThreadsCount = sql<number>`CASE WHEN ${chatCustomer.id} IS NOT NULL THEN (SELECT COUNT(*)::int FROM ${chatThread} ct WHERE ct.customer_id = ${chatCustomer.id} AND ct.store_id = ${chatThread.storeId} AND ct.created_at < ${chatThread.createdAt}) ELSE 0 END`;
 
 /**
  * Port of ThreadListAPIView.get_queryset + ThreadListSerializer
@@ -90,8 +244,8 @@ export type ThreadListItem = {
  * build the DRF paginated envelope.
  *
  * Serializer fidelity:
- *   - customer: { name: "first last".strip() | null, email | null }
- *   - tags: AiInsights.tags for the thread (first row) or []
+ *   - customer: { id | null, name: "first last".strip() | null, email | null }
+ *   - tags: the active store ticket tags linked to the thread's analysis, or []
  *   - last_message: latest role="assistant" message text, or "" when none.
  *   - followup_level / is_active / total_messages / created_at / ended_at as-is.
  */
@@ -100,84 +254,8 @@ export async function list_threads(
   page: number,
   pageSize: number,
 ): Promise<{ count: number; results: ThreadListItem[] }> {
-  const conditions: SQL[] = [];
-
-  if (filters.store_code) {
-    conditions.push(eq(store.code, filters.store_code));
-  }
-
-  if (filters.is_active) {
-    conditions.push(
-      eq(chatThread.isActive, filters.is_active.toLowerCase() === "true"),
-    );
-  }
-
-  // Date range on created_at::date, defaulting to the last 30 days (inclusive),
-  // matching the Django view's serializers.DateField()/timezone.now().date() logic.
-  const endDate = filters.to ? filters.to : toDateString(new Date());
-  const startDate = filters.from
-    ? filters.from
-    : toDateString(
-        new Date(
-          new Date(`${endDate}T00:00:00Z`).getTime() - 30 * 24 * 60 * 60 * 1000,
-        ),
-      );
-
-  conditions.push(
-    sql`(${chatThread.createdAt} AT TIME ZONE 'UTC')::date BETWEEN ${startDate} AND ${endDate}`,
-  );
-
-  if (filters.search) {
-    const search = filters.search;
-    const searchConditions: SQL[] = [
-      ilike(chatCustomer.email, `%${search}%`),
-      ilike(chatThread.name, `%${search}%`),
-    ];
-    if (isValidUuid(search)) {
-      searchConditions.push(eq(chatThread.id, search));
-    }
-    const combined = or(...searchConditions);
-    if (combined) conditions.push(combined);
-  }
-
-  if (filters.user_type === "guest") {
-    conditions.push(isNull(chatThread.customerId));
-  } else if (filters.user_type === "logged_in") {
-    conditions.push(isNotNull(chatThread.customerId));
-  }
-
-  // has_ticket / has_feedback are correlated EXISTS subqueries (Django uses
-  // support_tickets__isnull / feedbacks__isnull with .distinct()).
-  if (filters.has_ticket === "true") {
-    conditions.push(
-      sql`EXISTS (SELECT 1 FROM ${supportTicket} WHERE ${supportTicket.threadId} = ${chatThread.id})`,
-    );
-  } else if (filters.has_ticket === "false") {
-    conditions.push(
-      sql`NOT EXISTS (SELECT 1 FROM ${supportTicket} WHERE ${supportTicket.threadId} = ${chatThread.id})`,
-    );
-  }
-
-  // A rating narrows has_feedback to a specific rating; otherwise has_feedback
-  // is the plain existence check.
-  if (
-    filters.feedback_rating &&
-    (FEEDBACK_RATING_VALUES as readonly string[]).includes(
-      filters.feedback_rating,
-    )
-  ) {
-    conditions.push(
-      sql`EXISTS (SELECT 1 FROM ${chatbotFeedback} WHERE ${chatbotFeedback.threadId} = ${chatThread.id} AND ${chatbotFeedback.rating} = ${filters.feedback_rating})`,
-    );
-  } else if (filters.has_feedback === "true") {
-    conditions.push(
-      sql`EXISTS (SELECT 1 FROM ${chatbotFeedback} WHERE ${chatbotFeedback.threadId} = ${chatThread.id})`,
-    );
-  } else if (filters.has_feedback === "false") {
-    conditions.push(
-      sql`NOT EXISTS (SELECT 1 FROM ${chatbotFeedback} WHERE ${chatbotFeedback.threadId} = ${chatThread.id})`,
-    );
-  }
+  const db = getDb();
+  const conditions = buildThreadConditions(filters);
 
   const whereClause = conditions.length ? and(...conditions) : undefined;
 
@@ -186,6 +264,7 @@ export async function list_threads(
     .select({ value: sql<number>`count(DISTINCT ${chatThread.id})` })
     .from(chatThread)
     .leftJoin(chatCustomer, eq(chatThread.customerId, chatCustomer.id))
+    .leftJoin(authUser, eq(chatThread.chatHandlerUserId, authUser.id))
     .innerJoin(store, eq(chatThread.storeId, store.id))
     .where(whereClause);
 
@@ -201,25 +280,57 @@ export async function list_threads(
     .select({
       id: chatThread.id,
       name: chatThread.name,
+      source: chatThread.source,
       followup_level: chatThread.followupLevel,
       is_active: chatThread.isActive,
+      ai_responding: chatThread.aiResponding,
+      need_escalation: chatThread.needEscalation,
+      escalation_time: chatThread.escalationTime,
       total_messages: count(chatHistory.id),
       created_at: chatThread.createdAt,
+      last_message_at: max(chatHistory.createdAt),
+      cart_total: sql<
+        string | number
+      >`COALESCE((SELECT NULLIF(regexp_replace(${userMetadata.updatedCartData}->>'total', '[^0-9.]', '', 'g'), '')::numeric FROM ${userMetadata} WHERE ${userMetadata.threadId} = ${chatThread.id} LIMIT 1), 0)`,
       ended_at: chatThread.endedAt,
+      customer_id: chatCustomer.id,
+      // The chat's own copy, taken when it got its customer; never the
+      // customer's current segment, so old chats keep what they had.
+      customer_segment: chatThread.customerSegment,
       customer_first_name: chatCustomer.firstName,
       customer_last_name: chatCustomer.lastName,
       customer_email: chatCustomer.email,
+      customer_phone: chatCustomer.phone,
+      customer_registered_at: chatCustomer.registeredAt,
+      customer_total_spent: chatCustomer.totalSpent,
+      customer_orders_count: chatCustomer.ordersCount,
+      customer_past_threads_count: pastThreadsCount,
+      chat_handler: chatThread.chatHandler,
+      chat_handler_user_id: authUser.id,
+      chat_handler_user_first_name: authUser.firstName,
+      chat_handler_user_last_name: authUser.lastName,
+      chat_handler_user_email: authUser.email,
     })
     .from(chatThread)
     .leftJoin(chatCustomer, eq(chatThread.customerId, chatCustomer.id))
+    .leftJoin(authUser, eq(chatThread.chatHandlerUserId, authUser.id))
     .innerJoin(store, eq(chatThread.storeId, store.id))
     .leftJoin(chatHistory, eq(chatHistory.threadId, chatThread.id))
     .where(whereClause)
     .groupBy(
       chatThread.id,
+      chatCustomer.id,
       chatCustomer.firstName,
       chatCustomer.lastName,
       chatCustomer.email,
+      chatCustomer.phone,
+      chatCustomer.registeredAt,
+      chatCustomer.totalSpent,
+      chatCustomer.ordersCount,
+      authUser.id,
+      authUser.firstName,
+      authUser.lastName,
+      authUser.email,
     )
     .orderBy(desc(chatThread.createdAt))
     .limit(pageSize)
@@ -227,21 +338,40 @@ export async function list_threads(
 
   const threadIds = rows.map((r) => r.id);
 
-  // tags: AiInsights.tags per thread (OneToOne -> at most one row).
+  // tags: the store ticket tags linked to each thread's analysis (active
+  // ones only), alphabetically.
   const tagRows = threadIds.length
     ? await db
-        .select({ threadId: aiInsights.threadId, tags: aiInsights.tags })
+        .select({
+          threadId: aiInsights.threadId,
+          id: ticketTag.id,
+          name: ticketTag.name,
+          color: ticketTag.color,
+          description: ticketTag.description,
+        })
         .from(aiInsights)
-        .where(
-          sql`${aiInsights.threadId} IN (${sql.join(
-            threadIds.map((id) => sql`${id}`),
-            sql`, `,
-          )})`,
+        .innerJoin(chatThread, eq(chatThread.id, aiInsights.threadId))
+        .innerJoin(
+          aiInsightsTicketTags,
+          eq(aiInsightsTicketTags.aiinsightsId, aiInsights.id),
         )
+        .innerJoin(
+          ticketTag,
+          and(
+            eq(ticketTag.id, aiInsightsTicketTags.tickettagId),
+            eq(ticketTag.isActive, true),
+            // A thread only ever shows its own store's tags.
+            eq(ticketTag.storeId, chatThread.storeId),
+          ),
+        )
+        .where(inArray(aiInsights.threadId, threadIds))
+        .orderBy(asc(ticketTag.name))
     : [];
-  const tagsByThread = new Map<string, string[]>();
-  for (const t of tagRows) {
-    tagsByThread.set(t.threadId, (t.tags as string[]) ?? []);
+  const tagsByThread = new Map<string, ThreadTagRecord[]>();
+  for (const { threadId, ...tag } of tagRows) {
+    const tags = tagsByThread.get(threadId) ?? [];
+    tags.push(tag);
+    tagsByThread.set(threadId, tags);
   }
 
   // last_message: latest assistant message text per thread.
@@ -278,17 +408,46 @@ export async function list_threads(
     const customerName = hasCustomer
       ? `${row.customer_first_name ?? ""} ${row.customer_last_name ?? ""}`.trim()
       : null;
+    const handlerName =
+      row.chat_handler_user_id != null
+        ? `${row.chat_handler_user_first_name ?? ""} ${row.chat_handler_user_last_name ?? ""}`.trim() ||
+          row.chat_handler_user_email ||
+          "Agent"
+        : "";
     return {
       id: row.id,
       name: row.name,
+      source: row.source,
+      chat_handler: row.chat_handler,
+      chat_handler_user:
+        row.chat_handler_user_id != null
+          ? {
+              id: row.chat_handler_user_id,
+              name: handlerName,
+              email: row.chat_handler_user_email ?? "",
+            }
+          : null,
+      need_escalation: row.need_escalation,
+      escalation_time: row.escalation_time,
+      customer_segment: row.customer_segment,
       customer: {
+        // Null for a guest — the UI keys its tickets lookup off this.
+        id: row.customer_id ?? null,
         name: hasCustomer ? customerName : null,
         email: row.customer_email,
+        phone: row.customer_phone || "",
+        registered_at: row.customer_registered_at,
+        total_spent: row.customer_total_spent,
+        orders_count: row.customer_orders_count,
+        past_threads_count: Number(row.customer_past_threads_count ?? 0),
       },
       followup_level: row.followup_level,
       is_active: row.is_active,
+      ai_responding: row.ai_responding,
       total_messages: Number(row.total_messages),
       created_at: row.created_at,
+      last_message_at: row.last_message_at,
+      cart_total: Number(row.cart_total ?? 0),
       ended_at: row.ended_at,
       tags: tagsByThread.get(row.id) ?? [],
       last_message: lastMessageByThread.get(row.id) ?? "",
@@ -298,12 +457,302 @@ export async function list_threads(
   return { count: total, results };
 }
 
+/**
+ * The WHERE conditions for a thread list, shared by the list itself and by
+ * the tag counts above it, so both always agree on which threads are in play.
+ * The query must join chat_customer, auth_user (handler) and store.
+ *
+ * @param includeTags - false leaves the tag filter out, for counting tags
+ *   against every other filter (selecting a tag must not hide its siblings).
+ */
+function buildThreadConditions(
+  filters: ListThreadsFilters,
+  includeTags = true,
+): SQL[] {
+  const conditions: SQL[] = [];
+
+  const storeScope = storeIdScope(chatThread.storeId, filters.store_code);
+  if (storeScope) conditions.push(storeScope);
+
+  // An agent lists only their own chats and the unassigned queue.
+  const queue = queueScope(chatThread.chatHandlerUserId);
+  if (queue) conditions.push(queue);
+
+  if (filters.is_active) {
+    conditions.push(
+      eq(chatThread.isActive, filters.is_active.toLowerCase() === "true"),
+    );
+  }
+
+  if (filters.need_escalation) {
+    conditions.push(
+      eq(
+        chatThread.needEscalation,
+        filters.need_escalation.toLowerCase() === "true",
+      ),
+    );
+  }
+
+  // Date/time range on created_at, defaulting to the last 30 days (inclusive).
+  const now = new Date();
+  const todayUtc = new Date(`${toDateString(now)}T00:00:00Z`);
+  const defaultEnd = new Date(`${toDateString(now)}T23:59:59.999Z`);
+
+  const parsedFrom = filters.from
+    ? parseDateTimeFilter(filters.from, "start")
+    : undefined;
+  const parsedTo = filters.to
+    ? parseDateTimeFilter(filters.to, "end")
+    : undefined;
+
+  const endDate = parsedTo ?? defaultEnd;
+  let startDate: Date;
+
+  if (parsedFrom) {
+    startDate = parsedFrom;
+  } else if (parsedTo) {
+    if (DATE_ONLY_RE.test(filters.to!)) {
+      const toDate = new Date(`${filters.to}T00:00:00Z`);
+      startDate = new Date(toDate.getTime() - 30 * 24 * 60 * 60 * 1000);
+    } else {
+      startDate = new Date(endDate.getTime() - 30 * 24 * 60 * 60 * 1000);
+    }
+  } else {
+    startDate = new Date(todayUtc.getTime() - 30 * 24 * 60 * 60 * 1000);
+  }
+
+  conditions.push(
+    sql`${chatThread.createdAt} BETWEEN ${startDate} AND ${endDate}`,
+  );
+
+  if (filters.search) {
+    const search = filters.search;
+    const searchConditions: SQL[] = [
+      ilike(chatCustomer.email, `%${search}%`),
+      ilike(chatThread.name, `%${search}%`),
+      sql`EXISTS (SELECT 1 FROM ${chatHistory} WHERE ${chatHistory.threadId} = ${chatThread.id} AND ${chatHistory.message} ILIKE ${`%${search}%`})`,
+      // The customer's own name, which is stored split across two columns
+      // and so isn't covered by the thread name above.
+      sql`concat_ws(' ', ${chatCustomer.firstName}, ${chatCustomer.lastName}) ILIKE ${`%${search}%`}`,
+      // Orders hang off the customer, not the thread, so match with an
+      // EXISTS rather than joining and multiplying the thread rows.
+      sql`EXISTS (
+        SELECT 1 FROM ${chatCustomerorder} o
+        WHERE o.customer_id = ${chatThread.customerId}
+          AND (o.order_number ILIKE ${`%${search}%`} OR o.order_id ILIKE ${`%${search}%`})
+      )`,
+    ];
+    // Phones are stored as digits only ("919876543210"), so "+91 98765
+    // 43210" or a bare "9876543210" is reduced the same way first. A term
+    // with no digits (a name) skips this, or it would match every phone.
+    const phoneDigits = search.replace(/\D/g, "").replace(/^00/, "");
+    if (phoneDigits) {
+      searchConditions.push(ilike(chatCustomer.phone, `%${phoneDigits}%`));
+    }
+    if (isValidUuid(search)) {
+      searchConditions.push(eq(chatThread.id, search));
+    }
+    const combined = or(...searchConditions);
+    if (combined) conditions.push(combined);
+  }
+
+  if (filters.user_type === "guest") {
+    conditions.push(isNull(chatThread.customerId));
+  } else if (filters.user_type === "logged_in") {
+    conditions.push(isNotNull(chatThread.customerId));
+  }
+
+  if (filters.before_thread_id && isValidUuid(filters.before_thread_id)) {
+    conditions.push(
+      sql`${chatThread.createdAt} < (SELECT created_at FROM ${chatThread} WHERE id = ${filters.before_thread_id})`,
+    );
+  }
+
+  if (filters.handled_by === "ai" || filters.handled_by === "human") {
+    conditions.push(eq(chatThread.chatHandler, filters.handled_by));
+  }
+
+  const channelCondition = threadChannelScope(filters.channel);
+  if (channelCondition) conditions.push(channelCondition);
+
+  if (filters.assignee?.length) {
+    conditions.push(inArray(authUser.email, filters.assignee));
+  }
+
+  // has_ticket / has_feedback are correlated EXISTS subqueries (Django uses
+  // support_tickets__isnull / feedbacks__isnull with .distinct()).
+  if (filters.has_ticket === "true") {
+    conditions.push(
+      sql`EXISTS (SELECT 1 FROM ${supportTicket} WHERE ${supportTicket.threadId} = ${chatThread.id})`,
+    );
+  } else if (filters.has_ticket === "false") {
+    conditions.push(
+      sql`NOT EXISTS (SELECT 1 FROM ${supportTicket} WHERE ${supportTicket.threadId} = ${chatThread.id})`,
+    );
+  }
+
+  // has_order: thread has a real order attributed to it via the Thread.orders
+  // M2M through-table (set at ingestion by chat.utils.find_linked_thread).
+  if (filters.has_order === "true") {
+    conditions.push(
+      sql`EXISTS (SELECT 1 FROM chat_thread_orders cto WHERE cto.thread_id = ${chatThread.id})`,
+    );
+  } else if (filters.has_order === "false") {
+    conditions.push(
+      sql`NOT EXISTS (SELECT 1 FROM chat_thread_orders cto WHERE cto.thread_id = ${chatThread.id})`,
+    );
+  }
+
+  // has_agent: a takeover records to_agent_id, so this still finds threads
+  // later handed back to the AI (unlike handled_by, the current handler).
+  if (filters.has_agent === "true") {
+    conditions.push(
+      sql`EXISTS (SELECT 1 FROM chat_thread_assignment cta WHERE cta.thread_id = ${chatThread.id} AND cta.to_agent_id IS NOT NULL)`,
+    );
+  } else if (filters.has_agent === "false") {
+    conditions.push(
+      sql`NOT EXISTS (SELECT 1 FROM chat_thread_assignment cta WHERE cta.thread_id = ${chatThread.id} AND cta.to_agent_id IS NOT NULL)`,
+    );
+  }
+
+  // A rating narrows has_feedback to a specific rating; otherwise has_feedback
+  // is the plain existence check.
+  if (
+    filters.feedback_rating &&
+    (FEEDBACK_RATING_VALUES as readonly string[]).includes(
+      filters.feedback_rating,
+    )
+  ) {
+    conditions.push(
+      sql`EXISTS (SELECT 1 FROM ${chatbotFeedback} WHERE ${chatbotFeedback.threadId} = ${chatThread.id} AND ${chatbotFeedback.rating} = ${filters.feedback_rating})`,
+    );
+  } else if (filters.has_feedback === "true") {
+    conditions.push(
+      sql`EXISTS (SELECT 1 FROM ${chatbotFeedback} WHERE ${chatbotFeedback.threadId} = ${chatThread.id})`,
+    );
+  } else if (filters.has_feedback === "false") {
+    conditions.push(
+      sql`NOT EXISTS (SELECT 1 FROM ${chatbotFeedback} WHERE ${chatbotFeedback.threadId} = ${chatThread.id})`,
+    );
+  }
+
+  // Any-match: a thread qualifies if its analysis is linked to at least one
+  // of the selected tags. Names compare case-insensitively (they are unique
+  // per store that way), and only active tags count, like the options list.
+  if (includeTags && filters.tags && filters.tags.length) {
+    const names = filters.tags
+      .map((tag) => tag.trim().toLowerCase())
+      .filter(Boolean);
+    if (names.length) {
+      conditions.push(
+        sql`EXISTS (
+          SELECT 1 FROM ${aiInsights}
+          INNER JOIN ${aiInsightsTicketTags} ON ${aiInsightsTicketTags.aiinsightsId} = ${aiInsights.id}
+          INNER JOIN ${ticketTag} ON ${ticketTag.id} = ${aiInsightsTicketTags.tickettagId}
+          WHERE ${aiInsights.threadId} = ${chatThread.id}
+            AND ${ticketTag.isActive}
+            AND ${ticketTag.storeId} = ${chatThread.storeId}
+            AND lower(${ticketTag.name}) IN (${sql.join(
+              names.map((name) => sql`${name}`),
+              sql`, `,
+            )})
+        )`,
+      );
+    }
+  }
+
+  return conditions;
+}
+
+export type ThreadTagOption = ThreadTagRecord & {
+  /** Threads in the current result set that carry the tag. */
+  count: number;
+};
+
+/**
+ * The tags to offer as chips above the Threads list: the store's active
+ * ticket tags that at least one thread carries, each with how many threads.
+ *
+ * Counted against every filter except the tag filter itself, so the counts
+ * follow the search, dates and the rest, while picking a tag leaves its
+ * siblings visible. Most used first.
+ */
+export async function list_thread_tags(
+  filters: ListThreadsFilters,
+): Promise<ThreadTagOption[]> {
+  const db = getDb();
+  const conditions = buildThreadConditions(filters, false);
+
+  // Tags are per store, so a view spanning several stores holds one "Refund"
+  // per store. They are one chip: grouped by name, which is also what the tag
+  // filter matches on.
+  const rows = await db
+    .select({
+      id: sql<number>`min(${ticketTag.id})`,
+      name: sql<string>`min(${ticketTag.name})`,
+      color: sql<string>`min(${ticketTag.color})`,
+      description: sql<string>`min(${ticketTag.description})`,
+      count: sql<number>`count(DISTINCT ${chatThread.id})`,
+    })
+    .from(chatThread)
+    .leftJoin(chatCustomer, eq(chatThread.customerId, chatCustomer.id))
+    .leftJoin(authUser, eq(chatThread.chatHandlerUserId, authUser.id))
+    .innerJoin(store, eq(chatThread.storeId, store.id))
+    .innerJoin(aiInsights, eq(aiInsights.threadId, chatThread.id))
+    .innerJoin(
+      aiInsightsTicketTags,
+      eq(aiInsightsTicketTags.aiinsightsId, aiInsights.id),
+    )
+    .innerJoin(
+      ticketTag,
+      and(
+        eq(ticketTag.id, aiInsightsTicketTags.tickettagId),
+        eq(ticketTag.isActive, true),
+        eq(ticketTag.storeId, chatThread.storeId),
+      ),
+    )
+    .where(conditions.length ? and(...conditions) : undefined)
+    .groupBy(sql`lower(${ticketTag.name})`)
+    .orderBy(
+      desc(sql`count(DISTINCT ${chatThread.id})`),
+      asc(sql`min(${ticketTag.name})`),
+    );
+
+  return rows.map((row) => ({
+    ...row,
+    id: Number(row.id),
+    count: Number(row.count),
+  }));
+}
+
 type ThreadMessage = {
   id: string | number;
   role: string;
   message: string;
   json_content: unknown;
   image_url: unknown;
+  message_type: string;
+  agent_name: string | null;
+  confidence: number | null;
+  source_used: string;
+  feedback_rating: string | null;
+  feedback_message: string | null;
+  created_at: string;
+  messaged_by: string;
+  messaged_by_email: string | null;
+};
+
+/** One handover of a chat; a null agent name means the AI. */
+export type HandlerEvent = {
+  id: number;
+  action: string;
+  from_agent_name: string | null;
+  to_agent_name: string | null;
+  assigned_by_name: string | null;
+  from_agent_email: string | null;
+  to_agent_email: string | null;
+  assigned_by_email: string | null;
+  after_message_id: number | null;
   created_at: string;
 };
 
@@ -313,11 +762,23 @@ export type ThreadDetail =
       store: number;
       name: string | null;
       is_active: boolean;
+      close_reason: string | null;
+      closed_by_type: string | null;
+      closed_by_name: string | null;
+      ai_responding: boolean;
       followup_level: number;
       total_messages: number;
       last_message_at: string | null;
       customer_name: string | null;
       customer_email: string | null;
+      /** The customer's segment when they were linked to this chat; kept after. */
+      customer_segment: string;
+      /** Identity, plus the phone and past-thread count the side panel shows. */
+      customer: {
+        id: number;
+        phone: string;
+        past_threads_count: number;
+      } | null;
       verdict: {
         verdict: string;
         reason: string | null;
@@ -331,6 +792,7 @@ export type ThreadDetail =
       created_at: string;
       ended_at: string | null;
       messages: ThreadMessage[];
+      handler_events: HandlerEvent[];
     }
   | Record<string, never>;
 
@@ -354,22 +816,36 @@ export async function get_thread_details(
   thread_id: string,
   limit: number | null,
 ): Promise<ThreadDetail> {
+  const db = getDb();
   const threadRows = await db
     .select({
       id: chatThread.id,
       storeId: chatThread.storeId,
       name: chatThread.name,
       is_active: chatThread.isActive,
+      close_reason: chatThread.closeReason,
+      closed_by_type: chatThread.closedByType,
+      closed_by_first_name: closedByUser.firstName,
+      closed_by_last_name: closedByUser.lastName,
+      closed_by_email: closedByUser.email,
+      ai_responding: chatThread.aiResponding,
       followup_level: chatThread.followupLevel,
       created_at: chatThread.createdAt,
       ended_at: chatThread.endedAt,
+      customer_id: chatCustomer.id,
+      // The chat's own copy, taken when it got its customer; never the
+      // customer's current segment, so old chats keep what they had.
+      customer_segment: chatThread.customerSegment,
       customer_first_name: chatCustomer.firstName,
       customer_last_name: chatCustomer.lastName,
       customer_email: chatCustomer.email,
+      customer_phone: chatCustomer.phone,
+      customer_past_threads_count: pastThreadsCount,
     })
     .from(chatThread)
     .leftJoin(chatCustomer, eq(chatThread.customerId, chatCustomer.id))
-    .where(eq(chatThread.id, thread_id))
+    .leftJoin(closedByUser, eq(chatThread.closedById, closedByUser.id))
+    .where(scopedThreadFilter(chatThread.id, thread_id))
     .limit(1);
 
   if (threadRows.length === 0) {
@@ -396,9 +872,34 @@ export async function get_thread_details(
       message: chatHistory.message,
       json_content: chatHistory.jsonContent,
       image_url: chatHistory.imageUrl,
+      message_type: chatHistory.messageType,
+      agent_name: sql<string | null>`case
+        when nullif(concat_ws(' ', ${authUser.firstName}, ${authUser.lastName}), '') is not null
+          then concat_ws(' ', ${authUser.firstName}, ${authUser.lastName})
+        else nullif(${authUser.username}, '')
+      end`,
+      confidence: chatHistory.confidence,
+      source_used: chatHistory.sourceUsed,
+      feedback_rating: sql<string | null>`(
+        SELECT ${chatbotFeedback.rating} FROM ${chatbotFeedback}
+        WHERE ${chatbotFeedback.chatMessageId} = ${chatHistory.id}
+        ORDER BY ${chatbotFeedback.createdAt} DESC
+        LIMIT 1
+      )`,
+      feedback_message: sql<string | null>`(
+        SELECT ${chatbotFeedback.feedbackMessage} FROM ${chatbotFeedback}
+        WHERE ${chatbotFeedback.chatMessageId} = ${chatHistory.id}
+        ORDER BY ${chatbotFeedback.createdAt} DESC
+        LIMIT 1
+      )`,
       created_at: chatHistory.createdAt,
+      messaged_by_first_name: authUser.firstName,
+      messaged_by_last_name: authUser.lastName,
+      messaged_by_username: authUser.username,
+      messaged_by_email: authUser.email,
     })
     .from(chatHistory)
+    .leftJoin(authUser, eq(chatHistory.messagedById, authUser.id))
     .where(eq(chatHistory.threadId, thread_id))
     .orderBy(
       limit != null ? desc(chatHistory.createdAt) : asc(chatHistory.createdAt),
@@ -411,8 +912,60 @@ export async function get_thread_details(
     message: m.message,
     json_content: m.json_content,
     image_url: m.image_url,
+    message_type: m.message_type,
+    agent_name: m.agent_name,
+    confidence: m.confidence,
+    source_used: m.source_used,
+    feedback_rating: m.feedback_rating,
+    feedback_message: m.feedback_message,
     created_at: m.created_at,
+    messaged_by:
+      [m.messaged_by_first_name, m.messaged_by_last_name]
+        .filter(Boolean)
+        .join(" ") ||
+      m.messaged_by_username ||
+      "",
+    messaged_by_email: m.messaged_by_email,
   }));
+
+  const assignmentRows = await db
+    .select({
+      id: chatThreadAssignment.id,
+      action: chatThreadAssignment.action,
+      metadata: chatThreadAssignment.metadata,
+      after_message_id: chatThreadAssignment.afterMessageId,
+      created_at: chatThreadAssignment.assignedAt,
+    })
+    .from(chatThreadAssignment)
+    .where(eq(chatThreadAssignment.threadId, thread_id))
+    .orderBy(
+      asc(chatThreadAssignment.assignedAt),
+      asc(chatThreadAssignment.id),
+    );
+
+  // The Django side stores a snapshot of each user in `metadata`; show the
+  // name, falling back to the email, and null for the AI.
+  const snapshotName = (snapshot: unknown): string | null => {
+    const user = snapshot as { name?: string; email?: string } | null;
+    return user ? user.name?.trim() || user.email || null : null;
+  };
+  const snapshotEmail = (snapshot: unknown): string | null =>
+    (snapshot as { email?: string } | null)?.email ?? null;
+  const handler_events: HandlerEvent[] = assignmentRows.map((a) => {
+    const meta = (a.metadata ?? {}) as Record<string, unknown>;
+    return {
+      id: a.id,
+      action: a.action,
+      from_agent_name: snapshotName(meta.from_agent),
+      to_agent_name: snapshotName(meta.to_agent),
+      assigned_by_name: snapshotName(meta.assigned_by),
+      from_agent_email: snapshotEmail(meta.from_agent),
+      to_agent_email: snapshotEmail(meta.to_agent),
+      assigned_by_email: snapshotEmail(meta.assigned_by),
+      after_message_id: a.after_message_id,
+      created_at: a.created_at,
+    };
+  });
 
   const verdictRows = await db
     .select({
@@ -453,15 +1006,35 @@ export async function get_thread_details(
     store: Number(t.storeId),
     name: t.name,
     is_active: t.is_active,
+    close_reason: t.close_reason,
+    closed_by_type: t.closed_by_type,
+    closed_by_name: closedByName({
+      firstName: t.closed_by_first_name,
+      lastName: t.closed_by_last_name,
+      email: t.closed_by_email,
+    }),
+    ai_responding: t.ai_responding,
     followup_level: t.followup_level,
     total_messages,
     last_message_at,
     customer_name,
     customer_email: t.customer_email,
+    customer_segment: t.customer_segment,
+    // The id was always selected by the join but never returned, so the
+    // client's `customer?.id` reads were silently undefined.
+    customer:
+      t.customer_id != null
+        ? {
+            id: Number(t.customer_id),
+            phone: t.customer_phone || "",
+            past_threads_count: Number(t.customer_past_threads_count ?? 0),
+          }
+        : null,
     verdict,
     created_at: t.created_at,
     ended_at: t.ended_at,
     messages,
+    handler_events,
   };
 }
 
@@ -470,7 +1043,7 @@ export type AiInsightsData = {
   overperforming_cases: unknown;
   resolution_success_rate: string;
   reason_for_score: string;
-  tags: unknown;
+  tags: string[];
   ai_insight_required: boolean;
   next_actionable_items: unknown;
 };
@@ -483,30 +1056,62 @@ export type AiInsightsData = {
 export async function get_ai_insights(
   thread_id: string,
 ): Promise<AiInsightsData | null> {
+  const db = getDb();
   const rows = await db
     .select({
       underperforming_cases: aiInsights.underperformingCases,
       overperforming_cases: aiInsights.overperformingCases,
       resolution_success_rate: aiInsights.resolutionSuccessRate,
       reason_for_score: aiInsights.reasonForScore,
-      tags: aiInsights.tags,
+      id: aiInsights.id,
       ai_insight_required: aiInsights.aiInsightRequired,
       next_actionable_items: aiInsights.nextActionableItems,
     })
     .from(aiInsights)
-    .where(eq(aiInsights.threadId, thread_id))
+    .where(
+      and(
+        scopedThreadFilter(aiInsights.threadId, thread_id),
+        // A row with no summary holds only the auto-generated tags: not insights yet.
+        isNotNull(aiInsights.conversationSummary),
+      ),
+    )
     .limit(1);
 
   if (rows.length === 0) return null;
-  return rows[0];
+  const { id, ...insights } = rows[0];
+  const tags = await tagsOfInsight(id);
+  return { ...insights, tags: tags.map((tag) => tag.name) };
 }
 
-type CartItem = unknown;
+/** A thread analysis's active ticket tags, alphabetically. */
+async function tagsOfInsight(insightId: number): Promise<ThreadTagRecord[]> {
+  const db = getDb();
+  return db
+    .select({
+      id: ticketTag.id,
+      name: ticketTag.name,
+      color: ticketTag.color,
+      description: ticketTag.description,
+    })
+    .from(aiInsightsTicketTags)
+    .innerJoin(aiInsights, eq(aiInsights.id, aiInsightsTicketTags.aiinsightsId))
+    .innerJoin(chatThread, eq(chatThread.id, aiInsights.threadId))
+    .innerJoin(
+      ticketTag,
+      and(
+        eq(ticketTag.id, aiInsightsTicketTags.tickettagId),
+        eq(ticketTag.isActive, true),
+        eq(ticketTag.storeId, chatThread.storeId),
+      ),
+    )
+    .where(eq(aiInsightsTicketTags.aiinsightsId, insightId))
+    .orderBy(asc(ticketTag.name));
+}
 
 export type CartData = {
   thread_id: string;
-  initial_cart_data: CartItem;
-  updated_cart_data: CartItem;
+  initial_cart_data: unknown;
+  updated_cart_data: unknown;
 };
 
 /**
@@ -518,6 +1123,7 @@ export type CartData = {
 export async function get_cart_data(
   thread_id: string,
 ): Promise<CartData | null> {
+  const db = getDb();
   const rows = await db
     .select({
       thread_id: userMetadata.threadId,
@@ -525,7 +1131,7 @@ export async function get_cart_data(
       updated_cart_data: userMetadata.updatedCartData,
     })
     .from(userMetadata)
-    .where(eq(userMetadata.threadId, thread_id))
+    .where(scopedThreadFilter(userMetadata.threadId, thread_id))
     .limit(1);
 
   if (rows.length === 0) return null;
@@ -540,12 +1146,13 @@ export async function get_cart_data(
 export async function get_conversation_summary(
   thread_id: string,
 ): Promise<{ conversation_summary: string }> {
+  const db = getDb();
   const FALLBACK = "No summary available for this conversation.";
 
   const threadRows = await db
     .select({ id: chatThread.id })
     .from(chatThread)
-    .where(eq(chatThread.id, thread_id))
+    .where(scopedThreadFilter(chatThread.id, thread_id))
     .limit(1);
 
   if (threadRows.length === 0) {
@@ -553,10 +1160,10 @@ export async function get_conversation_summary(
   }
 
   const rows = await db
-    .select({ conversation_summary: chatbotFeedback.conversationSummary })
-    .from(chatbotFeedback)
-    .where(eq(chatbotFeedback.threadId, thread_id))
-    .orderBy(desc(chatbotFeedback.createdAt))
+    .select({ conversation_summary: aiInsights.conversationSummary })
+    .from(aiInsights)
+    .where(scopedThreadFilter(aiInsights.threadId, thread_id))
+    .orderBy(desc(aiInsights.createdAt))
     .limit(1);
 
   const summary =
@@ -586,6 +1193,7 @@ export type FeedbackEntry = {
 export async function get_feedback_sequence(
   thread_id: string,
 ): Promise<{ feedback: FeedbackEntry | null }> {
+  const db = getDb();
   const rows = await db
     .select({
       id: chatbotFeedback.id,
@@ -594,7 +1202,7 @@ export async function get_feedback_sequence(
       created_at: chatbotFeedback.createdAt,
     })
     .from(chatbotFeedback)
-    .where(eq(chatbotFeedback.threadId, thread_id))
+    .where(scopedThreadFilter(chatbotFeedback.threadId, thread_id))
     .orderBy(desc(chatbotFeedback.createdAt))
     .limit(1);
 
@@ -603,20 +1211,20 @@ export async function get_feedback_sequence(
 
 /**
  * Port of TagsSerializer.
- * Returns AiInsights.tags for the thread (first row) or [].
+ * Returns the active store ticket tags linked to the thread's analysis, or [].
+ * Full records, not bare names, so the chips can carry the tag's colour.
  */
 export async function get_thread_tags(
   thread_id: string,
-): Promise<{ tags: string[] }> {
+): Promise<{ tags: ThreadTagRecord[] }> {
+  const db = getDb();
   const rows = await db
-    .select({ tags: aiInsights.tags })
+    .select({ id: aiInsights.id })
     .from(aiInsights)
-    .where(eq(aiInsights.threadId, thread_id))
+    .where(scopedThreadFilter(aiInsights.threadId, thread_id))
     .limit(1);
 
-  const tags =
-    rows.length && rows[0].tags != null ? (rows[0].tags as string[]) : [];
-  return { tags };
+  return { tags: rows.length ? await tagsOfInsight(rows[0].id) : [] };
 }
 
 export type UserMetadataData = {
@@ -627,6 +1235,7 @@ export type UserMetadataData = {
   device_type: string | null;
   browser: string | null;
   os: string | null;
+  viewed_products: ViewedProduct[];
 };
 
 /**
@@ -634,12 +1243,15 @@ export type UserMetadataData = {
  * Returns the latest UserMetadata row (order_by -created_at) for the thread.
  * thread_id is write_only on the serializer, so it is NOT in the read output;
  * read fields are: id, customer_name, geo_location, ip_address, device_type,
- * browser, os.
+ * browser, os, viewed_products — the last resolved here from the platform
+ * ids the widget stores to the products they are, in viewing order; ids
+ * not in the store's catalog are dropped.
  * Returns null when none -> route serializes a None instance (empty object).
  */
 export async function get_user_metadata(
   thread_id: string,
 ): Promise<UserMetadataData | null> {
+  const db = getDb();
   const rows = await db
     .select({
       id: userMetadata.id,
@@ -649,12 +1261,110 @@ export async function get_user_metadata(
       device_type: userMetadata.deviceType,
       browser: userMetadata.browser,
       os: userMetadata.os,
+      viewed_products: userMetadata.viewedProducts,
     })
     .from(userMetadata)
-    .where(eq(userMetadata.threadId, thread_id))
+    .where(scopedThreadFilter(userMetadata.threadId, thread_id))
     .orderBy(desc(userMetadata.createdAt))
     .limit(1);
 
   if (rows.length === 0) return null;
-  return { ...rows[0], id: Number(rows[0].id) };
+
+  // The widget posts whatever the storefront left in localStorage, so drop
+  // repeats and anything that is not a bigint id before it reaches SQL.
+  const viewedIds = [
+    ...new Set((rows[0].viewed_products as string[]).map(Number)),
+  ].filter(Number.isSafeInteger);
+  const viewed = viewedIds.length
+    ? await db
+        .select({
+          external_id: product.externalId,
+          name: product.name,
+          url: product.url,
+          images: product.images,
+          price: product.price,
+          sale_price: product.salePrice,
+          currency: store.currency,
+        })
+        .from(product)
+        .innerJoin(chatThread, eq(chatThread.storeId, product.storeId))
+        .innerJoin(store, eq(store.id, chatThread.storeId))
+        .where(
+          and(
+            eq(chatThread.id, thread_id),
+            inArray(product.externalId, viewedIds),
+          ),
+        )
+    : [];
+  const byId = new Map(viewed.map((row) => [row.external_id, row]));
+
+  return {
+    ...rows[0],
+    id: Number(rows[0].id),
+    viewed_products: viewedIds.flatMap((viewedId) => {
+      const row = byId.get(viewedId);
+      if (!row) return [];
+      const images = row.images as { url: string }[];
+      return [
+        {
+          id: String(row.external_id),
+          name: row.name,
+          url: row.url,
+          image: images[0]?.url ?? "",
+          price: row.sale_price ?? row.price,
+          currency: row.currency,
+        },
+      ];
+    }),
+  };
+}
+
+export async function get_order_data(thread_id: string): Promise<OrderData[]> {
+  const db = getDb();
+
+  // Scoped like every thread lookup: the caller's stores, and for a support
+  // agent only chats they hold or nobody holds.
+  const thread = await db
+    .select({ customerId: chatThread.customerId })
+    .from(chatThread)
+    .where(scopedThreadFilter(chatThread.id, thread_id))
+    .then((rows) => rows[0]);
+
+  if (!thread?.customerId) {
+    return [];
+  }
+
+  const orderRows = await db
+    .select({
+      id: chatCustomerorder.id,
+      order_id: chatCustomerorder.orderId,
+      order_number: chatCustomerorder.orderNumber,
+      created_at: chatCustomerorder.createdAt,
+      total_price: chatCustomerorder.totalPrice,
+      financial_status: chatCustomerorder.financialStatus,
+      fulfillment_status: chatCustomerorder.fulfillmentStatus,
+      gateway: chatCustomerorder.gateway,
+      shipping_address: chatCustomerorder.shippingAddress,
+      customer_phone: chatCustomerorder.customerPhone,
+      currency: chatCustomerorder.currency,
+      items: chatCustomerorder.items,
+      subtotal_price: chatCustomerorder.subtotalPrice,
+      total_tax: chatCustomerorder.totalTax,
+      total_shipping: chatCustomerorder.totalShipping,
+      total_discounts: chatCustomerorder.totalDiscounts,
+      shipping_method: chatCustomerorder.shippingMethod,
+    })
+    .from(chatCustomerorder)
+    .where(eq(chatCustomerorder.customerId, thread.customerId))
+    .orderBy(desc(chatCustomerorder.createdAt));
+
+  if (orderRows.length === 0) {
+    return [];
+  }
+
+  return orderRows.map((row) => ({
+    ...row,
+    shipping_address: row.shipping_address as OrderShippingAddress,
+    items: row.items as OrderItemData[],
+  }));
 }

@@ -4,6 +4,34 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* "Desktop layout": from 1024px up, except a portrait screen up to 1100px.
+   An iPad Pro 12.9" held upright is exactly 1024px wide — the same as a
+   small laptop or an iPad on its side — but with a tall, narrow canvas where
+   a docked sidebar and a side-by-side list/detail leave each pane cramped.
+   Those get the tablet layout, like the iPad Pro 11" (834px), while a 1024px
+   landscape screen keeps the desktop one. Mirrors BELOW_LG_QUERY in
+   src/hooks/use-narrow-viewport.ts — keep the two in step. */
+@custom-variant desktop {
+  @media (min-width: 1101px), (min-width: 1024px) and (orientation: landscape) {
+    @slot;
+  }
+}
+
+/* Height of the phone top bar (see MobileTopBar). Zero from `md` up, where
+   the docked sidebar replaces it. Screens that fill the viewport use
+   `h-app-screen` so the bar does not push them past the bottom edge. */
+:root {
+  --app-topbar-height: 3.5rem;
+}
+@media (min-width: 768px) {
+  :root {
+    --app-topbar-height: 0px;
+  }
+}
+@utility h-app-screen {
+  height: calc(100svh - var(--app-topbar-height));
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -53,8 +81,8 @@
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.491 0.27 292.581);
-  --primary-foreground: oklch(0.969 0.016 293.756);
+  --primary: oklch(0.496 0.265 301.924);
+  --primary-foreground: oklch(0.977 0.014 308.299);
   --secondary: oklch(0.967 0.001 286.375);
   --secondary-foreground: oklch(0.21 0.006 285.885);
   --muted: oklch(0.97 0 0);
@@ -65,16 +93,16 @@
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.811 0.111 293.571);
-  --chart-2: oklch(0.606 0.25 292.717);
-  --chart-3: oklch(0.541 0.281 293.009);
-  --chart-4: oklch(0.491 0.27 292.581);
-  --chart-5: oklch(0.432 0.232 292.759);
-  --radius: 0;
+  --chart-1: oklch(0.827 0.119 306.383);
+  --chart-2: oklch(0.627 0.265 303.9);
+  --chart-3: oklch(0.558 0.288 302.321);
+  --chart-4: oklch(0.496 0.265 301.924);
+  --chart-5: oklch(0.438 0.218 303.724);
+  --radius: 0.45rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.541 0.281 293.009);
-  --sidebar-primary-foreground: oklch(0.969 0.016 293.756);
+  --sidebar-primary: oklch(0.558 0.288 302.321);
+  --sidebar-primary-foreground: oklch(0.977 0.014 308.299);
   --sidebar-accent: oklch(0.97 0 0);
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
@@ -90,8 +118,8 @@
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.432 0.232 292.759);
-  --primary-foreground: oklch(0.969 0.016 293.756);
+  --primary: oklch(0.438 0.218 303.724);
+  --primary-foreground: oklch(0.977 0.014 308.299);
   --secondary: oklch(0.274 0.006 286.033);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
@@ -102,15 +130,15 @@
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.811 0.111 293.571);
-  --chart-2: oklch(0.606 0.25 292.717);
-  --chart-3: oklch(0.541 0.281 293.009);
-  --chart-4: oklch(0.491 0.27 292.581);
-  --chart-5: oklch(0.432 0.232 292.759);
+  --chart-1: oklch(0.827 0.119 306.383);
+  --chart-2: oklch(0.627 0.265 303.9);
+  --chart-3: oklch(0.558 0.288 302.321);
+  --chart-4: oklch(0.496 0.265 301.924);
+  --chart-5: oklch(0.438 0.218 303.724);
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.606 0.25 292.717);
-  --sidebar-primary-foreground: oklch(0.969 0.016 293.756);
+  --sidebar-primary: oklch(0.627 0.265 303.9);
+  --sidebar-primary-foreground: oklch(0.977 0.014 308.299);
   --sidebar-accent: oklch(0.269 0 0);
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
@@ -133,6 +161,36 @@
   }
 }
 
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(97, 97, 97, 0.5) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 5px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: rgba(97, 97, 97, 0.5);
+  border-radius: 20px;
+  border: transparent;
+}
+
+/* Unlayered on purpose: the universal `*` scrollbar rules above are unlayered
+   too, so they beat any Tailwind utility (utilities live in a layer). */
+.scrollbar-hidden {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}
+
 div.editor-container__editor > ol,
 div.editor-container__editor > ul,
 div.editor-container__editor > menu,
@@ -153,4 +211,227 @@ div#markdown-answers menu {
   list-style: revert;
   margin: revert;
   padding: revert;
+}
+
+div#markdown-message-bubble > ol,
+div#markdown-message-bubble > ul,
+div#markdown-message-bubble > menu,
+div#markdown-message-bubble > h1,
+div#markdown-message-bubble > h2,
+div#markdown-message-bubble > h3,
+div#markdown-message-bubble > h4,
+div#markdown-message-bubble > h5,
+div#markdown-message-bubble > h6,
+div#markdown-message-bubble > a,
+div#markdown-message-bubble ol,
+div#markdown-message-bubble ul,
+div#markdown-message-bubble menu,
+div#markdown-message-bubble h1,
+div#markdown-message-bubble h2,
+div#markdown-message-bubble h3,
+div#markdown-message-bubble h4,
+div#markdown-message-bubble h5,
+div#markdown-message-bubble h6,
+div#markdown-message-bubble a {
+  list-style: revert;
+  margin: revert;
+  padding: revert;
+  font-size: revert;
+  font-weight: revert;
+  text-decoration: revert;
+}
+
+/* ---------------------------------------------------------------------------
+   Rich text editor (Tiptap)
+
+   Tiptap ships no styles of its own, and Tailwind's preflight zeroes headings,
+   lists and paragraph margins — so the editable area restores the few
+   elements the toolbar can produce. Paragraph spacing and type step match the
+   message bubbles: what you type and what you then read are the same text.
+   `.rich-text-render` gives the same look to Markdown shown in a message, so
+   a list or heading reads the way it did in the editor.
+--------------------------------------------------------------------------- */
+.rich-text-shell .rich-text-content {
+  min-height: var(--rich-text-min-height, 6rem);
+  /* Past this the text scrolls inside the box; the toolbar stays put. */
+  max-height: var(--rich-text-max-height, min(20rem, 40vh));
+  overflow-y: auto;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.5rem;
+  outline: none;
+  overflow-wrap: anywhere;
+}
+
+:is(.rich-text-content, .rich-text-render) p {
+  margin: 0 0 0.5rem;
+}
+
+/* A place a suggestion is about (the `marks` prop): its text tinted, then
+   how many suggestions point at it. */
+.rich-text-content .rich-text-flag {
+  padding: 0.0625rem 0.125rem;
+  border-radius: 0.25rem;
+  background: color-mix(in oklab, var(--destructive) 10%, transparent);
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+.rich-text-content .rich-text-flag-count {
+  margin-left: 0.375rem;
+  font-size: 0.75rem;
+  color: var(--destructive);
+  user-select: none;
+}
+
+:is(.rich-text-content, .rich-text-render) > :last-child {
+  margin-bottom: 0;
+}
+
+:is(.rich-text-content, .rich-text-render) h1,
+:is(.rich-text-content, .rich-text-render) h2,
+:is(.rich-text-content, .rich-text-render) h3,
+:is(.rich-text-content, .rich-text-render) h4,
+:is(.rich-text-content, .rich-text-render) h5,
+:is(.rich-text-content, .rich-text-render) h6 {
+  margin: 0.75rem 0 0.5rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+:is(.rich-text-content, .rich-text-render) > :first-child {
+  margin-top: 0;
+}
+
+:is(.rich-text-content, .rich-text-render) h1 {
+  font-size: 1.5rem;
+}
+:is(.rich-text-content, .rich-text-render) h2 {
+  font-size: 1.25rem;
+}
+:is(.rich-text-content, .rich-text-render) h3 {
+  font-size: 1.125rem;
+}
+:is(.rich-text-content, .rich-text-render) h4,
+:is(.rich-text-content, .rich-text-render) h5,
+:is(.rich-text-content, .rich-text-render) h6 {
+  font-size: 1rem;
+}
+
+:is(.rich-text-content, .rich-text-render) ul,
+:is(.rich-text-content, .rich-text-render) ol {
+  margin: 0 0 0.5rem;
+  padding-left: 1.5rem;
+}
+:is(.rich-text-content, .rich-text-render) ul {
+  list-style: disc;
+}
+:is(.rich-text-content, .rich-text-render) ol {
+  list-style: decimal;
+}
+:is(.rich-text-content, .rich-text-render) li > p {
+  margin-bottom: 0;
+}
+
+/* Text indented by four spaces or more (common in a pasted or emailed message)
+   is shown by Markdown as a code block. Left to its default it never wraps, so
+   a long line runs out of its message bubble; wrap it inside the bubble. */
+.rich-text-render pre {
+  margin: 0 0 0.5rem;
+  max-width: 100%;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.rich-text-render code {
+  overflow-wrap: anywhere;
+}
+
+/* Placeholder is drawn from the empty first paragraph's data attribute. */
+.rich-text-content p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: var(--muted-foreground);
+}
+
+/* Article editor: what the shared rich-text styles above don't cover. */
+.article-content {
+  min-height: 20rem;
+  font-size: 1rem;
+  line-height: 1.75rem;
+  outline: none;
+  overflow-wrap: anywhere;
+}
+
+.article-content p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: var(--muted-foreground);
+}
+
+.article-content blockquote {
+  margin: 0.75rem 0;
+  border-left: 3px solid var(--primary);
+  border-radius: 0.25rem;
+  background: color-mix(in oklab, var(--primary) 6%, transparent);
+  padding: 0.5rem 0.875rem;
+}
+
+.article-content a {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.article-content code {
+  border-radius: 0.25rem;
+  background: var(--muted);
+  padding: 0.1rem 0.3rem;
+  font-size: 0.875em;
+}
+
+.article-content hr {
+  margin: 1.25rem 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+
+.article-content table {
+  margin: 0.75rem 0;
+  border-collapse: collapse;
+  table-layout: fixed;
+  width: 100%;
+  max-width: 40rem;
+  overflow: hidden;
+}
+
+.article-content th,
+.article-content td {
+  position: relative;
+  border: 1px solid var(--border);
+  padding: 0.375rem 0.625rem;
+  vertical-align: top;
+  font-size: 0.875rem;
+  line-height: 1.375rem;
+}
+
+.article-content th {
+  background: var(--muted);
+  font-weight: 600;
+  text-align: left;
+}
+
+.article-content td > p,
+.article-content th > p {
+  margin: 0;
+}
+
+.article-content .selectedCell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: color-mix(in oklab, var(--primary) 12%, transparent);
+  pointer-events: none;
 }

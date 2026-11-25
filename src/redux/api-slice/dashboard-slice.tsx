@@ -4,9 +4,21 @@ import { isAxiosError } from "axios";
 import { toast } from "sonner";
 import { ENDPOINTS } from "@/lib/config";
 
+// A KPI card's change vs. the previous period, e.g. "▲ 3.2 pts".
+export type MetricTrend = {
+  delta: number;
+  direction: "up" | "down" | "flat";
+  variant: "success" | "danger" | "neutral";
+  label: string;
+};
+
 export type FeedbackInsightsResponse = {
-  avg_handle_time: { value: number; unit: "seconds" | "minutes" };
-  csat_score: { percentage: number };
+  avg_handle_time: {
+    value: number;
+    unit: "seconds" | "minutes";
+    trend: MetricTrend;
+  };
+  csat_score: { percentage: number; trend: MetricTrend };
   feedback_distribution: {
     positive: { value: number };
     neutral: { value: number };
@@ -20,19 +32,31 @@ export type FeedbackInsightsResponse = {
 
 export type EngagementResponse = {
   total_threads: number;
+  active_threads: number;
+  closed_threads: number;
+  total_threads_trend: MetricTrend;
   sessions_resolved: number;
   avg_response_time_seconds: number;
+  avg_response_time_trend: MetricTrend;
+};
+
+type RateWithTrend = {
+  count: number;
+  total: number;
+  percentage: number;
+  trend: MetricTrend;
 };
 
 export type OperationalEfficiencyResponse = {
-  bot_resolution_rate: { percentage: number };
-  escalation_rate: { percentage: number };
+  bot_resolution_rate: RateWithTrend;
+  escalation_rate: RateWithTrend;
 };
 
 export type ConversionRateResponse = {
   percentage: number;
   converted_count: number;
   total_count: number;
+  trend: MetricTrend;
 };
 
 export type UserMatrixResponse = {
@@ -42,7 +66,10 @@ export type UserMatrixResponse = {
 
 export type ConversationHistoryPoint = {
   label: string;
-  value: number;
+  value: number | null;
+  range_label?: string;
+  previous: number | null;
+  previous_label: string | null;
 };
 
 export type ConversationHistoryResponse = {
@@ -51,6 +78,59 @@ export type ConversationHistoryResponse = {
   to_dt: string;
   points: ConversationHistoryPoint[];
 };
+
+export type ChatOrderFunnelStep = {
+  label: string;
+  count: number;
+  percentage: number;
+};
+
+export type ChatOrderFunnelResponse = {
+  funnel: Record<
+    | "chat_started"
+    | "viewed_product"
+    | "added_to_cart"
+    | "checkout_link"
+    | "order_placed",
+    ChatOrderFunnelStep
+  >;
+  sankey: {
+    nodes: { name: string }[];
+    links: { source: number; target: number; value: number }[];
+  };
+  ai_revenue: {
+    currency: string;
+    symbol: string;
+    amount: number;
+    orders: number;
+    display: string;
+  }[];
+  attribution_window_hours: number;
+};
+
+// Filters every dashboard widget is fetched with.
+export type DashboardFilterArgs = {
+  storeCode: string;
+  from?: string;
+  to?: string;
+  channel?: string;
+  silent?: boolean;
+  // Skip the server's short dashboard cache (the Refresh button).
+  fresh?: boolean;
+};
+
+// axios drops undefined values, so unset filters fall back to server defaults.
+const dashboardParams = ({
+  storeCode,
+  from,
+  to,
+  channel,
+}: DashboardFilterArgs) => ({
+  store_code: storeCode,
+  from,
+  to,
+  channel,
+});
 
 export const FetchFeedbackInsights = createAsyncThunk(
   "FetchFeedbackInsights",
@@ -66,13 +146,13 @@ export const FetchFeedbackInsights = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch feedback insights, please try again later.",
+      toast.error("Couldn't fetch feedback insights.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch feedback insights.",
+      );
     }
   },
 );
@@ -91,13 +171,13 @@ export const FetchConversation = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch conversation data, please try again later.",
+      toast.error("Couldn't fetch conversation data.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch conversation data.",
+      );
     }
   },
 );
@@ -116,13 +196,13 @@ export const FetchEngagement = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch engagement data, please try again later.",
+      toast.error("Couldn't fetch engagement data.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch engagement data.",
+      );
     }
   },
 );
@@ -141,13 +221,13 @@ export const FetchOperationalEfficiency = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch operational efficiency data, please try again later.",
+      toast.error("Couldn't fetch operational efficiency data.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch operational efficiency data.",
+      );
     }
   },
 );
@@ -166,13 +246,13 @@ export const FetchUserMatrix = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch user matrix data, please try again later.",
+      toast.error("Couldn't fetch user matrix data.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch user matrix data.",
+      );
     }
   },
 );
@@ -191,13 +271,13 @@ export const FetchConversionRate = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch conversion rate data, please try again later.",
+      toast.error("Couldn't fetch conversion rate data.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch conversion rate data.",
+      );
     }
   },
 );
@@ -216,13 +296,13 @@ export const FetchQueryCategoryInsights = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch query category insights, please try again later.",
+      toast.error("Couldn't fetch query category insights.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch query category insights.",
+      );
     }
   },
 );
@@ -230,10 +310,7 @@ export const FetchQueryCategoryInsights = createAsyncThunk(
 export const FetchConversationHistory = createAsyncThunk(
   "FetchConversationHistory",
   async (
-    args: {
-      storeCode: string;
-      from?: string;
-      to?: string;
+    args: DashboardFilterArgs & {
       granularity?: string;
       aggregated?: boolean;
     },
@@ -241,7 +318,14 @@ export const FetchConversationHistory = createAsyncThunk(
   ) => {
     try {
       const response = await axiosInstance.get(
-        `${ENDPOINTS.fetchConversationHistory()}?store_code=${args.storeCode}&from=${args.from}&to=${args.to}&granularity=${args.granularity}&aggregated=${args.aggregated}`,
+        ENDPOINTS.fetchConversationHistory(),
+        {
+          params: {
+            ...dashboardParams(args),
+            granularity: args.granularity,
+            aggregated: args.aggregated,
+          },
+        },
       );
       const data = response.data.data;
 
@@ -250,13 +334,68 @@ export const FetchConversationHistory = createAsyncThunk(
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
 
-      toast.error("Uh oh! Something went wrong.", {
-        description:
-          data?.message ||
-          "Unable to fetch conversation history, please try again later.",
+      toast.error("Couldn't fetch conversation history.", {
+        description: data?.message || "Please try again later.",
       });
 
-      return thunkAPI.rejectWithValue(data || "Something went wrong");
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch conversation history.",
+      );
+    }
+  },
+);
+
+export const FetchChatOrderFunnel = createAsyncThunk(
+  "FetchChatOrderFunnel",
+  async (args: DashboardFilterArgs, thunkAPI) => {
+    try {
+      const response = await axiosInstance.get(
+        ENDPOINTS.fetchChatOrderFunnel(),
+        { params: dashboardParams(args), useBackend: true },
+      );
+      return response.data.data as ChatOrderFunnelResponse;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Couldn't fetch chat to order funnel.", {
+        description: data?.message || "Please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch chat to order funnel.",
+      );
+    }
+  },
+);
+
+// Consolidated dashboard payload (one request) — fanned out into the existing
+// per-widget state below so the dashboard selectors don't change.
+type DashboardSummaryResponse = {
+  feedback_insights: FeedbackInsightsResponse | null;
+  engagements: EngagementResponse | null;
+  operational_efficiency: OperationalEfficiencyResponse | null;
+  user_matrix: UserMatrixResponse | null;
+  conversion_rate: ConversionRateResponse | null;
+};
+
+export const FetchDashboard = createAsyncThunk(
+  "FetchDashboard",
+  async (args: DashboardFilterArgs, thunkAPI) => {
+    try {
+      const response = await axiosInstance.get(ENDPOINTS.fetchDashboard(), {
+        params: { ...dashboardParams(args), fresh: args.fresh ? 1 : undefined },
+      });
+      return response.data.data as DashboardSummaryResponse;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Couldn't fetch dashboard data.", {
+        description: data?.message || "Please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch dashboard data.");
     }
   },
 );
@@ -313,6 +452,12 @@ const DashboardSlice = createSlice({
       FetchConversationHistoryIsError: null as null | string | object,
       FetchConversationHistoryData: null as null | ConversationHistoryResponse,
     },
+    FetchChatOrderFunnelState: {
+      FetchChatOrderFunnelIsLoading: false,
+      FetchChatOrderFunnelIsSuccess: false,
+      FetchChatOrderFunnelIsError: null as null | string | object,
+      FetchChatOrderFunnelData: null as null | ChatOrderFunnelResponse,
+    },
   },
   reducers: {},
   extraReducers: (builder) => {
@@ -333,7 +478,7 @@ const DashboardSlice = createSlice({
         state.FetchFeedbackInsightsState.FetchFeedbackInsightsIsLoading = false;
         state.FetchFeedbackInsightsState.FetchFeedbackInsightsIsSuccess = false;
         state.FetchFeedbackInsightsState.FetchFeedbackInsightsIsError =
-          action.payload || "Something went wrong";
+          action.payload || "Couldn't fetch feedback insights.";
       })
       // Conversation Data
       .addCase(FetchConversation.pending, (state) => {
@@ -350,7 +495,7 @@ const DashboardSlice = createSlice({
         state.FetchConversationDataState.FetchConversationDataIsLoading = false;
         state.FetchConversationDataState.FetchConversationDataIsSuccess = false;
         state.FetchConversationDataState.FetchConversationDataIsError =
-          action.payload || "Something went wrong";
+          action.payload || "Couldn't fetch conversation data.";
       })
       // Engagement Data
       .addCase(FetchEngagement.pending, (state) => {
@@ -367,7 +512,7 @@ const DashboardSlice = createSlice({
         state.FetchEngagementDataState.FetchEngagementDataIsLoading = false;
         state.FetchEngagementDataState.FetchEngagementDataIsSuccess = false;
         state.FetchEngagementDataState.FetchEngagementDataIsError =
-          action.payload || "Something went wrong";
+          action.payload || "Couldn't fetch engagement data.";
       })
       // Operational Efficiency Data
       .addCase(FetchOperationalEfficiency.pending, (state) => {
@@ -386,7 +531,7 @@ const DashboardSlice = createSlice({
         state.FetchOperationalEfficiencyDataState.FetchOperationalEfficiencyDataIsLoading = false;
         state.FetchOperationalEfficiencyDataState.FetchOperationalEfficiencyDataIsSuccess = false;
         state.FetchOperationalEfficiencyDataState.FetchOperationalEfficiencyDataIsError =
-          action.payload || "Something went wrong";
+          action.payload || "Couldn't fetch operational efficiency data.";
       })
       // User Matrix
       .addCase(FetchUserMatrix.pending, (state) => {
@@ -403,7 +548,7 @@ const DashboardSlice = createSlice({
         state.FetchUserMatrixState.FetchUserMatrixIsLoading = false;
         state.FetchUserMatrixState.FetchUserMatrixIsSuccess = false;
         state.FetchUserMatrixState.FetchUserMatrixIsError =
-          action.payload || "Something went wrong";
+          action.payload || "Couldn't fetch user matrix data.";
       })
       // Conversion Rate Data
       .addCase(FetchConversionRate.pending, (state) => {
@@ -422,7 +567,7 @@ const DashboardSlice = createSlice({
         state.FetchConversionRateDataState.FetchConversionRateDataIsLoading = false;
         state.FetchConversionRateDataState.FetchConversionRateDataIsSuccess = false;
         state.FetchConversionRateDataState.FetchConversionRateDataIsError =
-          action.payload || "Something went wrong";
+          action.payload || "Couldn't fetch conversion rate data.";
       })
       // Query Category Insights
       .addCase(FetchQueryCategoryInsights.pending, (state) => {
@@ -441,7 +586,7 @@ const DashboardSlice = createSlice({
         state.FetchQueryCategoryInsightsState.FetchQueryCategoryInsightsIsLoading = false;
         state.FetchQueryCategoryInsightsState.FetchQueryCategoryInsightsIsSuccess = false;
         state.FetchQueryCategoryInsightsState.FetchQueryCategoryInsightsIsError =
-          action.payload || "Something went wrong";
+          action.payload || "Couldn't fetch query category insights.";
       })
       // Conversation History
       .addCase(FetchConversationHistory.pending, (state) => {
@@ -460,7 +605,80 @@ const DashboardSlice = createSlice({
         state.FetchConversationHistoryState.FetchConversationHistoryIsLoading = false;
         state.FetchConversationHistoryState.FetchConversationHistoryIsSuccess = false;
         state.FetchConversationHistoryState.FetchConversationHistoryIsError =
-          action.payload || "Something went wrong";
+          action.payload || "Couldn't fetch conversation history.";
+      })
+      // Chat to Order Funnel
+      .addCase(FetchChatOrderFunnel.pending, (state) => {
+        state.FetchChatOrderFunnelState.FetchChatOrderFunnelIsLoading = true;
+        state.FetchChatOrderFunnelState.FetchChatOrderFunnelIsSuccess = false;
+        state.FetchChatOrderFunnelState.FetchChatOrderFunnelIsError = null;
+      })
+      .addCase(FetchChatOrderFunnel.fulfilled, (state, action) => {
+        state.FetchChatOrderFunnelState.FetchChatOrderFunnelIsLoading = false;
+        state.FetchChatOrderFunnelState.FetchChatOrderFunnelIsSuccess = true;
+        state.FetchChatOrderFunnelState.FetchChatOrderFunnelData =
+          action.payload;
+      })
+      .addCase(FetchChatOrderFunnel.rejected, (state, action) => {
+        state.FetchChatOrderFunnelState.FetchChatOrderFunnelIsLoading = false;
+        state.FetchChatOrderFunnelState.FetchChatOrderFunnelIsSuccess = false;
+        state.FetchChatOrderFunnelState.FetchChatOrderFunnelIsError =
+          action.payload || "Couldn't fetch chat to order funnel.";
+      })
+      // Consolidated dashboard: one request fans out into all five widget states.
+      .addCase(FetchDashboard.pending, (state) => {
+        state.FetchFeedbackInsightsState.FetchFeedbackInsightsIsLoading = true;
+        state.FetchFeedbackInsightsState.FetchFeedbackInsightsIsSuccess = false;
+        state.FetchFeedbackInsightsState.FetchFeedbackInsightsIsError = null;
+        state.FetchEngagementDataState.FetchEngagementDataIsLoading = true;
+        state.FetchEngagementDataState.FetchEngagementDataIsSuccess = false;
+        state.FetchEngagementDataState.FetchEngagementDataIsError = null;
+        state.FetchOperationalEfficiencyDataState.FetchOperationalEfficiencyDataIsLoading = true;
+        state.FetchOperationalEfficiencyDataState.FetchOperationalEfficiencyDataIsSuccess = false;
+        state.FetchOperationalEfficiencyDataState.FetchOperationalEfficiencyDataIsError =
+          null;
+        state.FetchUserMatrixState.FetchUserMatrixIsLoading = true;
+        state.FetchUserMatrixState.FetchUserMatrixIsSuccess = false;
+        state.FetchUserMatrixState.FetchUserMatrixIsError = null;
+        state.FetchConversionRateDataState.FetchConversionRateDataIsLoading = true;
+        state.FetchConversionRateDataState.FetchConversionRateDataIsSuccess = false;
+        state.FetchConversionRateDataState.FetchConversionRateDataIsError =
+          null;
+      })
+      .addCase(FetchDashboard.fulfilled, (state, action) => {
+        const d = action.payload;
+        state.FetchFeedbackInsightsState.FetchFeedbackInsightsIsLoading = false;
+        state.FetchFeedbackInsightsState.FetchFeedbackInsightsIsSuccess = true;
+        state.FetchFeedbackInsightsState.FetchFeedbackInsightsData =
+          d.feedback_insights;
+        state.FetchEngagementDataState.FetchEngagementDataIsLoading = false;
+        state.FetchEngagementDataState.FetchEngagementDataIsSuccess = true;
+        state.FetchEngagementDataState.FetchEngagementData = d.engagements;
+        state.FetchOperationalEfficiencyDataState.FetchOperationalEfficiencyDataIsLoading = false;
+        state.FetchOperationalEfficiencyDataState.FetchOperationalEfficiencyDataIsSuccess = true;
+        state.FetchOperationalEfficiencyDataState.FetchOperationalEfficiencyData =
+          d.operational_efficiency;
+        state.FetchUserMatrixState.FetchUserMatrixIsLoading = false;
+        state.FetchUserMatrixState.FetchUserMatrixIsSuccess = true;
+        state.FetchUserMatrixState.FetchUserMatrixData = d.user_matrix;
+        state.FetchConversionRateDataState.FetchConversionRateDataIsLoading = false;
+        state.FetchConversionRateDataState.FetchConversionRateDataIsSuccess = true;
+        state.FetchConversionRateDataState.FetchConversionRateData =
+          d.conversion_rate;
+      })
+      .addCase(FetchDashboard.rejected, (state, action) => {
+        const err = action.payload || "Couldn't load dashboard data.";
+        state.FetchFeedbackInsightsState.FetchFeedbackInsightsIsLoading = false;
+        state.FetchFeedbackInsightsState.FetchFeedbackInsightsIsError = err;
+        state.FetchEngagementDataState.FetchEngagementDataIsLoading = false;
+        state.FetchEngagementDataState.FetchEngagementDataIsError = err;
+        state.FetchOperationalEfficiencyDataState.FetchOperationalEfficiencyDataIsLoading = false;
+        state.FetchOperationalEfficiencyDataState.FetchOperationalEfficiencyDataIsError =
+          err;
+        state.FetchUserMatrixState.FetchUserMatrixIsLoading = false;
+        state.FetchUserMatrixState.FetchUserMatrixIsError = err;
+        state.FetchConversionRateDataState.FetchConversionRateDataIsLoading = false;
+        state.FetchConversionRateDataState.FetchConversionRateDataIsError = err;
       });
   },
 });

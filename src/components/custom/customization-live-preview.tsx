@@ -2,11 +2,14 @@
 
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
+
+import { InfoIcon } from "@/components/custom/info-icon";
 import {
   IconArrowLeft,
   IconExternalLink,
   IconHeadphones,
   IconHome,
+  IconInfoCircle,
   IconMaximize,
   IconMessage,
   IconMessageCircle,
@@ -30,6 +33,9 @@ import type {
   ActionButton,
   QuickLinkItem,
 } from "@/components/custom/customization-types";
+import { DEFAULTS as AI_DEFAULTS } from "@/components/custom/customization-ai-info";
+
+type AiDisclaimer = { title?: string | null; description?: string | null };
 
 type CustomizationLivePreviewProps = {
   storeLabel: string;
@@ -41,6 +47,9 @@ type CustomizationLivePreviewProps = {
   themeVars: React.CSSProperties;
   actionButtons: ActionButton[];
   quickLinks: QuickLinkItem[];
+  aiDisclaimer?: AiDisclaimer | null;
+  /** Old prop name, still accepted until the parent page is updated. */
+  aiInfo?: AiDisclaimer | null;
 };
 
 export default function CustomizationLivePreview({
@@ -53,15 +62,22 @@ export default function CustomizationLivePreview({
   themeVars,
   actionButtons,
   quickLinks,
+  aiDisclaimer,
+  aiInfo,
 }: CustomizationLivePreviewProps) {
   const [previewTab, setPreviewTab] = useState<"home" | "messages">("home");
   const [inputMessage, setInputMessage] = useState("");
+  const [showAiInfo, setShowAiInfo] = useState(false);
+  const ai = aiDisclaimer ?? aiInfo ?? {};
 
   return (
-    <div className="lg:sticky lg:top-6">
+    <div className="desktop:sticky desktop:top-6">
       <Card className="overflow-hidden shadow-lg">
         <CardHeader>
-          <CardTitle>Live Chatbot Preview</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            Live Chatbot Preview
+            <InfoIcon text="A live approximation of the chat widget with your colors, logo, messages, quick actions, and links. Changes appear here as you edit — hit Save Changes to publish them to your store." />
+          </CardTitle>
           <CardDescription>
             Preview for{" "}
             <span className="font-medium text-foreground">{storeLabel}</span>
@@ -104,7 +120,7 @@ export default function CustomizationLivePreview({
                         <div className="space-y-2">
                           {actionButtons.map((button, index) => (
                             <button
-                              key={button.id ?? index}
+                              key={`${button.id ?? "new"}-${index}`}
                               type="button"
                               onClick={() => setPreviewTab("messages")}
                               className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium transition hover:bg-slate-50"
@@ -185,7 +201,7 @@ export default function CustomizationLivePreview({
                   <div className="flex max-h-[65vh] h-[60vh]! flex-col overflow-hidden">
                     <div className="flex-1 overflow-y-auto bg-white p-4">
                       <div
-                        className="w-fit max-w-[86%] rounded-2xl px-4 py-2 text-sm text-slate-900"
+                        className="rich-text-render w-fit max-w-[86%] rounded-2xl px-4 py-2 text-sm text-slate-900"
                         style={{ backgroundColor: secondaryColor }}
                       >
                         <ReactMarkdown>{greetingMessage}</ReactMarkdown>
@@ -240,11 +256,65 @@ export default function CustomizationLivePreview({
                         </div>
                       </div>
                       <p className="mt-2 text-center text-[11px] text-slate-400">
-                        This AI-Chatbot can make mistakes.
+                        This AI-Chatbot can make mistakes.{" "}
+                        <button
+                          type="button"
+                          onClick={() => setShowAiInfo(true)}
+                          className="font-bold text-slate-900 underline"
+                        >
+                          Learn more
+                        </button>
                       </p>
                     </div>
                   </div>
                 </>
+              )}
+
+              {previewTab === "messages" && showAiInfo && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/40 p-4">
+                  <div className="flex w-full max-w-xs max-h-[min(500px,85%)] flex-col overflow-hidden rounded-xl bg-white text-[#111827] shadow-lg">
+                    {/* Header */}
+                    <div className="flex shrink-0 items-center justify-between gap-3 px-4 pt-4 pb-3">
+                      <div className="flex min-w-0 items-center gap-2.5">
+                        <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-gray-200">
+                          <IconInfoCircle className="size-3.5" />
+                        </span>
+
+                        <h3 className="min-w-0 text-base leading-tight font-bold [overflow-wrap:anywhere]">
+                          {ai.title}
+                        </h3>
+                      </div>
+
+                      <button
+                        type="button"
+                        aria-label="Close"
+                        onClick={() => setShowAiInfo(false)}
+                        className="flex size-5 shrink-0 items-center justify-center rounded-full bg-gray-200"
+                      >
+                        <IconX className="size-3.5" />
+                      </button>
+                    </div>
+
+                    {/* Scrollable Description + Button */}
+                    <div className="min-h-0 overflow-x-hidden overflow-y-auto px-4 pb-4">
+                      <div
+                        className="text-sm leading-relaxed [overflow-wrap:anywhere] [&_:is(h1,h2,h3,h4,h5,h6)]:font-bold [&_:is(h1,h2,h3,h4,h5,h6)]:[font-size:revert] [&_ol]:list-decimal [&_ol]:pl-4 [&_p]:mb-2 [&_p:last-child]:mb-0 [&_strong]:font-bold [&_ul]:list-disc [&_ul]:pl-4"
+                        dangerouslySetInnerHTML={{
+                          __html: ai.description ?? "",
+                        }}
+                      />
+
+                      <button
+                        type="button"
+                        onClick={() => setShowAiInfo(false)}
+                        className="mt-4 w-full rounded-lg py-2.5 text-center text-[11px] font-bold text-white"
+                        style={{ backgroundColor: themeColor }}
+                      >
+                        {AI_DEFAULTS.button_label}
+                      </button>
+                    </div>
+                  </div>
+                </div>
               )}
 
               <div className="grid grid-cols-2 border-t border-slate-200 bg-gray-100">

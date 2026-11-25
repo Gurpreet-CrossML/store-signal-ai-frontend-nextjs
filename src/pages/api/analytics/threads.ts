@@ -1,23 +1,25 @@
-import { list_threads, ListThreadsFilters } from "@/db/threads";
+import { list_threads } from "@/db/threads";
+import { parseThreadFilters } from "@/lib/thread-filters";
 import { APIResponse, DEFAULT_API_PAGE_SIZE } from "@/lib/config";
 import { createAPIResponse, createPaginatedResponse } from "@/lib/helpers";
 import type { NextApiRequest, NextApiResponse } from "next";
+import { withTenantRoute } from "@/lib/with-tenant-route";
 
 /**
  * GET /analytics/threads/  ->  ThreadListAPIView (analytics/views.py)
  *
  * Query params: store_code, page, page_size, from, to, search, is_active,
- * user_type, has_ticket, has_feedback, feedback_rating.
+ * user_type, has_ticket, has_order, has_agent, has_feedback, feedback_rating, tags
+ * (comma-separated or repeated), handled_by (ai | human), channel (whatsapp | web).
  *
  * Paginated (DRF PageNumberPagination, default page_size=15). When there are no
  * results, Django sets response_data=None which create_api_response renders as
  * [] for a list GET path; we mirror that by returning [] (not the paginated
  * envelope) in the empty case.
  */
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<APIResponse>,
-) {
+export default withTenantRoute(handler, "conversations");
+
+async function handler(req: NextApiRequest, res: NextApiResponse<APIResponse>) {
   if (req.method !== "GET") {
     return res
       .status(405)
@@ -25,21 +27,10 @@ export default async function handler(
   }
 
   const q = req.query;
+  const filters = parseThreadFilters(q);
+
   const getStr = (v: string | string[] | undefined): string | undefined =>
     Array.isArray(v) ? v[0] : v;
-
-  const filters: ListThreadsFilters = {
-    store_code: getStr(q.store_code),
-    from: getStr(q.from),
-    to: getStr(q.to),
-    is_active: getStr(q.is_active),
-    search: getStr(q.search),
-    user_type: getStr(q.user_type),
-    has_ticket: getStr(q.has_ticket),
-    has_feedback: getStr(q.has_feedback),
-    feedback_rating: getStr(q.feedback_rating),
-  };
-
   const pageParam = getStr(q.page);
   const pageSizeParam = getStr(q.page_size);
 

@@ -1,0 +1,3 @@
+# Build output & vendored assets
+.next/
+global-bundle.pem

@@ -278,6 +278,7 @@ function ChartLegendContent({
   payload,
   verticalAlign = "bottom",
   nameKey,
+  formatter,
 }: React.ComponentProps<"div"> & {
   hideIcon?: boolean;
   nameKey?: string;
@@ -319,7 +320,9 @@ function ChartLegendContent({
                   }}
                 />
               )}
-              {itemConfig?.label}
+              {formatter
+                ? formatter(itemConfig?.label ?? item.value, item, index)
+                : itemConfig?.label}
             </div>
           );
         })}

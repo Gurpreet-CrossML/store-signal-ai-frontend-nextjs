@@ -1,0 +1,446 @@
+import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
+import { axiosInstance } from "@/redux/axios-config";
+import { isAxiosError } from "axios";
+import { toast } from "sonner";
+import { ENDPOINTS } from "@/lib/config";
+import type { StaffRole } from "@/lib/tenant-types";
+
+/**
+ * Company & staff management (Django `/api/tenancy/`). These are Django-owned
+ * auth/provisioning endpoints — not the Drizzle data plane — so GET calls force
+ * the Django backend via `useBackend: true` (writes auto-route to Django).
+ */
+
+export type CompanyProfile = {
+  name: string;
+  schema_name: string;
+  logo: string | null;
+  email: string | null;
+  phone: string | null;
+  street: string | null;
+  // The API returns location primary keys, not nested objects.
+  city: number | null;
+  state: number | null;
+  country: number | null;
+  is_active: boolean;
+};
+
+/** A plain staff user; company admins are not listed or managed here. */
+export type StaffMember = {
+  id: number;
+  email: string;
+  first_name: string;
+  last_name: string;
+  role: StaffRole;
+  is_active: boolean;
+  is_staff: boolean;
+};
+
+/** Editable company profile fields (name/schema_name/is_active are read-only). */
+export type CompanyProfileUpdate = {
+  email?: string;
+  phone?: string;
+  street?: string;
+  city?: number | null;
+  state?: number | null;
+  country?: number | null;
+  logo?: File | null;
+};
+
+export type LocationOption = {
+  id: number;
+  name: string;
+};
+
+function errorMessage(error: unknown, fallback: string): string {
+  const data = isAxiosError(error) ? error.response?.data : undefined;
+  return data?.message || fallback;
+}
+
+export const FetchCompanyProfile = createAsyncThunk(
+  "tenancy/FetchCompanyProfile",
+  async (_: void, thunkAPI) => {
+    try {
+      const res = await axiosInstance.get(ENDPOINTS.fetchCompanyProfile(), {
+        useBackend: true,
+      });
+      return res.data.data as CompanyProfile;
+    } catch (error) {
+      toast.error("Couldn't load company profile.", {
+        description: errorMessage(error, "Please try again later."),
+      });
+      return thunkAPI.rejectWithValue(errorMessage(error, "Failed"));
+    }
+  },
+);
+
+export const UpdateCompanyProfile = createAsyncThunk(
+  "tenancy/UpdateCompanyProfile",
+  async (payload: CompanyProfileUpdate, thunkAPI) => {
+    try {
+      const { logo, ...fields } = payload;
+      let body: FormData | CompanyProfileUpdate;
+      let headers: Record<string, string> | undefined;
+      // PATCH supports multipart for the logo. Use FormData when uploading a new
+      // logo (File) OR removing the current one (logo === null → send an empty
+      // value so the backend clears the FileField). Otherwise a plain JSON patch
+      // of the text fields, leaving the logo untouched.
+      if (
+        (typeof File !== "undefined" && logo instanceof File) ||
+        logo === null
+      ) {
+        const fd = new FormData();
+        // null clears a location (DRF reads "" as null); skipping it would leave
+        // the old state/city saved and fail the server's country/state check.
+        Object.entries(fields).forEach(([k, v]) => {
+          if (v !== undefined) fd.append(k, v === null ? "" : String(v));
+        });
+        fd.append("logo", logo ?? "");
+        body = fd;
+        headers = { "Content-Type": "multipart/form-data" };
+      } else {
+        body = fields;
+      }
+      const res = await axiosInstance.patch(
+        ENDPOINTS.updateCompanyProfile(),
+        body,
+        { headers },
+      );
+      toast.success("Company profile updated.");
+      return res.data.data as CompanyProfile;
+    } catch (error) {
+      toast.error("Couldn't update company profile.", {
+        description: errorMessage(error, "Please try again later."),
+      });
+      const data = isAxiosError(error) ? error.response?.data : undefined;
+      return thunkAPI.rejectWithValue(data || errorMessage(error, "Failed"));
+    }
+  },
+);
+
+export const FetchCountries = createAsyncThunk(
+  "tenancy/FetchCountries",
+  async (_: void, thunkAPI) => {
+    try {
+      const res = await axiosInstance.get(ENDPOINTS.fetchCountries(), {
+        useBackend: true,
+      });
+      return res.data.data as LocationOption[];
+    } catch (error) {
+      return thunkAPI.rejectWithValue(errorMessage(error, "Failed"));
+    }
+  },
+);
+
+export const FetchStates = createAsyncThunk(
+  "tenancy/FetchStates",
+  async (countryId: number, thunkAPI) => {
+    try {
+      const res = await axiosInstance.get(ENDPOINTS.fetchStates(countryId), {
+        useBackend: true,
+      });
+      return res.data.data as LocationOption[];
+    } catch (error) {
+      return thunkAPI.rejectWithValue(errorMessage(error, "Failed"));
+    }
+  },
+);
+
+export const FetchCities = createAsyncThunk(
+  "tenancy/FetchCities",
+  async (stateId: number, thunkAPI) => {
+    try {
+      const res = await axiosInstance.get(ENDPOINTS.fetchCities(stateId), {
+        useBackend: true,
+      });
+      return res.data.data as LocationOption[];
+    } catch (error) {
+      return thunkAPI.rejectWithValue(errorMessage(error, "Failed"));
+    }
+  },
+);
+
+export const FetchStaff = createAsyncThunk(
+  "tenancy/FetchStaff",
+  async (_: void, thunkAPI) => {
+    try {
+      const res = await axiosInstance.get(ENDPOINTS.fetchStaff(), {
+        useBackend: true,
+      });
+      return res.data.data as StaffMember[];
+    } catch (error) {
+      toast.error("Couldn't load staff.", {
+        description: errorMessage(error, "Please try again later."),
+      });
+      return thunkAPI.rejectWithValue(errorMessage(error, "Failed"));
+    }
+  },
+);
+
+/** Who a live chat or helpdesk ticket can be assigned to (the backend filters). */
+export const FetchAssignableStaff = createAsyncThunk(
+  "tenancy/FetchAssignableStaff",
+  async (_: void, thunkAPI) => {
+    try {
+      const res = await axiosInstance.get(ENDPOINTS.fetchAssignableStaff(), {
+        useBackend: true,
+      });
+      return res.data.data as StaffMember[];
+    } catch (error) {
+      toast.error("Couldn't load teammates.", {
+        description: errorMessage(error, "Please try again later."),
+      });
+      return thunkAPI.rejectWithValue(errorMessage(error, "Failed"));
+    }
+  },
+);
+
+export const CreateStaff = createAsyncThunk(
+  "tenancy/CreateStaff",
+  async (
+    payload: {
+      first_name: string;
+      last_name: string;
+      email: string;
+      role: StaffRole;
+    },
+    thunkAPI,
+  ) => {
+    try {
+      const res = await axiosInstance.post(ENDPOINTS.createStaff(), payload);
+      const data = res.data.data as {
+        id: number;
+        email: string;
+        credentials_emailed: boolean;
+      };
+      toast.success("Staff user created.", {
+        description: data.credentials_emailed
+          ? `Login credentials were emailed to ${data.email}.`
+          : `User created, but the credentials email could not be sent.`,
+      });
+      return data;
+    } catch (error) {
+      toast.error("Couldn't create staff user.", {
+        description: errorMessage(error, "Please try again later."),
+      });
+      // The whole body, so the form can put field errors (e.g. a taken
+      // email) under the field that caused them.
+      const body = isAxiosError(error) ? error.response?.data : undefined;
+      return thunkAPI.rejectWithValue(body ?? errorMessage(error, "Failed"));
+    }
+  },
+);
+
+export const UpdateStaff = createAsyncThunk(
+  "tenancy/UpdateStaff",
+  async (
+    payload: { id: number; is_active?: boolean; role?: StaffRole },
+    thunkAPI,
+  ) => {
+    const { id, ...changes } = payload;
+    try {
+      const res = await axiosInstance.patch(ENDPOINTS.updateStaff(id), changes);
+      toast.success(
+        changes.role
+          ? "Role updated."
+          : changes.is_active
+            ? "Staff user activated."
+            : "Staff user deactivated.",
+      );
+      return res.data.data as StaffMember;
+    } catch (error) {
+      toast.error("Couldn't update staff user.", {
+        description: errorMessage(error, "Please try again later."),
+      });
+      return thunkAPI.rejectWithValue(errorMessage(error, "Failed"));
+    }
+  },
+);
+
+export const ResetStaffPassword = createAsyncThunk(
+  "tenancy/ResetStaffPassword",
+  async (payload: { id: number; email: string }, thunkAPI) => {
+    try {
+      const res = await axiosInstance.post(
+        ENDPOINTS.resetStaffPassword(payload.id),
+        {},
+      );
+      const data = res.data.data as { credentials_emailed: boolean };
+      toast.success("Password reset.", {
+        description: data.credentials_emailed
+          ? `New credentials were emailed to ${payload.email}.`
+          : "Password reset, but the credentials email could not be sent.",
+      });
+      return data;
+    } catch (error) {
+      toast.error("Couldn't reset password.", {
+        description: errorMessage(error, "Please try again later."),
+      });
+      return thunkAPI.rejectWithValue(errorMessage(error, "Failed"));
+    }
+  },
+);
+
+type TenancyState = {
+  companyProfile: CompanyProfile | null;
+  companyLoading: boolean;
+  companySaving: boolean;
+  FetchCountriesState: {
+    FetchCountriesIsLoading: boolean;
+    FetchCountriesIsSuccess: boolean;
+    FetchCountriesIsError: null | string | object;
+    FetchCountriesData: LocationOption[];
+  };
+  FetchStatesState: {
+    FetchStatesIsLoading: boolean;
+    FetchStatesIsSuccess: boolean;
+    FetchStatesIsError: null | string | object;
+    FetchStatesData: LocationOption[];
+  };
+  FetchCitiesState: {
+    FetchCitiesIsLoading: boolean;
+    FetchCitiesIsSuccess: boolean;
+    FetchCitiesIsError: null | string | object;
+    FetchCitiesData: LocationOption[];
+  };
+  staff: StaffMember[];
+  /** Active support agents and store managers, for assignee pickers. */
+  assignableStaff: StaffMember[];
+  staffLoading: boolean;
+  staffSaving: boolean;
+};
+
+const initialState: TenancyState = {
+  companyProfile: null,
+  companyLoading: false,
+  companySaving: false,
+  FetchCountriesState: {
+    FetchCountriesIsLoading: false,
+    FetchCountriesIsSuccess: false,
+    FetchCountriesIsError: null,
+    FetchCountriesData: [] as LocationOption[],
+  },
+  FetchStatesState: {
+    FetchStatesIsLoading: false,
+    FetchStatesIsSuccess: false,
+    FetchStatesIsError: null,
+    FetchStatesData: [] as LocationOption[],
+  },
+  FetchCitiesState: {
+    FetchCitiesIsLoading: false,
+    FetchCitiesIsSuccess: false,
+    FetchCitiesIsError: null,
+    FetchCitiesData: [] as LocationOption[],
+  },
+  staff: [],
+  assignableStaff: [],
+  staffLoading: false,
+  staffSaving: false,
+};
+
+const TenancySlice = createSlice({
+  name: "Tenancy",
+  initialState,
+  reducers: {},
+  extraReducers: (builder) => {
+    builder
+      .addCase(FetchCompanyProfile.pending, (state) => {
+        state.companyLoading = true;
+      })
+      .addCase(FetchCompanyProfile.fulfilled, (state, action) => {
+        state.companyLoading = false;
+        state.companyProfile = action.payload;
+      })
+      .addCase(FetchCompanyProfile.rejected, (state) => {
+        state.companyLoading = false;
+      })
+      .addCase(UpdateCompanyProfile.pending, (state) => {
+        state.companySaving = true;
+      })
+      .addCase(UpdateCompanyProfile.fulfilled, (state, action) => {
+        state.companySaving = false;
+        state.companyProfile = action.payload;
+      })
+      .addCase(UpdateCompanyProfile.rejected, (state) => {
+        state.companySaving = false;
+      })
+      .addCase(FetchCountries.pending, (state) => {
+        state.FetchCountriesState.FetchCountriesIsLoading = true;
+        state.FetchCountriesState.FetchCountriesIsSuccess = false;
+        state.FetchCountriesState.FetchCountriesIsError = null;
+      })
+      .addCase(FetchCountries.fulfilled, (state, action) => {
+        state.FetchCountriesState.FetchCountriesIsLoading = false;
+        state.FetchCountriesState.FetchCountriesIsSuccess = true;
+        state.FetchCountriesState.FetchCountriesData = action.payload;
+      })
+      .addCase(FetchCountries.rejected, (state, action) => {
+        state.FetchCountriesState.FetchCountriesIsLoading = false;
+        state.FetchCountriesState.FetchCountriesIsSuccess = false;
+        state.FetchCountriesState.FetchCountriesIsError =
+          action.payload ?? "Failed to fetch countries.";
+      })
+      .addCase(FetchStates.pending, (state) => {
+        state.FetchStatesState.FetchStatesIsLoading = true;
+        state.FetchStatesState.FetchStatesIsSuccess = false;
+        state.FetchStatesState.FetchStatesIsError = null;
+        state.FetchStatesState.FetchStatesData = [];
+      })
+      .addCase(FetchStates.fulfilled, (state, action) => {
+        state.FetchStatesState.FetchStatesIsLoading = false;
+        state.FetchStatesState.FetchStatesIsSuccess = true;
+        state.FetchStatesState.FetchStatesData = action.payload;
+      })
+      .addCase(FetchStates.rejected, (state, action) => {
+        state.FetchStatesState.FetchStatesIsLoading = false;
+        state.FetchStatesState.FetchStatesIsSuccess = false;
+        state.FetchStatesState.FetchStatesIsError =
+          action.payload ?? "Failed to fetch states.";
+      })
+      .addCase(FetchCities.pending, (state) => {
+        state.FetchCitiesState.FetchCitiesIsLoading = true;
+        state.FetchCitiesState.FetchCitiesIsSuccess = false;
+        state.FetchCitiesState.FetchCitiesIsError = null;
+        state.FetchCitiesState.FetchCitiesData = [];
+      })
+      .addCase(FetchCities.fulfilled, (state, action) => {
+        state.FetchCitiesState.FetchCitiesIsLoading = false;
+        state.FetchCitiesState.FetchCitiesIsSuccess = true;
+        state.FetchCitiesState.FetchCitiesData = action.payload;
+      })
+      .addCase(FetchCities.rejected, (state, action) => {
+        state.FetchCitiesState.FetchCitiesIsLoading = false;
+        state.FetchCitiesState.FetchCitiesIsSuccess = false;
+        state.FetchCitiesState.FetchCitiesIsError =
+          action.payload ?? "Failed to fetch cities.";
+      })
+      .addCase(FetchStaff.pending, (state) => {
+        state.staffLoading = true;
+      })
+      .addCase(FetchStaff.fulfilled, (state, action) => {
+        state.staffLoading = false;
+        state.staff = action.payload;
+      })
+      .addCase(FetchStaff.rejected, (state) => {
+        state.staffLoading = false;
+      })
+      .addCase(FetchAssignableStaff.fulfilled, (state, action) => {
+        state.assignableStaff = action.payload;
+      })
+      .addCase(UpdateStaff.fulfilled, (state, action) => {
+        const idx = state.staff.findIndex((s) => s.id === action.payload.id);
+        if (idx !== -1) state.staff[idx] = action.payload;
+      })
+      .addCase(CreateStaff.pending, (state) => {
+        state.staffSaving = true;
+      })
+      .addCase(CreateStaff.fulfilled, (state) => {
+        state.staffSaving = false;
+      })
+      .addCase(CreateStaff.rejected, (state) => {
+        state.staffSaving = false;
+      });
+  },
+});
+
+export default TenancySlice.reducer;

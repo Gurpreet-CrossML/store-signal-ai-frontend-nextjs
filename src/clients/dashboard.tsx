@@ -1,5 +1,8 @@
 "use client";
 
+import { ChatOrderFunnelSankey } from "@/components/custom/chat-order-funnel-sankey";
+import Link from "next/link";
+
 import {
   CustomerInteractionLineChart,
   type Granularity,
@@ -8,51 +11,87 @@ import { GuestVsSignedUserRadialChart } from "@/components/custom/guest-vs-signe
 import { PerformanceRadialChart } from "@/components/custom/performance-radial-char";
 import { SentimentsPieChart } from "@/components/custom/sentiments-pie-chat";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { custructTimeInHumanReadableFormat } from "@/lib/helpers";
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
-  FetchFeedbackInsights,
-  FetchConversation,
-  FetchEngagement,
-  FetchOperationalEfficiency,
-  FetchUserMatrix,
-  FetchConversionRate,
-  FetchQueryCategoryInsights,
+  DashboardFilters,
+  DEFAULT_DASHBOARD_FILTERS,
+  dashboardRangeLabel,
+  resolveDashboardRange,
+} from "@/components/custom/dashboard-filters";
+import { InfoIcon } from "@/components/custom/info-icon";
+import { PageHeading } from "@/components/custom/page-heading";
+import { Badge } from "@/components/ui/badge";
+import { Typography } from "@/components/ui/typography";
+import { BADGE_TONE_STYLES } from "@/lib/badge-tones";
+import { custructTimeInHumanReadableFormat } from "@/lib/helpers";
+import { buildDashboardReportHtml } from "@/lib/dashboard-report";
+import {
+  FetchDashboard,
+  FetchChatOrderFunnel,
   FetchConversationHistory,
+  type MetricTrend,
 } from "@/redux/api-slice/dashboard-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { IconInfoCircle } from "@tabler/icons-react";
-import { useEffect, useState } from "react";
+import { subMonths } from "date-fns";
+import { useEffect, useState, useRef } from "react";
+import { IconDownload } from "@tabler/icons-react";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+type SummaryMetric = {
+  label: string;
+  value: string;
+  infoText: string;
+  status: string;
+  statusVariant: "success" | "warning" | "neutral" | "info" | "danger";
+  href?: string;
+  statusHref?: string;
+  breakdown?: { label: string; href: string }[];
+  trend?: MetricTrend;
+};
+
+const displayMetricName = (metric: string) =>
+  metric.replace(/([a-z])([A-Z])/g, "$1 $2");
+
+// How often every card and chart reloads in place.
+const AUTO_REFRESH_MS = 30_000;
 
 const toISODate = (date: Date) => date.toISOString().slice(0, 10);
+
+// A browser reload asks for fresh dashboard numbers once (skipping the
+// server's short cache); moving around inside the app keeps the cache.
+let reloadPending =
+  typeof window !== "undefined" &&
+  (
+    performance.getEntriesByType("navigation")[0] as
+      | PerformanceNavigationTiming
+      | undefined
+  )?.type === "reload";
 
 // Default date range per granularity, anchored to today.
 const defaultRange = (granularity: Granularity) => {
   const to = new Date();
-  const from = new Date();
-  if (granularity === "hourly") {
-    from.setDate(to.getDate() - 7);
-  } else if (granularity === "weekly") {
-    from.setDate(to.getDate() - 28);
-  } else {
-    from.setMonth(0, 1);
+  if (granularity === "monthly") {
+    // subMonths clamps month-end overflow (e.g. Mar 31 -> Feb 28).
+    return { from: toISODate(subMonths(to, 1)), to: toISODate(to) };
   }
-  return { from: toISODate(from), to: toISODate(to) };
+  // Full timestamps: plain dates get widened to whole days by the API. A day
+  // (or 7 days) back always covers today's midnight (or that of 6 days ago),
+  // where the chart starts.
+  const days = granularity === "hourly" ? 1 : 7;
+  const from = new Date(to.getTime() - days * 24 * 3600 * 1000);
+  return { from: from.toISOString(), to: to.toISOString() };
 };
-
-const InfoIcon = ({ text }: { text: string }) => (
-  <Tooltip>
-    <TooltipTrigger asChild>
-      <IconInfoCircle className="w-4 h-4 text-muted-foreground cursor-pointer" />
-    </TooltipTrigger>
-    <TooltipContent>
-      <p>{text}</p>
-    </TooltipContent>
-  </Tooltip>
-);
 
 export default function Dashboard() {
   const dispatch = useAppDispatch();
@@ -63,11 +102,6 @@ export default function Dashboard() {
   const { FetchFeedbackInsightsData } = useAppSelector(
     (state) => state.GetDashboardReducer.FetchFeedbackInsightsState,
   );
-
-  // const { FetchConversationData } =
-  //   useAppSelector(
-  //     (state) => state.GetDashboardReducer.FetchConversationDataState,
-  //   );
 
   const { FetchEngagementData } = useAppSelector(
     (state) => state.GetDashboardReducer.FetchEngagementDataState,
@@ -85,54 +119,157 @@ export default function Dashboard() {
     (state) => state.GetDashboardReducer.FetchConversionRateDataState,
   );
 
-  // const {
-  //   FetchQueryCategoryInsightsData,
-  //   FetchQueryCategoryInsightsIsLoading,
-  // } = useAppSelector(
-  //   (state) => state.GetDashboardReducer.FetchQueryCategoryInsightsState,
-  // );
+  const { FetchChatOrderFunnelData, FetchChatOrderFunnelIsLoading } =
+    useAppSelector(
+      (state) => state.GetDashboardReducer.FetchChatOrderFunnelState,
+    );
 
   const { FetchConversationHistoryData, FetchConversationHistoryIsLoading } =
     useAppSelector(
       (state) => state.GetDashboardReducer.FetchConversationHistoryState,
     );
 
+  const { FetchThreadCountsData } = useAppSelector(
+    (state) => state.GetThreadReducer.FetchThreadCountsState,
+  );
+
+  const [filters, setFilters] = useState(DEFAULT_DASHBOARD_FILTERS);
   const [granularity, setGranularity] = useState<Granularity>("hourly");
-  const [from, setFrom] = useState(() => defaultRange("hourly").from);
-  const [to, setTo] = useState(() => defaultRange("hourly").to);
+  // The interaction chart keeps its own date range, set by its own controls.
+  const [chartFrom, setChartFrom] = useState(() => defaultRange("hourly").from);
+  const [chartTo, setChartTo] = useState(() => defaultRange("hourly").to);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const refreshRef = useRef(async () => {});
 
   const handleGranularityChange = (next: Granularity) => {
     setGranularity(next);
     const range = defaultRange(next);
-    setFrom(range.from);
-    setTo(range.to);
+    setChartFrom(range.from);
+    setChartTo(range.to);
   };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await refreshRef.current();
+    setRefreshing(false);
+  };
+
+  const { range, from, to, channel } = filters;
+  const periodLabel = dashboardRangeLabel(filters);
 
   useEffect(() => {
     if (!storeCode) return;
-    dispatch(FetchFeedbackInsights({ storeCode }));
-    dispatch(FetchConversation({ storeCode }));
-    dispatch(FetchEngagement({ storeCode }));
-    dispatch(FetchOperationalEfficiency({ storeCode }));
-    dispatch(FetchUserMatrix({ storeCode }));
-    dispatch(FetchConversionRate({ storeCode }));
-    dispatch(FetchQueryCategoryInsights({ storeCode }));
-  }, [dispatch, storeCode]);
+    let inFlight: { abort: () => void }[] = [];
 
-  useEffect(() => {
-    if (!storeCode || !from || !to) return;
-    dispatch(
-      FetchConversationHistory({
+    // Load the dashboard data using the currently selected filters.
+    // When silent is true, keep the existing data visible while refreshing it.
+    // When fresh is true, the summary skips the server cache (Refresh button).
+    const load = async (silent: boolean, fresh = false) => {
+      inFlight.forEach((request) => request.abort());
+
+      // Hourly and weekly run up to "now", so recompute it on every load;
+      // monthly keeps the dates picked in the chart.
+      const chartRange =
+        granularity === "monthly"
+          ? { from: chartFrom, to: chartTo }
+          : defaultRange(granularity);
+
+      const args = {
         storeCode,
-        from,
-        to,
-        granularity,
-        aggregated: true,
-      }),
-    );
-  }, [dispatch, storeCode, from, to, granularity]);
+        ...resolveDashboardRange({ range, from, to, channel }),
+        channel: channel || undefined,
+        silent,
+      };
 
-  const performanceSummaryMetrics = [
+      const batch = [
+        // Fetch the data for all five dashboard summary widgets.
+        dispatch(FetchDashboard({ ...args, fresh })),
+
+        // Fetch the funnel data showing how chats lead to orders.
+        dispatch(FetchChatOrderFunnel(args)),
+
+        // Fetch the conversation history grouped by the selected time interval.
+        dispatch(
+          FetchConversationHistory({
+            ...args,
+            ...chartRange,
+            granularity,
+            aggregated: true,
+          }),
+        ),
+      ];
+
+      // Track the current requests so older requests can be ignored.
+      inFlight = batch;
+
+      const results = await Promise.all(batch);
+
+      // Ignore this result if a newer request has already started.
+      if (inFlight !== batch) return;
+
+      // All requests have finished, so clear the tracked requests.
+      inFlight = [];
+
+      // Update the last-refreshed time only if every request succeeds.
+      // If a background refresh fails, keep the previous time visible so
+      // users know the displayed data may not be up to date.
+      // Aborted requests are ignored by the Redux reducers.
+      if (
+        results.every((result) => result.meta.requestStatus === "fulfilled")
+      ) {
+        setLastUpdated(new Date());
+      }
+    };
+
+    load(false, reloadPending);
+    reloadPending = false;
+    refreshRef.current = () => load(true, true);
+    // A custom range is a fixed past window, so only presets auto-refresh.
+    const timer =
+      range === "custom"
+        ? undefined
+        : setInterval(() => {
+            if (!document.hidden) load(true);
+          }, AUTO_REFRESH_MS);
+
+    return () => {
+      clearInterval(timer);
+      inFlight.forEach((request) => request.abort());
+      inFlight = [];
+    };
+  }, [
+    dispatch,
+    storeCode,
+    range,
+    from,
+    to,
+    channel,
+    granularity,
+    chartFrom,
+    chartTo,
+  ]);
+
+  // Presets keep no dates of their own, so resolve the range actually on screen.
+  const exportRange = resolveDashboardRange(filters);
+
+  // Drill-through link to the Threads list, pre-filtered to match a card.
+  const threadsHref = (extraParams: Record<string, string>) => {
+    const params = new URLSearchParams(extraParams);
+    params.set("from", exportRange.from);
+    params.set("to", exportRange.to);
+    if (channel) params.set("channel", channel);
+    return `/threads?${params.toString()}`;
+  };
+
+  const liveChatHref = () => {
+    const params = new URLSearchParams();
+    if (channel) params.set("channel", channel);
+    const query = params.toString();
+    return query ? `/support?${query}` : "/support";
+  };
+
+  const performanceSummaryMetrics: SummaryMetric[] = [
     {
       label: "CSAT Score",
       value: `${FetchFeedbackInsightsData?.csat_score?.percentage || 0}%`,
@@ -140,30 +277,61 @@ export default function Dashboard() {
         "Shows how satisfied customers were after interacting with the chatbot, based on submitted feedback and ratings.",
       status: "Customer Satisfaction",
       statusVariant: "info" as const,
+      trend: FetchFeedbackInsightsData?.csat_score?.trend,
     },
     {
       label: "Conversion Rate",
       value: `${FetchConversionRateData?.percentage || 0}%`,
       infoText:
-        "Percentage of chatbot sessions where the user clicked a checkout link, out of all sessions in the selected period.",
-      status: `${FetchConversionRateData?.converted_count || 0} of ${FetchConversionRateData?.total_count || 0} sessions`,
+        "Percentage of chatbot sessions that led to an order, where the customer added a product to cart in the chat and ordered it within 24 hours, out of all sessions in the selected period.",
+      status: `${FetchConversionRateData?.converted_count || 0} Of ${FetchConversionRateData?.total_count || 0} Sessions`,
       statusVariant: "info" as const,
+      trend: FetchConversionRateData?.trend,
+      href: threadsHref({ has_order: "true" }),
+      statusHref: threadsHref({ has_order: "true" }),
     },
     {
       label: "Total Sessions",
       value: FetchEngagementData?.total_threads?.toLocaleString() || "0",
       infoText:
         "Shows how many chatbot sessions happened in the selected time range, so you can quickly understand overall traffic volume.",
-      status: "All Sessions",
+      status: "",
       statusVariant: "neutral" as const,
+      trend: FetchEngagementData?.total_threads_trend,
+      href: threadsHref({ is_active: "false" }),
+      breakdown:
+        (FetchEngagementData?.total_threads || 0) > 0
+          ? [
+              {
+                label: `${FetchEngagementData?.active_threads || 0} ${
+                  FetchEngagementData?.active_threads === 1
+                    ? "Active Session"
+                    : "Active Sessions"
+                }`,
+                href: liveChatHref(),
+              },
+              {
+                label: `${FetchEngagementData?.closed_threads || 0} ${
+                  FetchEngagementData?.closed_threads === 1
+                    ? "Closed Session"
+                    : "Closed Sessions"
+                }`,
+                href: threadsHref({ is_active: "false" }),
+              },
+            ]
+          : undefined,
     },
     {
       label: "Active Sessions",
-      value: FetchEngagementData?.sessions_resolved?.toLocaleString() || "0",
+      value: FetchThreadCountsData?.active.toLocaleString() || "0",
       infoText:
         "Shows the number of sessions currently marked as active in the analytics data, helping you gauge current engagement.",
-      status: "Currently Active",
-      statusVariant: "neutral" as const,
+      status: `${FetchThreadCountsData.needsHuman || 0} Need A Human`,
+      statusVariant: "danger" as const,
+      // The count is every active chat; only the "needs a human" sub-line
+      // goes to the filtered queue.
+      href: "/support?filter=all",
+      statusHref: "/support?filter=needs_human",
     },
     {
       label: "Avg Response Time",
@@ -172,6 +340,7 @@ export default function Dashboard() {
         "Shows how quickly the chatbot usually replies after a customer message. Lower response times generally mean a smoother experience.",
       status: "Response Metric",
       statusVariant: "info" as const,
+      trend: FetchEngagementData?.avg_response_time_trend,
     },
     {
       label: "Avg Handle Time",
@@ -180,24 +349,165 @@ export default function Dashboard() {
         "Shows the average time taken to handle a conversation from start to finish, including resolution.",
       status: "Per Session",
       statusVariant: "info" as const,
+      trend: FetchFeedbackInsightsData?.avg_handle_time?.trend,
     },
     {
-      label: "Resolution Rate",
+      label: "AI Resolution Rate",
       value: `${FetchOperationalEfficiencyData?.bot_resolution_rate?.percentage || 0}%`,
       infoText:
-        "Shows the share of conversations that were fully resolved by the chatbot without needing handoff to a human agent.",
-      status: "Resolution Metric",
+        "Shows the share of closed conversations the chatbot resolved on its own, without a human agent taking over or a support ticket being raised.",
+      status: `${FetchOperationalEfficiencyData?.bot_resolution_rate?.count || 0} Of ${FetchOperationalEfficiencyData?.bot_resolution_rate?.total || 0} Chats`,
       statusVariant: "info" as const,
+      trend: FetchOperationalEfficiencyData?.bot_resolution_rate?.trend,
+      href: threadsHref({
+        is_active: "false",
+        handled_by: "ai",
+        has_ticket: "false",
+        has_agent: "false",
+      }),
+      statusHref: threadsHref({
+        is_active: "false",
+        handled_by: "ai",
+        has_ticket: "false",
+        has_agent: "false",
+      }),
     },
     {
       label: "Escalation Rate",
       value: `${FetchOperationalEfficiencyData?.escalation_rate?.percentage || 0}%`,
       infoText:
-        "Shows the share of conversations that needed to be escalated to a human agent, which can highlight where the bot needs support.",
-      status: "Escalation Metric",
+        "Shows the share of closed conversations in the selected period that were escalated to a human agent through a support ticket, which can highlight where the bot needs support.",
+      status: `${FetchOperationalEfficiencyData?.escalation_rate?.count || 0} of ${FetchOperationalEfficiencyData?.escalation_rate?.total || 0} closed chats`,
       statusVariant: "info" as const,
+      trend: FetchOperationalEfficiencyData?.escalation_rate?.trend,
+      href: threadsHref({ has_ticket: "true" }),
+      statusHref: threadsHref({ has_ticket: "true" }),
     },
   ];
+
+  const exportFileStem = `dashboard_${storeCode || "all-stores"}_${exportRange.from}_to_${exportRange.to}`;
+
+  const exportCsv = () => {
+    const quote = (value: string) => `"${value.replaceAll('"', '""')}"`;
+    const reportRows = [
+      ...performanceSummaryMetrics.map((metric) => [
+        "Performance Summary",
+        metric.label,
+        metric.value,
+        metric.status,
+      ]),
+      ...sentimentPieChartData.map((item) => [
+        "Sentiment Distribution",
+        item.sentiment,
+        String(item.score),
+        "Customer Feedback",
+      ]),
+      ...performanceRadialChartData.map((item) => [
+        "Performance Overview",
+        displayMetricName(item.metric),
+        String(item.value),
+        "Service Metric",
+      ]),
+      [
+        "User Activity",
+        "Guest Visitors",
+        String(userActivityChartData[0]?.guest ?? 0),
+        "Guest Vs Signed-In Users",
+      ],
+      [
+        "User Activity",
+        "Signed-In Users",
+        String(userActivityChartData[0]?.signed ?? 0),
+        "Guest Vs Signed-In Users",
+      ],
+      ...conversationHistoryChartData.map((point) => [
+        "Customer Interaction Analytics",
+        point.label,
+        String(point.value ?? ""),
+        `${granularity} user queries`,
+      ]),
+    ];
+    const rows = [
+      ["Store", "From", "To", "Section", "Metric", "Value", "Detail"],
+      ...reportRows.map((row) => [
+        storeCode || "All Stores",
+        exportRange.from,
+        exportRange.to,
+        ...row,
+      ]),
+    ];
+    const csv = rows
+      .map((row) => row.map((value) => quote(String(value ?? ""))).join(","))
+      .join("\r\n");
+    const url = URL.createObjectURL(
+      new Blob([csv], { type: "text/csv;charset=utf-8" }),
+    );
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `${exportFileStem}.csv`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportPdf = () => {
+    const reportWindow = window.open("", "_blank");
+    if (!reportWindow) return;
+    const renderedChart = (name: string) => {
+      const chart =
+        document.querySelector(
+          `[data-export-chart="${name}"] [data-slot="chart"]`,
+        )?.outerHTML ?? "";
+      return name === "overview"
+        ? chart.replaceAll(">effortScore<", ">EffortScore<")
+        : chart;
+    };
+    reportWindow.document.write(
+      buildDashboardReportHtml({
+        fileName: exportFileStem,
+        storeName: storeCode || "All Stores",
+        from: exportRange.from,
+        to: exportRange.to,
+        summary: performanceSummaryMetrics.map((metric) => ({
+          label: metric.label,
+          value: metric.value,
+          detail: metric.status,
+        })),
+        sentiments: sentimentPieChartData.map((item) => [
+          item.sentiment,
+          String(item.score),
+        ]),
+        overview: performanceRadialChartData.map((item) => [
+          displayMetricName(item.metric),
+          String(item.value),
+        ]),
+        activity: [
+          ["Guest Visitors", String(userActivityChartData[0]?.guest ?? 0)],
+          ["Signed-In Users", String(userActivityChartData[0]?.signed ?? 0)],
+          [
+            "Total Visitors",
+            String(
+              (userActivityChartData[0]?.guest ?? 0) +
+                (userActivityChartData[0]?.signed ?? 0),
+            ),
+          ],
+        ],
+        interactions: conversationHistoryChartData.map((point) => [
+          point.label,
+          String(point.value ?? ""),
+        ]),
+        charts: {
+          sentiment: renderedChart("sentiment"),
+          overview: renderedChart("overview"),
+          activity: renderedChart("activity"),
+          interaction: renderedChart("interaction"),
+        },
+      }),
+    );
+    reportWindow.document.close();
+    reportWindow.focus();
+    reportWindow.print();
+    reportWindow.close();
+  };
 
   const sentimentPieChartData = [
     {
@@ -275,57 +585,147 @@ export default function Dashboard() {
     FetchConversationHistoryData?.points ?? [];
 
   return (
-    <>
-      <div className="px-6 py-2">
-        <h3 className="text-lg font-semibold text-foreground mb-6">
-          Performance Summary
-        </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div className="flex flex-col gap-6 p-4">
+      <PageHeading
+        title="Dashboard"
+        description="How your AI assistant is performing — engagement, efficiency, sentiment, and conversions at a glance."
+        action={
+          <div className="flex flex-wrap items-center gap-2">
+            <DashboardFilters
+              filters={filters}
+              onChange={setFilters}
+              lastUpdated={lastUpdated}
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+            />
+            {/* <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button type="button" variant="outline">
+                  <IconDownload />
+                  Export
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={exportCsv}>
+                  Export as CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={exportPdf}>
+                  Export as PDF
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu> */}
+          </div>
+        }
+      />
+      <section className="flex flex-col gap-4">
+        <Typography variant="h4">Performance Summary</Typography>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {performanceSummaryMetrics.map((metric) => {
             const statusColors = {
               success: "bg-success/20 text-success",
               warning: "bg-orange/20 text-orange",
               neutral: "bg-muted text-muted-foreground",
               info: "bg-primary/10 text-primary",
+              danger: "bg-red-100 text-red-600",
             };
+            const value = (
+              <Typography variant="h3" as="p">
+                {metric.value}
+              </Typography>
+            );
+            const statusBadge = (
+              <span
+                className={`inline-block px-3 py-1 text-xs font-semibold rounded-full ${statusColors[metric.statusVariant]}`}
+              >
+                {metric.status}
+              </span>
+            );
+
+            // The value and the status pill link independently (e.g. Active
+            // Now's count goes to all active chats, its "needs a human"
+            // sub-line to a different, filtered queue) — never one link
+            // wrapping the whole card, which would force both to agree.
             return (
-              <div key={metric.label} className="space-y-2">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-sm leading-none text-muted-foreground">
-                    {metric.label}
-                  </span>
-                  <InfoIcon text={metric.infoText} />
-                </div>
-                <p className="text-3xl font-bold text-foreground tracking-tight">
-                  {metric.value}
-                </p>
-                <span
-                  className={`inline-block px-3 py-1 text-xs font-semibold rounded-full ${statusColors[metric.statusVariant]}`}
-                >
-                  {metric.status}
-                </span>
-              </div>
+              <Card key={metric.label} size="sm">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-1.5">
+                    <Typography variant="muted" as="h3">
+                      {metric.label}
+                    </Typography>
+                    <InfoIcon text={metric.infoText} />
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {metric.href ? (
+                    <Link href={metric.href} className="block">
+                      {value}
+                    </Link>
+                  ) : (
+                    value
+                  )}
+                </CardContent>
+                <CardFooter className="justify-between gap-1.5">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {metric.status &&
+                      (metric.statusHref ? (
+                        <Link href={metric.statusHref}>{statusBadge}</Link>
+                      ) : (
+                        statusBadge
+                      ))}
+                    {metric.breakdown?.map((chip) => (
+                      <Link
+                        key={chip.label}
+                        href={chip.href}
+                        className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary"
+                      >
+                        {chip.label}
+                      </Link>
+                    ))}
+                  </div>
+                  {metric.trend && (
+                    <Badge
+                      variant="outline"
+                      className={BADGE_TONE_STYLES[metric.trend.variant]}
+                    >
+                      {metric.trend.label}
+                    </Badge>
+                  )}
+                </CardFooter>
+              </Card>
             );
           })}
         </div>
+      </section>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div data-export-chart="sentiment">
+          <SentimentsPieChart data={sentimentPieChartData} />
+        </div>
+        <div data-export-chart="overview">
+          <PerformanceRadialChart chartData={performanceRadialChartData} />
+        </div>
+        {/* Three cards on a two-column grid leave the third alone beside
+            an empty cell; it takes the full row until three fit across. */}
+        <div data-export-chart="activity" className="sm:max-lg:col-span-2">
+          <GuestVsSignedUserRadialChart chartData={userActivityChartData} />
+        </div>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 px-6 py-4">
-        <SentimentsPieChart data={sentimentPieChartData} />
-        <PerformanceRadialChart chartData={performanceRadialChartData} />
-        <GuestVsSignedUserRadialChart chartData={userActivityChartData} />
-      </div>
-      <div className="px-6 py-4">
+      <div data-export-chart="interaction">
+        <ChatOrderFunnelSankey
+          data={FetchChatOrderFunnelData}
+          loading={FetchChatOrderFunnelIsLoading}
+          periodLabel={periodLabel}
+        />
         <CustomerInteractionLineChart
           chartData={conversationHistoryChartData}
           loading={FetchConversationHistoryIsLoading}
           granularity={granularity}
           onGranularityChange={handleGranularityChange}
-          from={from}
-          to={to}
-          onFromChange={setFrom}
-          onToChange={setTo}
+          from={chartFrom}
+          to={chartTo}
+          onFromChange={setChartFrom}
+          onToChange={setChartTo}
         />
       </div>
-    </>
+    </div>
   );
 }

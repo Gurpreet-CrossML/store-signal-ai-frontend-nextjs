@@ -1,0 +1,221 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { addDays, differenceInCalendarDays, format, parseISO } from "date-fns";
+
+import CreditGroups from "@/components/custom/ai-usage/credit-bars";
+import ChartEmptyState from "@/components/custom/ai-usage/chart-empty-state";
+import CreditDailyChart from "@/components/custom/ai-usage/credit-daily-chart";
+import { FEATURE_GROUPS } from "@/components/custom/ai-usage/feature-groups";
+import {
+  DEFAULT_DASHBOARD_FILTERS,
+  DashboardRangeFilter,
+  dashboardRangeLabel,
+  resolveDashboardRange,
+  type DashboardFilterState,
+} from "@/components/custom/dashboard-filters";
+import { PageHeading } from "@/components/custom/page-heading";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Spinner } from "@/components/ui/spinner";
+import { Typography } from "@/components/ui/typography";
+import {
+  fetchAIUsageByFeature,
+  fetchAIUsageCreditDaily,
+  fetchAIUsageCreditSummary,
+  fetchCreditStatus,
+} from "@/redux/api-slice/ai-usage-slice";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+
+const formatDate = (value: string) => format(parseISO(value), "MMM d, yyyy");
+
+// How many days the chart projects for each preset; a custom range gets none.
+const PROJECTION_DAYS = { today: 1, "7d": 7, "30d": 30 };
+
+/** Store-level AI credit usage: balance, plan cycle, and where credits went. */
+export default function AIUsage({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
+  const dispatch = useAppDispatch();
+  const storeCode = useAppSelector(
+    (state) => state.GetStoresReducer.selectedStore,
+  );
+  const {
+    FetchCreditStatusState,
+    FetchAIUsageCreditSummaryState,
+    FetchAIUsageCreditDailyState,
+    FetchAIUsageByFeatureState,
+  } = useAppSelector((state) => state.GetAIUsageReducer);
+  const [filters, setFilters] = useState<DashboardFilterState>({
+    ...DEFAULT_DASHBOARD_FILTERS,
+    range: "7d",
+  });
+  const { from: rangeStart, to } = resolveDashboardRange(filters);
+  // The shared presets span N + 1 dates; this page shows exactly N, today included.
+  const from =
+    filters.range === "7d" || filters.range === "30d"
+      ? format(addDays(parseISO(rangeStart), 1), "yyyy-MM-dd")
+      : rangeStart;
+  const projectionDays =
+    filters.range === "custom" ? undefined : PROJECTION_DAYS[filters.range];
+
+  useEffect(() => {
+    // A custom range waits for both ends to be picked.
+    if (!storeCode || !from || !to) return;
+    const args = { storeCode, from, to };
+    dispatch(fetchCreditStatus(args));
+    dispatch(fetchAIUsageCreditSummary(args));
+    dispatch(fetchAIUsageCreditDaily({ ...args, projectionDays }));
+    dispatch(fetchAIUsageByFeature(args));
+  }, [dispatch, storeCode, from, to, projectionDays]);
+
+  const credits = FetchCreditStatusState.FetchCreditStatusData;
+  const summary = FetchAIUsageCreditSummaryState.FetchAIUsageCreditSummaryData;
+  const daily = FetchAIUsageCreditDailyState.FetchAIUsageCreditDailyData;
+  const byFeature = FetchAIUsageByFeatureState.FetchAIUsageByFeatureData;
+  const isLoading =
+    FetchCreditStatusState.FetchCreditStatusIsLoading ||
+    FetchAIUsageCreditSummaryState.FetchAIUsageCreditSummaryIsLoading ||
+    FetchAIUsageCreditDailyState.FetchAIUsageCreditDailyIsLoading ||
+    FetchAIUsageByFeatureState.FetchAIUsageByFeatureIsLoading;
+  const used = Number(summary.credits_charged) || 0;
+  // Share of the period's credits, e.g. "50.0%".
+  const share = (part: number) =>
+    used ? `${((part / used) * 100).toFixed(1)}%` : "–";
+  const daysLeft = credits?.end_date
+    ? differenceInCalendarDays(parseISO(credits.end_date), new Date())
+    : null;
+
+  const featureCredits = new Map(byFeature.map((row) => [row.feature, row]));
+  const featureGroups = FEATURE_GROUPS.map((group) => {
+    const rows = Object.entries(group.features)
+      .map(([feature, { name, description }]) => {
+        const row = featureCredits.get(feature);
+        const calls = Number(row?.calls) || 0;
+        const rowCredits = Number(row?.credits_charged) || 0;
+        return {
+          label: name,
+          note: description,
+          calls,
+          credits: rowCredits,
+          share: share(rowCredits),
+        };
+      })
+      // Hide rows with no credits charged (e.g. a feature whose calls all
+      // failed this period, so nothing was billed).
+      .filter((row) => row.credits > 0);
+    const total = rows.reduce((sum, row) => sum + row.credits, 0);
+    return {
+      label: group.title,
+      calls: rows.reduce((sum, row) => sum + row.calls, 0),
+      credits: total,
+      share: share(total),
+      rows,
+    };
+  }).filter((group) => group.rows.length);
+
+  const metrics = [
+    {
+      label: "Credits Left",
+      value: credits ? credits.balance.toLocaleString() : "–",
+      // Empty until loaded, so it never flashes the out-of-credits warning.
+      note: !credits
+        ? ""
+        : credits.has_quota
+          ? "AI is replying normally"
+          : "Out of credits: the AI has stopped replying",
+      danger: credits && !credits.has_quota,
+    },
+    {
+      label: "Plan Cycle",
+      value: credits?.plan?.name ?? "No active plan",
+      note:
+        credits?.start_date && credits.end_date
+          ? `${formatDate(credits.start_date)} – ${formatDate(credits.end_date)}${
+              daysLeft !== null ? `, renews in ${daysLeft} days` : ""
+            }`
+          : "No plan month is running",
+    },
+    {
+      label: "Plan Allowance",
+      value: credits?.monthly_credits
+        ? `${credits.monthly_credits.toLocaleString()} / month`
+        : "–",
+      note: "Credits added each plan month",
+    },
+    {
+      label: "Credits Used",
+      value: used.toLocaleString(),
+      note: dashboardRangeLabel(filters),
+    },
+  ];
+
+  return (
+    <div className="flex flex-col gap-6 p-4">
+      <PageHeading
+        title={title}
+        description={description}
+        action={
+          <div className="flex flex-wrap items-center gap-2">
+            {isLoading && <Spinner className="size-4" />}
+            <DashboardRangeFilter filters={filters} onChange={setFilters} />
+          </div>
+        }
+      />
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {metrics.map(({ label, value, note, danger }) => (
+          <Card key={label} size="sm">
+            <CardHeader>
+              <CardTitle>
+                <Typography variant="muted" as="h3">
+                  {label}
+                </Typography>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Typography variant="h3" as="p" className="tabular-nums">
+                {value}
+              </Typography>
+              <p
+                className={`mt-1 text-xs ${danger ? "text-destructive" : "text-muted-foreground"}`}
+              >
+                {note}
+              </p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* A custom range waits for both ends, like the data above. */}
+      {from && to && <CreditDailyChart data={daily} from={from} to={to} />}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Where The Credits Went</CardTitle>
+          <CardDescription>
+            Credits by capability in this period, largest first. Open a group to
+            see its features. Each billed AI call is charged one credit; chat
+            analysis is free.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {featureGroups.length ? (
+            <CreditGroups groups={featureGroups} />
+          ) : (
+            <ChartEmptyState />
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

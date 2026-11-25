@@ -2,6 +2,7 @@
 
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 
+import { InfoIcon } from "@/components/custom/info-icon";
 import {
   Card,
   CardContent,
@@ -11,11 +12,13 @@ import {
 } from "@/components/ui/card";
 import {
   ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { Input } from "@/components/ui/input";
+import { DateRangePicker } from "@/components/custom/date-range-picker";
 import {
   Select,
   SelectContent,
@@ -24,29 +27,49 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
-
-export const description = "Customer interaction analytics line chart";
+import { ACTIVE_FILTER_STYLE } from "@/lib/config";
+import { cn } from "@/lib/utils";
 
 export type Granularity = "hourly" | "weekly" | "monthly";
-export type ChartPoint = { label: string; value: number };
+// value is null for hours that haven't happened yet; previous is the same
+// bucket one period back.
+export type ChartPoint = {
+  label: string;
+  value: number | null;
+  previous?: number | null;
+  previous_label?: string | null;
+  // Monthly only: the days the point covers, e.g. "26–30 Sep".
+  range_label?: string;
+};
 
-const chartConfig = {
-  value: {
-    label: "User Queries",
-    color: "var(--chart-1)",
-  },
-} satisfies ChartConfig;
+const seriesLabels: Record<Granularity, [string, string]> = {
+  hourly: ["Today", "Yesterday"],
+  weekly: ["Last 7 Days", "Previous 7 Days"],
+  monthly: ["Selected Months", "Previous Months"],
+};
 
 const subtitleMap: Record<Granularity, string> = {
-  hourly: "User queries by hour of day",
-  weekly: "User queries by calendar week",
+  hourly: "User queries per hour",
+  weekly: "User queries per day",
   monthly: "User queries by month",
 };
 
 const autoRangeLabel: Record<Granularity, string> = {
-  hourly: "Last 7 days",
-  weekly: "Last 4 weeks",
-  monthly: "Custom range",
+  hourly: "Today",
+  weekly: "Last 7 Days",
+  monthly: "Custom Range",
+};
+
+const formatPeakHour = (label: string) => {
+  const match = label.trim().match(/^(\d{1,2})\s*(AM|PM)$/i);
+  if (!match) return label;
+
+  const hour =
+    (Number(match[1]) % 12) + (match[2].toUpperCase() === "PM" ? 12 : 0);
+  const formatHour = (value: number) =>
+    `${value % 12 || 12} ${value >= 12 ? "pm" : "am"}`;
+
+  return `${formatHour(hour)}–${formatHour((hour + 1) % 24)}`;
 };
 
 export function CustomerInteractionLineChart({
@@ -68,12 +91,38 @@ export function CustomerInteractionLineChart({
   onFromChange: (value: string) => void;
   onToChange: (value: string) => void;
 }) {
+  const peakPoint =
+    granularity === "hourly"
+      ? chartData.reduce<ChartPoint | null>(
+          (peak, point) =>
+            peak === null || (point.value ?? 0) > (peak.value ?? 0)
+              ? point
+              : peak,
+          null,
+        )
+      : null;
+  const chartConfig = {
+    value: { label: seriesLabels[granularity][0], color: "var(--chart-1)" },
+    previous: {
+      label: seriesLabels[granularity][1],
+      // The current series' purple, lighter, so the comparison recedes.
+      color: "color-mix(in oklch, var(--chart-1) 45%, transparent)",
+    },
+  } satisfies ChartConfig;
+
   return (
     <Card className="flex flex-col">
       <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
-          <CardTitle>Customer Interaction Analytics</CardTitle>
-          <CardDescription>{subtitleMap[granularity]}</CardDescription>
+          <CardTitle className="flex items-center gap-1.5">
+            Customer Interaction Analytics
+            <InfoIcon text="Tracks how many customer conversations happened over time for the selected date range and granularity, so you can spot trends and peak periods." />
+          </CardTitle>
+          <CardDescription>
+            {(peakPoint?.value ?? 0) > 0 && peakPoint
+              ? `Peak at ${formatPeakHour(peakPoint.label)}, plan agent shifts around it`
+              : subtitleMap[granularity]}
+          </CardDescription>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -81,7 +130,11 @@ export function CustomerInteractionLineChart({
             value={granularity}
             onValueChange={(value) => onGranularityChange(value as Granularity)}
           >
-            <SelectTrigger className="w-[120px]" size="sm">
+            <SelectTrigger
+              className={cn("w-[120px]", ACTIVE_FILTER_STYLE)}
+              size="sm"
+              aria-label="Chart granularity"
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -92,23 +145,22 @@ export function CustomerInteractionLineChart({
           </Select>
 
           {granularity === "monthly" ? (
-            <div className="flex items-center gap-2">
-              <Input
-                type="date"
-                value={from}
-                onChange={(e) => onFromChange(e.target.value)}
-                className="h-8 w-[150px]"
-              />
-              <span className="text-sm text-muted-foreground">→</span>
-              <Input
-                type="date"
-                value={to}
-                onChange={(e) => onToChange(e.target.value)}
-                className="h-8 w-[150px]"
-              />
-            </div>
+            <DateRangePicker
+              from={from}
+              to={to}
+              onRangeChange={(nextFrom, nextTo) => {
+                onFromChange(nextFrom);
+                onToChange(nextTo);
+              }}
+              disabled={{ after: new Date() }}
+            />
           ) : (
-            <span className="rounded-md border bg-muted/30 px-3 py-1.5 text-sm text-muted-foreground">
+            <span
+              className={cn(
+                "rounded-md border px-3 py-1.5 text-sm",
+                ACTIVE_FILTER_STYLE,
+              )}
+            >
               {autoRangeLabel[granularity]}
             </span>
           )}
@@ -134,30 +186,14 @@ export function CustomerInteractionLineChart({
               />
               <XAxis
                 dataKey="label"
+                padding={{ left: 12, right: 12 }}
                 tickLine={false}
                 axisLine={false}
                 tickMargin={8}
                 fontSize={11}
-                interval={
-                  granularity === "hourly"
-                    ? "preserveStartEnd"
-                    : granularity === "weekly"
-                      ? Math.max(0, Math.ceil(chartData.length / 6) - 1)
-                      : "preserveStartEnd"
-                }
+                interval={granularity === "weekly" ? 0 : "preserveStartEnd"}
                 tickFormatter={(label, i) =>
                   granularity === "hourly" && i % 3 !== 0 ? "" : label
-                }
-                angle={
-                  granularity === "weekly" && chartData.length > 8 ? -35 : 0
-                }
-                textAnchor={
-                  granularity === "weekly" && chartData.length > 8
-                    ? "end"
-                    : "middle"
-                }
-                height={
-                  granularity === "weekly" && chartData.length > 8 ? 50 : 30
                 }
               />
               <YAxis
@@ -167,13 +203,69 @@ export function CustomerInteractionLineChart({
                 fontSize={11}
                 width={32}
               />
-              <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
+              <ChartTooltip
+                cursor={false}
+                content={
+                  <ChartTooltipContent
+                    // Hourly: "2 pm–3 pm" over Today / Yesterday rows (both
+                    // share the hour). Weekly/monthly: each row names its own
+                    // date, so no header is needed.
+                    hideLabel={granularity !== "hourly"}
+                    labelFormatter={(label) => formatPeakHour(String(label))}
+                    formatter={(value, _name, item) => (
+                      <>
+                        <div
+                          className="size-2.5 shrink-0 rounded-[2px]"
+                          style={{ background: item.color }}
+                        />
+                        <div className="flex flex-1 justify-between gap-4 leading-none">
+                          <span className="text-muted-foreground">
+                            {granularity === "hourly"
+                              ? chartConfig[
+                                  item.dataKey as keyof typeof chartConfig
+                                ]?.label
+                              : item.dataKey === "previous"
+                                ? item.payload.previous_label
+                                : (item.payload.range_label ??
+                                  item.payload.label)}
+                          </span>
+                          {value != null && (
+                            <span className="font-mono font-medium text-foreground tabular-nums">
+                              {Number(value).toLocaleString()}
+                            </span>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  />
+                }
+              />
+              <ChartLegend
+                verticalAlign="top"
+                align="right"
+                content={<ChartLegendContent />}
+              />
+              <Line
+                dataKey="previous"
+                type="monotone"
+                stroke="var(--color-previous)"
+                strokeWidth={1.5}
+                strokeDasharray="4 4"
+                dot={false}
+                activeDot={{ r: 4 }}
+              />
               <Line
                 dataKey="value"
                 type="monotone"
                 stroke="var(--color-value)"
                 strokeWidth={2}
-                dot={granularity !== "hourly"}
+                // Filled, so a lone point stays visible.
+                dot={
+                  granularity !== "hourly" && {
+                    r: 4,
+                    fill: "var(--color-value)",
+                  }
+                }
                 activeDot={{ r: 5 }}
               />
             </LineChart>

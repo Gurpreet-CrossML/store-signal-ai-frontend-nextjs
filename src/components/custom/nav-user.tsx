@@ -32,14 +32,26 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { getInitials } from "@/components/custom/customer-avatar";
 import { signOut, useSession } from "next-auth/react";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 
 export function NavUser() {
   const { isMobile } = useSidebar();
-  const { data } = useSession();
+  const { data: session } = useSession();
+  // The server renders without a session, but the browser can already have
+  // it on its first render, and that mismatch fails hydration.
+  // `hydrated` is false on the server and on the browser's first render,
+  // then true, so the user's initials, name and email follow right after.
+  const hydrated = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
+  const data = hydrated ? session : null;
 
   const [showLogoutAlert, setShowLogoutAlert] = useState(false);
+  const initials = getInitials(data?.user?.name || data?.user?.email) || "U";
 
   return (
     <>
@@ -51,13 +63,8 @@ export function NavUser() {
                 size="lg"
                 className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
               >
-                <Avatar className="h-8 w-8 rounded-lg grayscale">
-                  {/* {data?.user?.image ? (
-                                    <AvatarImage src={data?.user?.image} alt={data?.user?.name} />
-                                ) : (
-                                    <AvatarFallback className="rounded-lg">CN</AvatarFallback>
-                                )} */}
-                  <AvatarFallback className="rounded-lg">CN</AvatarFallback>
+                <Avatar className="h-8 w-8 grayscale">
+                  <AvatarFallback>{initials}</AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">
@@ -78,8 +85,8 @@ export function NavUser() {
             >
               <DropdownMenuLabel className="p-0 font-normal capitalize">
                 <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                  <Avatar className="h-8 w-8 rounded-lg">
-                    <AvatarFallback className="rounded-lg">CN</AvatarFallback>
+                  <Avatar className="h-8 w-8">
+                    <AvatarFallback>{initials}</AvatarFallback>
                   </Avatar>
                   <div className="grid flex-1 text-left text-sm leading-tight">
                     <span className="truncate font-medium">
@@ -92,16 +99,16 @@ export function NavUser() {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuGroup>
+              {/* <DropdownMenuGroup>
                 <DropdownMenuItem>
                   <IconUserCircle />
                   Account
                 </DropdownMenuItem>
-              </DropdownMenuGroup>
+              </DropdownMenuGroup> */}
               <DropdownMenuSeparator />
               <DropdownMenuItem onSelect={() => setShowLogoutAlert(true)}>
                 <IconLogout />
-                Log out
+                Log Out
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -112,7 +119,7 @@ export function NavUser() {
       <AlertDialog open={showLogoutAlert} onOpenChange={setShowLogoutAlert}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogTitle>Are You Absolutely Sure?</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to sign out? You will need to log in again
               to access the dashboard.

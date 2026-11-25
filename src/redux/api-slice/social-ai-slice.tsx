@@ -1,0 +1,2495 @@
+import {
+  createAsyncThunk,
+  createSlice,
+  isAnyOf,
+  type PayloadAction,
+} from "@reduxjs/toolkit";
+import { axiosInstance } from "../axios-config";
+import { ENDPOINTS } from "@/lib/config";
+import { isAxiosError } from "axios";
+import { toast } from "sonner";
+import type {
+  CreateSupportTicketPayload,
+  SupportTicketDraft,
+} from "@/redux/api-slice/support-ticket-slice";
+import type { ActionId, Autonomy } from "@/lib/comment-handling-data";
+import { getApiErrorMessage, toPaginatedList } from "@/lib/helpers";
+import { bestErrorMessage, errorEnvelope } from "@/lib/api-errors";
+
+/**
+ * One page size for every social list. Filtering and searching are the
+ * backend's job throughout — these thunks only ever forward the params.
+ */
+export const SOCIAL_PAGE_SIZE = 25;
+
+/**
+ * Merge a paged response into the slot. Page 1 replaces (a new search or
+ * filter), later pages append — that's what makes infinite scroll additive
+ * rather than a flicker back to the top.
+ */
+function mergePage<
+  T,
+  R extends { results: T[]; count: number; next?: string | null },
+>(existing: R | undefined, incoming: R, page: number): R {
+  if (page <= 1) return incoming;
+  return {
+    ...incoming,
+    results: [...(existing?.results ?? []), ...(incoming.results ?? [])],
+  };
+}
+
+type MetaOAuthUrlResponse = {
+  authorize_url: string;
+};
+
+// What the accounts screen offers for a row — derived by the backend.
+export type ConnectionState = "active" | "needs_reauth" | "disconnected";
+
+export type ConnectedAccount = {
+  id: string;
+  channel_type: string;
+  external_id: string;
+  name: string;
+  username: string;
+  profile_picture_url: string;
+  category: string;
+  cover_url: string;
+  phone_number: string;
+  followers_count: number | null;
+  // IG only — how many accounts this profile follows; null on FB pages.
+  follows_count: number | null;
+  webhook_status: string;
+  is_active: boolean;
+  // When the account was (last) connected — moves on every reconnect.
+  connected_at: string;
+  // Set once the user disconnects the account; its history is kept.
+  disconnected_at: string | null;
+  connection_state: ConnectionState;
+  // Whether the AI answers this account's comments and DMs on its own.
+  allow_ai_auto_respond: boolean;
+  last_event_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SocialAccountsSubscriptionsResponse = {
+  results: ConnectedAccount[];
+  count: number;
+  next?: string | null;
+  previous?: string | null;
+};
+
+export type SocialPostMediaEntry = {
+  id: string;
+  media_type: string;
+  position: number;
+  url: string;
+  thumbnail_url: string;
+  // Instagram's Graph API returns no dimensions for images — null there.
+  width: number | null;
+  height: number | null;
+};
+
+export type SocialPost = {
+  id: number;
+  account_name: string;
+  external_id: string;
+  channel_type: string;
+  content: string;
+  permalink: string;
+  media_type: string;
+  like_count: number;
+  comments_count: number;
+  posted_at: string;
+  media_entries: SocialPostMediaEntry[];
+};
+
+export type SocialPostsResponse = {
+  results: SocialPost[];
+  count: number;
+  next?: string | null;
+  previous?: string | null;
+};
+
+export type SocialUser = {
+  id: number;
+  external_id: string;
+  name: string;
+  username: string;
+  profile_picture_url: string;
+};
+
+export type SocialCommentAnalysis = {
+  intent: string;
+  intent_label: string;
+  topics: string[];
+  topic_labels: string[];
+  sentiment: string;
+  sentiment_label: string;
+  is_sarcastic: boolean;
+  is_spam: boolean;
+  is_critical: boolean;
+  confidence: number | null;
+};
+
+/**
+ * The AI's reply to a comment. Null unless the AI judged the comment worth
+ * answering (questions, complaints, sarcasm, critical, negative — never
+ * plain praise, thanks or spam) and the account has auto-reply on.
+ *
+ * `is_auto_sent` decides what the UI does with it: true means it already
+ * went out and is in the thread as a `sender_type: "ai"` reply, so there is
+ * nothing to send. False means the provider send failed and the agent can
+ * send it by hand.
+ */
+export type SocialCommentAiResponse = {
+  id: number;
+  response_text: string;
+  is_auto_sent: boolean;
+  model_used: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SocialComment = {
+  id: number;
+  post: number;
+  external_message_id: string;
+  content: string;
+  like_count: number;
+  social_user: SocialUser | null;
+  // "user" for customer comments; "agent"/"ai" when the page itself replied.
+  sender_type: string;
+  parent_message: number | null;
+  reply_count: number;
+  is_hidden: boolean;
+  owner_liked: boolean;
+  is_deleted: boolean;
+  // Null until the AI tagging pipeline has processed this comment.
+  analysis: SocialCommentAnalysis | null;
+  ai_response: SocialCommentAiResponse | null;
+  // A pending AI draft exists for this comment — the in-context bubble
+  // fetches its content lazily. Absent on websocket payloads.
+  has_pending_draft?: boolean;
+  // Client-side only: the full draft delivered by a comment_draft_created
+  // broadcast, stashed on the row so the in-context bubble renders it
+  // without a fetch. Never present on API responses.
+  pending_draft?: CommentDraft | null;
+  external_created_at: string;
+};
+
+export type SocialCommentsResponse = {
+  results: SocialComment[];
+  count: number;
+  next?: string | null;
+  previous?: string | null;
+};
+
+export type CommentTopic = {
+  slug: string;
+  label: string;
+};
+
+/**
+ * The shopper record a DM contact is linked to — set when a ticket is
+ * created from the conversation (the backend links the resolved customer
+ * back to the contact) or via the link-customer dialog. The users list
+ * sends it on every row: this dict when linked, null when not.
+ *
+ * The fields beyond id/name/email are optional because the fulfilled-link
+ * reducer patches the row from the dialog's pick, which doesn't carry them;
+ * they fill in on the next list fetch.
+ */
+export type SocialLinkedCustomer = {
+  id: number;
+  /** The shopper's id on the commerce platform. */
+  customer_id?: string;
+  name: string;
+  email: string;
+  phone?: string;
+  orders_count?: number;
+  /** DecimalField — DRF serialises it as a string. */
+  total_spent?: string | number;
+};
+
+// A DM contact of one connected account — one row per conversation in the
+// inbox list (from the users-list API, most recent conversation first).
+export type SocialConversationUser = {
+  id: number;
+  external_id: string;
+  name: string;
+  username: string;
+  profile_picture_url: string;
+  last_message: string | null;
+  last_message_at: string | null;
+  customer?: SocialLinkedCustomer | null;
+  // A pending AI-drafted DM exists for this contact. A contact can appear
+  // with no thread at all yet — then last_message is the drafted text and
+  // approving the draft is the only send path (Meta has no messenger id
+  // for them until they write).
+  has_pending_dm_draft?: boolean;
+};
+
+export type SocialUsersResponse = {
+  results: SocialConversationUser[];
+  count: number;
+  next?: string | null;
+  previous?: string | null;
+};
+
+export type SocialDmReplyTo = {
+  id: number;
+  content: string;
+  sender_name: string | null;
+};
+
+// One piece of media on a DM, in send order. An attachment-only message
+// has empty `content` and one or more of these.
+export type SocialDmAttachment = {
+  id: number;
+  // "image" | "video" | "audio" | "file" | "sticker" | "share" | "other"
+  attachment_type: string;
+  position: number;
+  // Meta CDN URL — signed and expiring (see expires_at). Blank for payload
+  // shapes that carry no URL of their own.
+  url: string;
+  title: string;
+  sticker_id: string;
+  expires_at: string | null;
+};
+
+export type SocialDm = {
+  id: number;
+  external_message_id: string;
+  content: string;
+  sender_type: string;
+  message_direction: string;
+  social_user: SocialUser | null;
+  external_created_at: string | null;
+  owner_reaction: string | null;
+  reply_to: SocialDmReplyTo | null;
+  // Absent on older payloads; the websocket broadcast also fires before
+  // attachments are synced, so never assume this is populated.
+  attachments?: SocialDmAttachment[];
+};
+
+export type SocialDmsResponse = {
+  results: SocialDm[];
+  count: number;
+  next?: string | null;
+  previous?: string | null;
+};
+
+/* Comment automation settings — per connected account ------------------ */
+
+export type CommentSettingsAction = {
+  id: ActionId;
+  label: string;
+  /** Fixed execution order. Users pick a subset, they never reorder it. */
+  priority: number;
+};
+
+export type CommentIntentRule = {
+  id: string;
+  label: string;
+  actions: ActionId[];
+  autonomy: Autonomy;
+  /** True when this is a saved override rather than the factory default. */
+  is_customized: boolean;
+};
+
+export type CommentTopicRule = {
+  id: string;
+  topic: string;
+  label: string;
+  actions: ActionId[];
+  autonomy: Autonomy;
+};
+
+/** One GET renders the whole settings screen: vocabularies + one account's effective rules. */
+export type CommentSettingsConfig = {
+  account: {
+    id: number;
+    name: string;
+    channel_type: string;
+    allow_ai_auto_respond: boolean;
+  };
+  actions: CommentSettingsAction[];
+  autonomy_levels: { value: Autonomy; label: string }[];
+  topics: { value: string; label: string }[];
+  /** All 18 intents with this account's effective rule, in display order. */
+  intents: CommentIntentRule[];
+  /** Only this account's saved rules — exactly what is enforced. */
+  topic_rules: CommentTopicRule[];
+  /** Factory suggestions — inert until saved via PUT. */
+  suggested_topic_rules: CommentTopicRule[];
+};
+
+export type CommentDraftStatus = "pending" | "approved" | "discarded";
+
+/**
+ * One row of the draft review queue. One draft per comment, ever — a
+ * discarded draft never regenerates, so there is no "regenerate" affordance.
+ */
+export type CommentDraft = {
+  id: number;
+  /**
+   * The comment being answered. On the queue serializer it also carries
+   * the post's external Graph id, so the card can deep-link to the thread
+   * (?post= on the feed).
+   */
+  message: SocialComment & { post_external_id?: string | null };
+  /**
+   * The connected account the comment arrived on — its channel_type is
+   * what routes the View Post link to the Facebook or Instagram feed.
+   */
+  account?: { id: number; name: string; channel_type: string } | null;
+  /**
+   * Client-side enrichment: the account's external Graph id from a draft
+   * broadcast, kept so the View Post link can resolve the channel when the
+   * API row carries no account.
+   */
+  account_external_id?: string | null;
+  actions: ActionId[];
+  /** What would be posted publicly. Empty when the actions need no text. */
+  response_text: string;
+  /** What would be DM'd. Empty when no DM action is set. */
+  dm_text: string;
+  rule_source: string;
+  // Always "pending" on anything the API returns — a handled draft leaves
+  // every response; the field only guards races around approval.
+  status: CommentDraftStatus;
+  created_at: string;
+};
+
+export type CommentDraftsResponse = {
+  results: CommentDraft[];
+  count: number;
+  next?: string | null;
+  previous?: string | null;
+};
+
+// One component of a WhatsApp template, in Meta's `components` schema.
+// HEADER/BODY carry `example` only when Meta has a sample on file (BODY's
+// var examples, or the media sample for an IMAGE/VIDEO/DOCUMENT header).
+export type WhatsAppTemplateComponent = {
+  type: "HEADER" | "BODY" | "FOOTER" | "BUTTONS";
+  format?: "TEXT" | "IMAGE" | "VIDEO" | "DOCUMENT" | "LOCATION";
+  text?: string;
+  example?: {
+    header_handle?: string[];
+    header_text?: string[];
+    body_text?: string[][];
+    // NAMED-format equivalent of body_text — one entry per {{token}} the
+    // body uses, each carrying the sample value submitted alongside it.
+    body_text_named_params?: { param_name: string; example: string }[];
+  };
+  buttons?: {
+    type: string;
+    text: string;
+    url?: string;
+    phone_number?: string;
+  }[];
+};
+
+export type WhatsAppTemplateQualityScore = {
+  score: "GREEN" | "YELLOW" | "RED" | "UNKNOWN";
+  // Unix seconds — when Meta last evaluated this score, not when the
+  // template itself was created or edited (Meta exposes no such field).
+  date?: number;
+};
+
+// A WhatsApp template's message parts, as the backend stores them —
+// header/body/footer/button as fields, not Meta's `components` array.
+// Shared by a store's own templates and the platform catalogue rows.
+//
+// No `*_example`/`button_coupon_code` fields: Meta's review-time samples
+// are generated server-side (from campaign.constants.TEMPLATE_VARIABLE_SAMPLES
+// / DEFAULT_BUTTON_*) rather than being client-supplied, so the backend
+// neither accepts nor returns them anymore.
+export type WhatsAppTemplateParts = {
+  parameter_format: "NAMED" | "POSITIONAL";
+  header_format: "NONE" | "TEXT" | "IMAGE" | "VIDEO" | "DOCUMENT" | "LOCATION";
+  header_text: string;
+  body_text: string;
+  footer_text: string;
+  button_type: "" | "QUICK_REPLY" | "URL" | "PHONE_NUMBER" | "COPY_CODE";
+  button_text: string;
+  button_url: string;
+  button_phone_number: string;
+};
+
+export type WhatsAppTemplate = {
+  // The template's LOCAL id — every route that acts on one is keyed by
+  // this rather than by Meta's id.
+  id: number;
+  meta_template_id: string | null;
+  name: string;
+  // Readable name for the dashboard; blank when none was set.
+  display_name: string;
+  status: string;
+  category: string;
+  language: string;
+  // The stored header sample, or null when the template has none. Only
+  // `file_url` — a short-lived presigned link to our own S3 copy — can
+  // actually be rendered; the storage key and Meta's write-only handle
+  // are not exposed. Fetch it fresh with the template rather than
+  // caching it; it expires.
+  attachment: WhatsAppTemplateAttachment | null;
+  is_active: boolean;
+  rejected_reason: string;
+  last_synced_at: string | null;
+  created_at: string;
+  updated_at: string;
+} & WhatsAppTemplateParts;
+
+export type WhatsAppTemplateAttachment = {
+  file_name: string;
+  file_type: string;
+  file_size: number | null;
+  file_url: string | null;
+};
+
+// The API returns templates as a bare array under `data`.
+export type WhatsAppTemplatesResponse = WhatsAppTemplate[];
+
+// What Meta hands back right after creation — `status` starts "PENDING";
+// poll fetchWhatsAppTemplates for the actual review outcome.
+export type WhatsAppTemplateSubmitResponse = {
+  id: string;
+  status: string;
+  category: string;
+};
+
+// What a create/edit call sends: the template's parts as fields, plus the
+// raw header file for a media header. There is no draft state — a write
+// either reaches Meta or changes nothing — and the file rides along with
+// this same request, so an abandoned template uploads nothing anywhere.
+// An edit sends only what changed, which is why the whole type is Partial
+// at the call site.
+export type WhatsAppTemplateWritePayload = {
+  name: string;
+  category: string;
+  language: string;
+  header_media?: File | null;
+} & WhatsAppTemplateParts;
+
+// One platform-provided catalog template (core.WhatsAppTemplateLibrary on
+// the backend) — read-only reference data, the same rows for every store.
+// `is_imported`/`local_id`/`meta_template_id`/`status` are computed live
+// against THIS account: importing then deleting the resulting
+// WhatsAppTemplate flips `is_imported` back to false, exactly as if it had
+// never been imported (see list_library_templates's docstring).
+export type WhatsAppTemplateLibraryItem = {
+  id: number;
+  name: string;
+  display_name: string;
+  description: string;
+  category: string;
+  language: string;
+  is_imported: boolean;
+} & WhatsAppTemplateParts;
+
+// The API returns the catalogue as a bare array under `data`.
+export type WhatsAppTemplateLibraryResponse = WhatsAppTemplateLibraryItem[];
+
+export const fetchSocialAccountsSubscriptions = createAsyncThunk(
+  "fetchSocialAccountsSubscriptions",
+  async (
+    {
+      storeCode,
+      includeDisconnected = false,
+    }: { storeCode: string; includeDisconnected?: boolean },
+    thunkAPI,
+  ) => {
+    try {
+      // Disconnected accounts are hidden everywhere except the accounts
+      // screen, which needs them to offer "Reconnect".
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchSocialAccountsSubscriptions()}?store_code=${storeCode}${
+          includeDisconnected ? "&include_disconnected=true" : ""
+        }`,
+        {
+          useBackend: true,
+        },
+      );
+      const data = response.data.data;
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Couldn't fetch social subscriptions.", {
+        description: data?.message || "Please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch social subscriptions.",
+      );
+    }
+  },
+);
+
+export const fetchWhatsAppTemplates = createAsyncThunk(
+  "fetchWhatsAppTemplates",
+  async (
+    { storeCode, accountId }: { storeCode: string; accountId: string },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchWhatsAppTemplates({ accountId })}?store_code=${storeCode}`,
+        { useBackend: true },
+      );
+      const data = response.data.data;
+      return data as WhatsAppTemplatesResponse;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Couldn't fetch WhatsApp templates.", {
+        description: data?.message || "Please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch WhatsApp templates.",
+      );
+    }
+  },
+);
+
+// Template submit/edit are fire-and-forget from Redux's perspective —
+// same as updateAccountAutoRespond/CreateSocialSupportTicket: the caller
+// reads the result off `.unwrap()` and drives its own loading/error UI, so
+// neither has a state slot.
+
+/**
+ * Pack a write payload for the wire, as multipart when it carries a file.
+ *
+ * A media header's file goes up with the same request that creates or
+ * edits the template, so nothing is uploaded for a template the user
+ * abandons. Multipart flattens everything to strings, so the parts that
+ * are really JSON are stringified and the backend parses them back.
+ */
+function buildTemplateRequest(payload: Partial<WhatsAppTemplateWritePayload>) {
+  const { header_media: file, ...fields } = payload;
+  if (!file) {
+    return { body: fields, config: { useBackend: true } as const };
+  }
+
+  const form = new FormData();
+  for (const [key, value] of Object.entries(fields)) {
+    if (value === undefined || value === null) continue;
+    form.append(
+      key,
+      typeof value === "object" ? JSON.stringify(value) : String(value),
+    );
+  }
+  form.append("header_media", file);
+  return {
+    body: form,
+    config: {
+      useBackend: true,
+      headers: { "Content-Type": "multipart/form-data" },
+    } as const,
+  };
+}
+
+export const submitWhatsAppTemplate = createAsyncThunk(
+  "submitWhatsAppTemplate",
+  async (
+    {
+      storeCode,
+      accountId,
+      payload,
+    }: {
+      storeCode: string;
+      accountId: string;
+      payload: WhatsAppTemplateWritePayload;
+    },
+    thunkAPI,
+  ) => {
+    try {
+      const { body, config } = buildTemplateRequest(payload);
+      const response = await axiosInstance.post(
+        `${ENDPOINTS.createWhatsAppTemplate({ accountId })}?store_code=${storeCode}`,
+        body,
+        config,
+      );
+      return response.data.data as WhatsAppTemplateSubmitResponse;
+    } catch (error) {
+      const data = errorEnvelope(error);
+      toast.error("Couldn't submit the template", {
+        description: bestErrorMessage(
+          data,
+          "Please check the form and try again.",
+        ),
+      });
+      return thunkAPI.rejectWithValue(data || "Couldn't submit the template");
+    }
+  },
+);
+
+// Fetch/edit/delete on one template's local mirror — same fire-and-forget
+// shape as submitWhatsAppTemplate above.
+export const fetchLocalWhatsAppTemplate = createAsyncThunk(
+  "fetchLocalWhatsAppTemplate",
+  async (
+    {
+      storeCode,
+      accountId,
+      templateId,
+    }: { storeCode: string; accountId: string; templateId: number },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.whatsAppTemplateDetail({ accountId, templateId })}?store_code=${storeCode}`,
+        { useBackend: true },
+      );
+      return response.data.data as WhatsAppTemplate;
+    } catch (error) {
+      const data = errorEnvelope(error);
+      toast.error("Couldn't load the template", {
+        description: bestErrorMessage(data, "Please try again later."),
+      });
+      return thunkAPI.rejectWithValue(data || "Couldn't load the template");
+    }
+  },
+);
+
+export const updateWhatsAppTemplate = createAsyncThunk(
+  "updateWhatsAppTemplate",
+  async (
+    {
+      storeCode,
+      accountId,
+      templateId,
+      payload,
+    }: {
+      storeCode: string;
+      accountId: string;
+      templateId: number;
+      payload: Partial<WhatsAppTemplateWritePayload>;
+    },
+    thunkAPI,
+  ) => {
+    try {
+      const { body, config } = buildTemplateRequest(payload);
+      const response = await axiosInstance.patch(
+        `${ENDPOINTS.whatsAppTemplateDetail({ accountId, templateId })}?store_code=${storeCode}`,
+        body,
+        config,
+      );
+      return response.data.data as WhatsAppTemplate;
+    } catch (error) {
+      const data = errorEnvelope(error);
+      toast.error("Couldn't update the template", {
+        description: bestErrorMessage(
+          data,
+          "Please check the form and try again.",
+        ),
+      });
+      return thunkAPI.rejectWithValue(data || "Couldn't update the template");
+    }
+  },
+);
+
+// The on/off switch: a PATCH of only `is_active` is saved locally, never
+// sent to Meta. A template that is off is never sent to customers.
+export const updateWhatsAppTemplateActive = createAsyncThunk(
+  "updateWhatsAppTemplateActive",
+  async (
+    {
+      storeCode,
+      accountId,
+      templateId,
+      isActive,
+    }: {
+      storeCode: string;
+      accountId: string;
+      templateId: number;
+      isActive: boolean;
+    },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.patch(
+        `${ENDPOINTS.whatsAppTemplateDetail({ accountId, templateId })}?store_code=${storeCode}`,
+        { is_active: isActive },
+        { useBackend: true },
+      );
+      return response.data.data as WhatsAppTemplate;
+    } catch (error) {
+      const data = errorEnvelope(error);
+      toast.error("Couldn't update the template", {
+        description: bestErrorMessage(data, "Please try again later."),
+      });
+      return thunkAPI.rejectWithValue(data || "Couldn't update the template");
+    }
+  },
+);
+
+export const deleteWhatsAppTemplate = createAsyncThunk(
+  "deleteWhatsAppTemplate",
+  async (
+    {
+      storeCode,
+      accountId,
+      templateId,
+    }: { storeCode: string; accountId: string; templateId: number },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.delete(
+        `${ENDPOINTS.whatsAppTemplateDetail({ accountId, templateId })}?store_code=${storeCode}`,
+        { useBackend: true },
+      );
+      return response.data.data as { status: string };
+    } catch (error) {
+      const data = errorEnvelope(error);
+      toast.error("Couldn't delete the template", {
+        description: bestErrorMessage(data, "Please try again later."),
+      });
+      return thunkAPI.rejectWithValue(data || "Couldn't delete the template");
+    }
+  },
+);
+
+export const fetchWhatsAppTemplateLibrary = createAsyncThunk(
+  "fetchWhatsAppTemplateLibrary",
+  async (
+    { storeCode, accountId }: { storeCode: string; accountId: string },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.whatsAppTemplateLibraryList({ accountId })}?store_code=${storeCode}`,
+        { useBackend: true },
+      );
+      return response.data.data as WhatsAppTemplateLibraryResponse;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Couldn't fetch the post-sale template library.", {
+        description: data?.message || "Please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't fetch the post-sale template library.",
+      );
+    }
+  },
+);
+
+// Fire-and-forget, same as submitWhatsAppTemplate above — the caller reads
+// the result off `.unwrap()` and drives its own per-card loading state, so
+// this has no state slot of its own.
+export const importWhatsAppTemplateFromLibrary = createAsyncThunk(
+  "importWhatsAppTemplateFromLibrary",
+  async (
+    {
+      storeCode,
+      accountId,
+      libraryId,
+    }: { storeCode: string; accountId: string; libraryId: number },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.post(
+        `${ENDPOINTS.whatsAppTemplateLibraryImport({ accountId, catalogueId: libraryId })}?store_code=${storeCode}`,
+        {},
+        { useBackend: true },
+      );
+      return response.data.data as WhatsAppTemplateSubmitResponse;
+    } catch (error) {
+      const data = errorEnvelope(error);
+      toast.error("Couldn't import the template", {
+        description: bestErrorMessage(data, "Please try again later."),
+      });
+      return thunkAPI.rejectWithValue(data || "Couldn't import the template");
+    }
+  },
+);
+
+export const updateAccountAutoRespond = createAsyncThunk(
+  "updateAccountAutoRespond",
+  async (
+    {
+      storeCode,
+      accountId,
+      allowAiAutoRespond,
+    }: { storeCode: string; accountId: string; allowAiAutoRespond: boolean },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.patch(
+        `${ENDPOINTS.updateConnectedAccount({ accountId })}?store_code=${storeCode}`,
+        { allow_ai_auto_respond: allowAiAutoRespond },
+        { useBackend: true },
+      );
+      return response.data;
+    } catch (error) {
+      const data = errorEnvelope(error);
+      toast.error("Couldn't update the AI auto-reply.", {
+        description: bestErrorMessage(data, "Please try again later."),
+      });
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't update the AI auto-reply.",
+      );
+    }
+  },
+);
+
+export const disconnectSocialAccount = createAsyncThunk(
+  "disconnectSocialAccount",
+  async (
+    { storeCode, accountId }: { storeCode: string; accountId: string },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.delete(
+        `${ENDPOINTS.updateConnectedAccount({ accountId })}?store_code=${storeCode}`,
+        { useBackend: true },
+      );
+      toast.success(response.data?.message ?? "Account disconnected.");
+      return response.data.data as ConnectedAccount;
+    } catch (error) {
+      const data = errorEnvelope(error);
+      toast.error("Couldn't disconnect the account.", {
+        description: bestErrorMessage(data, "Please try again later."),
+      });
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't disconnect the account.",
+      );
+    }
+  },
+);
+
+// `accountId` makes the flow reconnect that one disconnected account;
+// leave it out to connect, or to reauthorize an expired login.
+export const createMetaOAuthUrl = createAsyncThunk(
+  "createMetaOAuthUrl",
+  async (
+    { storeCode, accountId }: { storeCode: string; accountId?: string },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.createMetaOAuthUrl()}?store_code=${storeCode}${
+          accountId ? `&account_id=${accountId}` : ""
+        }`,
+        {
+          useBackend: true,
+        },
+      );
+      const data = response.data.data;
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Couldn't fetch Meta OAuth URL.", {
+        description: data?.message || "Please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch Meta OAuth URL.");
+    }
+  },
+);
+
+export const fetchSocialPosts = createAsyncThunk(
+  "fetchSocialPosts",
+  async (
+    {
+      storeCode,
+      accountId,
+      channelType,
+      page = 1,
+      pageSize = SOCIAL_PAGE_SIZE,
+      search,
+      minLikes,
+      maxLikes,
+      minComments,
+      maxComments,
+      from,
+      to,
+    }: {
+      storeCode: string;
+      accountId: string;
+      channelType?: string;
+      page?: number;
+      pageSize?: number;
+      search?: string;
+      minLikes?: number;
+      maxLikes?: number;
+      minComments?: number;
+      maxComments?: number;
+      from?: string;
+      to?: string;
+    },
+    thunkAPI,
+  ) => {
+    try {
+      const params = new URLSearchParams({
+        store_code: storeCode,
+        page: String(page),
+        page_size: String(pageSize),
+      });
+      if (channelType) params.set("channel_type", channelType);
+      if (search) params.set("search", search);
+      if (minLikes != null) params.set("min_likes", String(minLikes));
+      if (maxLikes != null) params.set("max_likes", String(maxLikes));
+      if (minComments != null) params.set("min_comments", String(minComments));
+      if (maxComments != null) params.set("max_comments", String(maxComments));
+      if (from) params.set("posted_from", from);
+      if (to) params.set("posted_to", to);
+
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchSocialPosts({ accountId })}?${params.toString()}`,
+        {
+          useBackend: true,
+        },
+      );
+      const data = response.data.data;
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Couldn't fetch posts.", {
+        description: data?.message || "Please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch posts.");
+    }
+  },
+);
+
+/**
+ * One post by its external Graph id, in the posts-list row shape. Used to
+ * resolve a ?post= deep link that may live beyond the loaded pages; the
+ * backend renews expired media links before answering. Consumed with
+ * .unwrap() into feed state — nothing in the store depends on it.
+ */
+export const fetchSocialPost = createAsyncThunk(
+  "fetchSocialPost",
+  async (
+    { storeCode, postId }: { storeCode: string; postId: string },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchSocialPost({ postId })}?store_code=${storeCode}`,
+        { useBackend: true },
+      );
+      return response.data.data as SocialPost;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Couldn't open the post", {
+        description:
+          data?.message || "It may belong to a different store, or be gone.",
+      });
+      return thunkAPI.rejectWithValue(data || "Couldn't open the post");
+    }
+  },
+);
+
+export const fetchPostComments = createAsyncThunk(
+  "fetchPostComments",
+  async (
+    {
+      storeCode,
+      postId,
+      page = 1,
+      pageSize = SOCIAL_PAGE_SIZE,
+      parentId,
+      topics,
+      intent,
+      sentiment,
+      sarcastic,
+      critical,
+      spam,
+    }: {
+      storeCode: string;
+      // The post's external Graph id (SocialPost.external_id).
+      postId: string;
+      page?: number;
+      pageSize?: number;
+      parentId?: number;
+      // AI-tag filters, all resolved by the backend.
+      topics?: string[];
+      intent?: string;
+      sentiment?: string;
+      sarcastic?: boolean;
+      critical?: boolean;
+      spam?: boolean;
+    },
+    thunkAPI,
+  ) => {
+    try {
+      const params = new URLSearchParams({
+        store_code: storeCode,
+        page: String(page),
+        page_size: String(pageSize),
+      });
+      if (parentId) params.set("parent", String(parentId));
+      // Repeated `topic` params — a comment matches any of them.
+      topics?.forEach((topic) => params.append("topic", topic));
+      if (intent) params.set("intent", intent);
+      if (sentiment) params.set("sentiment", sentiment);
+      if (sarcastic) params.set("is_sarcastic", "true");
+      if (critical) params.set("is_critical", "true");
+      if (spam) params.set("is_spam", "true");
+
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchPostComments({ postId })}?${params.toString()}`,
+        {
+          useBackend: true,
+        },
+      );
+      const data = response.data.data;
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Couldn't fetch post comments.", {
+        description: data?.message || "Please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch post comments.");
+    }
+  },
+);
+
+export const fetchCommentTopics = createAsyncThunk(
+  "fetchCommentTopics",
+  async (
+    { storeCode, postId }: { storeCode: string; postId: string },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchCommentTopics({ postId })}?store_code=${storeCode}`,
+        {
+          useBackend: true,
+        },
+      );
+      const data = response.data.data;
+      return (data?.topics ?? []) as CommentTopic[];
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Couldn't fetch comment topics.", {
+        description: data?.message || "Please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch comment topics.");
+    }
+  },
+);
+
+export const fetchSocialUsers = createAsyncThunk(
+  "fetchSocialUsers",
+  async (
+    {
+      storeCode,
+      accountId,
+      page = 1,
+      pageSize = SOCIAL_PAGE_SIZE,
+      search,
+    }: {
+      storeCode: string;
+      // The connected account's external Graph id (ConnectedAccount.external_id).
+      accountId: string;
+      page?: number;
+      pageSize?: number;
+      search?: string;
+    },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchSocialUsers({ accountId })}?store_code=${storeCode}&page=${page}&page_size=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ""}`,
+        {
+          useBackend: true,
+        },
+      );
+      const data = response.data.data;
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Couldn't fetch conversations.", {
+        description: data?.message || "Please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch conversations.");
+    }
+  },
+);
+
+export const fetchSocialDms = createAsyncThunk(
+  "fetchSocialDms",
+  async (
+    {
+      storeCode,
+      accountId,
+      userId,
+      page = 1,
+      pageSize = SOCIAL_PAGE_SIZE,
+    }: {
+      storeCode: string;
+      // The connected account's external Graph id (ConnectedAccount.external_id).
+      accountId: string;
+      // The conversation contact's DB id (SocialConversationUser.id).
+      userId: number;
+      page?: number;
+      pageSize?: number;
+    },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchSocialDms({ accountId, userId })}?store_code=${storeCode}&page=${page}&page_size=${pageSize}`,
+        {
+          useBackend: true,
+        },
+      );
+      const data = response.data.data;
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+
+      toast.error("Couldn't fetch messages.", {
+        description: data?.message || "Please try again later.",
+      });
+
+      return thunkAPI.rejectWithValue(data || "Couldn't fetch messages.");
+    }
+  },
+);
+
+export const likeMetaComment = createAsyncThunk(
+  "likeMetaComment",
+  async (
+    {
+      storeCode,
+      postId,
+      commentId,
+    }: { storeCode: string; postId: string; commentId: number },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.post(
+        `${ENDPOINTS.likeComment({ postId, commentId })}?store_code=${storeCode}`,
+        {},
+        { useBackend: true },
+      );
+      return response.data;
+    } catch (error) {
+      const data = errorEnvelope(error);
+      toast.error("Couldn't like item.", {
+        description: bestErrorMessage(data, "Please try again later."),
+      });
+      return thunkAPI.rejectWithValue(data || "Couldn't like item.");
+    }
+  },
+);
+
+export const unlikeMetaComment = createAsyncThunk(
+  "unlikeMetaComment",
+  async (
+    {
+      storeCode,
+      postId,
+      commentId,
+    }: { storeCode: string; postId: string; commentId: number },
+    thunkAPI,
+  ) => {
+    try {
+      // DELETE on the like route — no body; the method carries the intent.
+      const response = await axiosInstance.delete(
+        `${ENDPOINTS.likeComment({ postId, commentId })}?store_code=${storeCode}`,
+        { useBackend: true },
+      );
+      return response.data;
+    } catch (error) {
+      const data = errorEnvelope(error);
+      toast.error("Couldn't remove the like.", {
+        description: bestErrorMessage(data, "Please try again later."),
+      });
+      return thunkAPI.rejectWithValue(data || "Couldn't remove the like.");
+    }
+  },
+);
+
+export const hideMetaComment = createAsyncThunk(
+  "hideMetaComment",
+  async (
+    {
+      storeCode,
+      postId,
+      commentId,
+      is_hidden,
+    }: {
+      storeCode: string;
+      postId: string;
+      commentId: number;
+      is_hidden: boolean;
+    },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.post(
+        `${ENDPOINTS.hideComment({ postId, commentId })}?store_code=${storeCode}`,
+        { is_hidden },
+        { useBackend: true },
+      );
+      return response.data;
+    } catch (error) {
+      const data = errorEnvelope(error);
+      toast.error("Couldn't hide item.", {
+        description: bestErrorMessage(data, "Please try again later."),
+      });
+      return thunkAPI.rejectWithValue(data || "Couldn't hide item.");
+    }
+  },
+);
+
+export const deleteMetaComment = createAsyncThunk(
+  "deleteMetaComment",
+  async (
+    {
+      storeCode,
+      postId,
+      commentId,
+    }: { storeCode: string; postId: string; commentId: number },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.delete(
+        `${ENDPOINTS.deleteComment({ postId, commentId })}?store_code=${storeCode}`,
+        { useBackend: true },
+      );
+      return response.data;
+    } catch (error) {
+      const data = errorEnvelope(error);
+      toast.error("Couldn't delete item.", {
+        description: bestErrorMessage(data, "Please try again later."),
+      });
+      return thunkAPI.rejectWithValue(data || "Couldn't delete item.");
+    }
+  },
+);
+
+export const replyToMetaMessage = createAsyncThunk(
+  "replyToMetaMessage",
+  async (
+    {
+      storeCode,
+      userId,
+      messageId,
+      message,
+      isExplicitReply = true,
+      attachments,
+    }: {
+      storeCode: string;
+      userId: number;
+      messageId: number;
+      message: string;
+      isExplicitReply?: boolean;
+      attachments?: File[];
+    },
+    thunkAPI,
+  ) => {
+    try {
+      const url = `${ENDPOINTS.replyMessage({ userId, messageId })}?store_code=${storeCode}`;
+
+      // With media the request has to be multipart; the JSON body stays the
+      // shape it always was when there's nothing to upload.
+      const response = attachments?.length
+        ? await axiosInstance.post(
+            url,
+            (() => {
+              const form = new FormData();
+              form.append("message", message);
+              form.append("is_explicit_reply", String(isExplicitReply));
+              attachments.forEach((file) => form.append("attachments", file));
+              return form;
+            })(),
+            {
+              useBackend: true,
+              headers: { "Content-Type": "multipart/form-data" },
+            },
+          )
+        : await axiosInstance.post(
+            url,
+            { message, is_explicit_reply: isExplicitReply },
+            { useBackend: true },
+          );
+      return response.data;
+    } catch (error) {
+      const data = errorEnvelope(error);
+      toast.error("Couldn't reply to message.", {
+        description: bestErrorMessage(data, "Please try again later."),
+      });
+      return thunkAPI.rejectWithValue(data || "Couldn't reply to message.");
+    }
+  },
+);
+
+export const reactToMetaMessage = createAsyncThunk(
+  "reactToMetaMessage",
+  async (
+    {
+      storeCode,
+      userId,
+      messageId,
+      reaction,
+    }: {
+      storeCode: string;
+      userId: number;
+      messageId: number;
+      reaction: string;
+    },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.post(
+        `${ENDPOINTS.reactMessage({ userId, messageId })}?store_code=${storeCode}`,
+        { reaction },
+        { useBackend: true },
+      );
+      return response.data;
+    } catch (error) {
+      const data = errorEnvelope(error);
+      toast.error("Couldn't react to message.", {
+        description: bestErrorMessage(data, "Please try again later."),
+      });
+      return thunkAPI.rejectWithValue(data || "Couldn't react to message.");
+    }
+  },
+);
+
+export const replyToMetaComment = createAsyncThunk(
+  "replyToMetaComment",
+  async (
+    {
+      storeCode,
+      postId,
+      commentId,
+      message,
+    }: {
+      storeCode: string;
+      postId: string;
+      commentId: number;
+      message: string;
+    },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.post(
+        `${ENDPOINTS.replyComment({ postId, commentId })}?store_code=${storeCode}`,
+        { message },
+        { useBackend: true },
+      );
+      return response.data;
+    } catch (error) {
+      const data = errorEnvelope(error);
+      toast.error("Couldn't reply to comment.", {
+        description: bestErrorMessage(data, "Please try again later."),
+      });
+      return thunkAPI.rejectWithValue(data || "Couldn't reply to comment.");
+    }
+  },
+);
+
+/**
+ * Draft a ticket from a DM conversation, reading its recent messages.
+ *
+ * The social counterpart of FetchThreadTicketDraft, and quiet about
+ * failure for the same reason: the agent can still fill the form in.
+ */
+export const FetchSocialTicketDraft = createAsyncThunk(
+  "FetchSocialTicketDraft",
+  async (
+    { storeCode, userId }: { storeCode: string; userId: number },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.metaSupportTicketDraft(userId)}?store_code=${storeCode}`,
+        { useBackend: true },
+      );
+      return response.data.data as SupportTicketDraft;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.info("Couldn't draft this one", {
+        description:
+          data?.data?.detail?.[0] ||
+          data?.message ||
+          "Fill the form in manually.",
+      });
+      return thunkAPI.rejectWithValue(data || "Couldn't create ticket");
+    }
+  },
+);
+
+/**
+ * Raise a help desk ticket for the DM contact an agent is reading.
+ *
+ * Addressed by the SocialUser, not a chat thread: a Messenger or Instagram
+ * conversation has no Thread behind it. The backend resolves the email to
+ * a customer (creating one when it is new) and links it back to the
+ * contact, so the next ticket for the same shopper needs no retyping.
+ */
+export const CreateSocialSupportTicket = createAsyncThunk(
+  "CreateSocialSupportTicket",
+  async (
+    {
+      storeCode,
+      userId,
+      payload,
+    }: {
+      storeCode: string;
+      userId: number;
+      payload: CreateSupportTicketPayload;
+    },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.post(
+        `${ENDPOINTS.metaCreateSupportTicket(userId)}?store_code=${storeCode}`,
+        payload,
+        { useBackend: true },
+      );
+      toast.success("Ticket created.", {
+        description: "It is now in the help desk queue.",
+      });
+      return response.data.data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Couldn't create ticket", {
+        description:
+          getApiErrorMessage(data?.data) ||
+          data?.message ||
+          "Please check the form and try again.",
+      });
+      return thunkAPI.rejectWithValue(data || "Couldn't link the customer");
+    }
+  },
+);
+
+/**
+ * Attach a customer record to a DM contact, mirroring ThreadCustomerLink.
+ * The full display shape rides along in the arg so the fulfilled reducer
+ * can patch the conversation row without refetching the paged list.
+ */
+export const SocialUserCustomerLink = createAsyncThunk(
+  "SocialUserCustomerLink",
+  async (
+    {
+      storeCode,
+      userId,
+      customer,
+    }: { storeCode: string; userId: number; customer: SocialLinkedCustomer },
+    thunkAPI,
+  ) => {
+    try {
+      await axiosInstance.post(
+        `${ENDPOINTS.socialUserCustomerLink(userId)}?store_code=${storeCode}`,
+        { customer: customer.id },
+        { useBackend: true },
+      );
+      toast.success("Customer linked.", {
+        description: "This conversation now shows their record.",
+      });
+      return customer;
+    } catch (error) {
+      const data = errorEnvelope(error);
+      toast.error("Couldn't link the customer", {
+        description: bestErrorMessage(data, "Please try again later."),
+      });
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't load comment settings.",
+      );
+    }
+  },
+);
+
+export const fetchCommentSettings = createAsyncThunk(
+  "fetchCommentSettings",
+  async (
+    { storeCode, accountId }: { storeCode: string; accountId: string },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchCommentSettings({ accountId })}?store_code=${storeCode}`,
+        { useBackend: true },
+      );
+      return response.data.data as CommentSettingsConfig;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Couldn't load comment settings.", {
+        description: data?.message || "Please try again later.",
+      });
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't save this intent rule.",
+      );
+    }
+  },
+);
+
+// The rule saves carry no success toast of their own: one press of Save can
+// PUT several rules, and the screen toasts once for the batch.
+export const saveIntentRule = createAsyncThunk(
+  "saveIntentRule",
+  async (
+    {
+      storeCode,
+      accountId,
+      intent,
+      actions,
+      autonomy,
+    }: {
+      storeCode: string;
+      accountId: string;
+      intent: string;
+      actions: ActionId[];
+      autonomy: Autonomy;
+    },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.put(
+        `${ENDPOINTS.saveIntentRule({ accountId, intent })}?store_code=${storeCode}`,
+        { actions, autonomy },
+        { useBackend: true },
+      );
+      return response.data.data as CommentIntentRule;
+    } catch (error) {
+      const data = errorEnvelope(error);
+      toast.error("Couldn't save this intent rule.", {
+        description: bestErrorMessage(data, "Please try again later."),
+      });
+      return thunkAPI.rejectWithValue(data || "Couldn't save this topic rule.");
+    }
+  },
+);
+
+export const saveTopicRule = createAsyncThunk(
+  "saveTopicRule",
+  async (
+    {
+      storeCode,
+      accountId,
+      topic,
+      actions,
+      autonomy,
+    }: {
+      storeCode: string;
+      accountId: string;
+      topic: string;
+      actions: ActionId[];
+      autonomy: Autonomy;
+    },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.put(
+        `${ENDPOINTS.topicRule({ accountId, topic })}?store_code=${storeCode}`,
+        { actions, autonomy },
+        { useBackend: true },
+      );
+      return response.data.data as CommentTopicRule;
+    } catch (error) {
+      const data = errorEnvelope(error);
+      toast.error("Couldn't save this topic rule.", {
+        description: bestErrorMessage(data, "Please try again later."),
+      });
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't remove this topic rule.",
+      );
+    }
+  },
+);
+
+export const deleteTopicRule = createAsyncThunk(
+  "deleteTopicRule",
+  async (
+    {
+      storeCode,
+      accountId,
+      topic,
+    }: { storeCode: string; accountId: string; topic: string },
+    thunkAPI,
+  ) => {
+    try {
+      await axiosInstance.delete(
+        `${ENDPOINTS.topicRule({ accountId, topic })}?store_code=${storeCode}`,
+        { useBackend: true },
+      );
+      return topic;
+    } catch (error) {
+      const data = errorEnvelope(error);
+      toast.error("Couldn't remove this topic rule.", {
+        description: bestErrorMessage(data, "Please try again later."),
+      });
+      return thunkAPI.rejectWithValue(data || "Couldn't load the draft queue.");
+    }
+  },
+);
+
+export const fetchCommentDrafts = createAsyncThunk(
+  "fetchCommentDrafts",
+  async (
+    {
+      storeCode,
+      accountId,
+      page = 1,
+      pageSize = SOCIAL_PAGE_SIZE,
+    }: {
+      storeCode: string;
+      accountId?: string;
+      page?: number;
+      pageSize?: number;
+    },
+    thunkAPI,
+  ) => {
+    try {
+      // Only pending drafts exist to list — a handled draft leaves the API.
+      const params = new URLSearchParams({
+        store_code: storeCode,
+        status: "pending",
+        page: String(page),
+        page_size: String(pageSize),
+      });
+      if (accountId) params.set("account_id", accountId);
+
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchCommentDrafts()}?${params.toString()}`,
+        { useBackend: true },
+      );
+      return response.data.data as CommentDraftsResponse;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Couldn't load the draft queue.", {
+        description: data?.message || "Please try again later.",
+      });
+      return thunkAPI.rejectWithValue(data || "Couldn't load the AI draft.");
+    }
+  },
+);
+
+/**
+ * Normalise a per-user draft response. These routes haven't settled on one
+ * envelope (standard {status,message,data} wrapper or not; paginated, bare
+ * array, or a single object) — any drift used to render silently nothing,
+ * a badge with no bubble under it.
+ */
+function toDraftList(body: unknown): CommentDraftsResponse {
+  const record =
+    body && typeof body === "object" ? (body as Record<string, unknown>) : null;
+  const payload = record && "data" in record ? (record.data ?? body) : body;
+  const list = toPaginatedList<CommentDraft>(payload);
+  if (
+    !list.results.length &&
+    payload &&
+    typeof payload === "object" &&
+    "id" in (payload as Record<string, unknown>)
+  ) {
+    return { ...list, count: 1, results: [payload as CommentDraft] };
+  }
+  return list;
+}
+
+// The in-context draft reads. Both are addressed by the contact (post/page
+// external Graph id + SocialUser id) and default to status=pending
+// server-side. Consumed with .unwrap() into component state — nothing in
+// the store depends on them.
+export const fetchUserCommentDraft = createAsyncThunk(
+  "fetchUserCommentDraft",
+  async (
+    {
+      storeCode,
+      postId,
+      userId,
+    }: { storeCode: string; postId: string; userId: number },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.userCommentDraft({ postId, userId })}?store_code=${storeCode}`,
+        { useBackend: true },
+      );
+      return toDraftList(response.data);
+    } catch (error) {
+      const data = errorEnvelope(error);
+      toast.error("Couldn't load the AI draft.", {
+        description: bestErrorMessage(data, "Please try again later."),
+      });
+      return thunkAPI.rejectWithValue(data || "Couldn't load the AI draft.");
+    }
+  },
+);
+
+export const fetchUserMessageDraft = createAsyncThunk(
+  "fetchUserMessageDraft",
+  async (
+    {
+      storeCode,
+      pageId,
+      userId,
+    }: { storeCode: string; pageId: string; userId: number },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.userMessageDraft({ pageId, userId })}?store_code=${storeCode}`,
+        { useBackend: true },
+      );
+      return toDraftList(response.data);
+    } catch (error) {
+      const data = errorEnvelope(error);
+      toast.error("Couldn't load the AI draft.", {
+        description: bestErrorMessage(data, "Please try again later."),
+      });
+      return thunkAPI.rejectWithValue(data || "Couldn't update the draft");
+    }
+  },
+);
+
+// On the three draft mutations a 400 means the draft left pending state —
+// someone else already handled it. The screens treat rejection as "refresh
+// the queue", never as "retry".
+export const updateCommentDraft = createAsyncThunk(
+  "updateCommentDraft",
+  async (
+    {
+      storeCode,
+      draftId,
+      patch,
+      silent,
+    }: {
+      storeCode: string;
+      draftId: number;
+      patch: {
+        response_text?: string;
+        dm_text?: string;
+        actions?: ActionId[];
+      };
+      /** Skip the success toast — for a save folded into an approve. */
+      silent?: boolean;
+    },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.patch(
+        `${ENDPOINTS.commentDraft({ draftId })}?store_code=${storeCode}`,
+        patch,
+        { useBackend: true },
+      );
+      if (!silent) {
+        toast.success("Draft updated", {
+          description: "Your edits are what gets sent on approval.",
+        });
+      }
+      return response.data.data as CommentDraft;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Couldn't update the draft", {
+        description:
+          response?.status === 400
+            ? "It is no longer pending — someone else may have handled it."
+            : data?.message || "Please try again later.",
+      });
+      return thunkAPI.rejectWithValue(data || "Couldn't approve the draft");
+    }
+  },
+);
+
+export const approveCommentDraft = createAsyncThunk(
+  "approveCommentDraft",
+  async (
+    { storeCode, draftId }: { storeCode: string; draftId: number },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.post(
+        `${ENDPOINTS.approveCommentDraft({ draftId })}?store_code=${storeCode}`,
+        {},
+        { useBackend: true },
+      );
+      toast.success("Draft approved", {
+        description: "The actions were sent to the comment.",
+      });
+      return response.data.data as CommentDraft;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Couldn't approve the draft", {
+        description:
+          response?.status === 400
+            ? "It is no longer pending — someone else may have handled it."
+            : data?.message || "Please try again later.",
+      });
+      return thunkAPI.rejectWithValue(data || "Couldn't discard the draft");
+    }
+  },
+);
+
+export const discardCommentDraft = createAsyncThunk(
+  "discardCommentDraft",
+  async (
+    { storeCode, draftId }: { storeCode: string; draftId: number },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.post(
+        `${ENDPOINTS.discardCommentDraft({ draftId })}?store_code=${storeCode}`,
+        {},
+        { useBackend: true },
+      );
+      toast.success("Draft discarded", {
+        description: "Nothing will be sent for this comment.",
+      });
+      return response.data.data as CommentDraft;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Couldn't discard the draft", {
+        description:
+          response?.status === 400
+            ? "It is no longer pending — someone else may have handled it."
+            : data?.message || "Please try again later.",
+      });
+      return thunkAPI.rejectWithValue(data || "Couldn't discard the draft");
+    }
+  },
+);
+
+const SocialAISlice = createSlice({
+  name: "SocialAI",
+  initialState: {
+    FetchMetaOauthURLState: {
+      FetchMetaOauthURLIsLoading: false,
+      FetchMetaOauthURLIsSuccess: false,
+      FetchMetaOauthURLIsError: null as null | string | object,
+      FetchMetaOauthURLData: {} as MetaOAuthUrlResponse,
+    },
+    FetchSocialAccountSubscriptionsState: {
+      FetchSocialAccountsSubscriptionsIsLoading: false,
+      FetchSocialAccountsSubscriptionsIsSuccess: false,
+      FetchSocialAccountsSubscriptionsIsError: null as null | string | object,
+      FetchSocialAccountsSubscriptionsData:
+        {} as SocialAccountsSubscriptionsResponse,
+    },
+    LikeMetaCommentState: {
+      isLoading: false,
+      isSuccess: false,
+      isError: null as null | string | object,
+    },
+    HideMetaCommentState: {
+      isLoading: false,
+      isSuccess: false,
+      isError: null as null | string | object,
+    },
+    DeleteMetaCommentState: {
+      isLoading: false,
+      isSuccess: false,
+      isError: null as null | string | object,
+    },
+    ReplyToMetaMessageState: {
+      isLoading: false,
+      isSuccess: false,
+      isError: null as null | string | object,
+    },
+    ReplyToMetaCommentState: {
+      isLoading: false,
+      isSuccess: false,
+      isError: null as null | string | object,
+    },
+    ReactToMetaMessageState: {
+      isLoading: false,
+      isSuccess: false,
+      isError: null as null | string | object,
+    },
+    FetchSocialPostsState: {
+      FetchSocialPostsIsLoading: false,
+      FetchSocialPostsIsSuccess: false,
+      FetchSocialPostsIsError: null as null | string | object,
+      FetchSocialPostsData: {} as SocialPostsResponse,
+    },
+    FetchPostCommentsState: {
+      FetchPostCommentsIsLoading: false,
+      FetchPostCommentsIsSuccess: false,
+      FetchPostCommentsIsError: null as null | string | object,
+      FetchPostCommentsData: {} as SocialCommentsResponse,
+    },
+    FetchCommentTopicsState: {
+      FetchCommentTopicsIsLoading: false,
+      FetchCommentTopicsIsSuccess: false,
+      FetchCommentTopicsIsError: null as null | string | object,
+      FetchCommentTopicsData: [] as CommentTopic[],
+    },
+    FetchSocialUsersState: {
+      FetchSocialUsersIsLoading: false,
+      FetchSocialUsersIsSuccess: false,
+      FetchSocialUsersIsError: null as null | string | object,
+      FetchSocialUsersData: {} as SocialUsersResponse,
+    },
+    FetchSocialDmsState: {
+      FetchSocialDmsIsLoading: false,
+      FetchSocialDmsIsSuccess: false,
+      FetchSocialDmsIsError: null as null | string | object,
+      FetchSocialDmsData: {} as SocialDmsResponse,
+    },
+    FetchCommentSettingsState: {
+      FetchCommentSettingsIsLoading: false,
+      FetchCommentSettingsIsSuccess: false,
+      FetchCommentSettingsIsError: null as null | string | object,
+      // Null until loaded — the screen must not render one account's rules
+      // while another account's config is on the way.
+      FetchCommentSettingsData: null as CommentSettingsConfig | null,
+    },
+    FetchCommentDraftsState: {
+      FetchCommentDraftsIsLoading: false,
+      FetchCommentDraftsIsSuccess: false,
+      FetchCommentDraftsIsError: null as null | string | object,
+      FetchCommentDraftsData: {} as CommentDraftsResponse,
+    },
+    FetchWhatsAppTemplatesState: {
+      FetchWhatsAppTemplatesIsLoading: false,
+      FetchWhatsAppTemplatesIsSuccess: false,
+      FetchWhatsAppTemplatesIsError: null as null | string | object,
+      FetchWhatsAppTemplatesData: [] as WhatsAppTemplatesResponse,
+    },
+    UpdateWhatsAppTemplateActiveState: {
+      UpdateWhatsAppTemplateActiveIsLoading: false,
+      UpdateWhatsAppTemplateActiveIsSuccess: false,
+      UpdateWhatsAppTemplateActiveIsError: null as null | string | object,
+    },
+    FetchWhatsAppTemplateLibraryState: {
+      FetchWhatsAppTemplateLibraryIsLoading: false,
+      FetchWhatsAppTemplateLibraryIsSuccess: false,
+      FetchWhatsAppTemplateLibraryIsError: null as null | string | object,
+      FetchWhatsAppTemplateLibraryData: [] as WhatsAppTemplateLibraryResponse,
+    },
+  },
+  reducers: {
+    clearWhatsAppTemplates: (state) => {
+      state.FetchWhatsAppTemplatesState.FetchWhatsAppTemplatesData = [];
+      state.FetchWhatsAppTemplatesState.FetchWhatsAppTemplatesIsSuccess = false;
+    },
+    /**
+     * A DM that arrived over the websocket, for the conversation currently
+     * loaded. Deduped by id: the same row can arrive twice when a refetch
+     * races the broadcast, and our own outgoing replies come back through
+     * the same store-wide stream.
+     */
+    /** Flip an account's auto-reply flag locally, ahead of the PATCH. */
+    accountAutoRespondSet(
+      state,
+      action: PayloadAction<{ accountId: string; value: boolean }>,
+    ) {
+      const account =
+        state.FetchSocialAccountSubscriptionsState.FetchSocialAccountsSubscriptionsData?.results?.find(
+          (item) => String(item.id) === action.payload.accountId,
+        );
+      if (account) account.allow_ai_auto_respond = action.payload.value;
+    },
+
+    /** A comment_draft_created broadcast — the queue grows at the top. */
+    commentDraftReceived(state, action: PayloadAction<CommentDraft>) {
+      const drafts = state.FetchCommentDraftsState.FetchCommentDraftsData;
+      if (!drafts?.results) return;
+      if (drafts.results.some((row) => row.id === action.payload.id)) return;
+      drafts.results.unshift(action.payload);
+      drafts.count = (drafts.count ?? drafts.results.length - 1) + 1;
+    },
+
+    /**
+     * A comment_draft_updated broadcast: an edit keeps the row fresh, and
+     * a draft that left pending state was handled by someone else — it
+     * leaves the queue the way approve and discard do.
+     */
+    commentDraftChanged(state, action: PayloadAction<CommentDraft>) {
+      const drafts = state.FetchCommentDraftsState.FetchCommentDraftsData;
+      if (!drafts?.results) return;
+      const index = drafts.results.findIndex(
+        (row) => row.id === action.payload.id,
+      );
+      if (index === -1) return;
+      if (action.payload.status === "pending") {
+        drafts.results[index] = action.payload;
+        return;
+      }
+      drafts.results.splice(index, 1);
+      if (drafts.count) drafts.count -= 1;
+    },
+
+    /** Flip a DM contact's pending-draft flag from a draft broadcast. */
+    socialUserDmDraftFlagSet(
+      state,
+      action: PayloadAction<{ userId: number; value: boolean }>,
+    ) {
+      const users = state.FetchSocialUsersState.FetchSocialUsersData;
+      const row = users?.results?.find(
+        (user) => user.id === action.payload.userId,
+      );
+      if (row) row.has_pending_dm_draft = action.payload.value;
+    },
+
+    socialDmReceived(state, action: PayloadAction<SocialDm>) {
+      const dms = state.FetchSocialDmsState.FetchSocialDmsData;
+      if (!dms?.results) return;
+      if (dms.results.some((msg) => msg.id === action.payload.id)) return;
+      // The messages endpoint is oldest-first, so a new one belongs at the end.
+      dms.results.push(action.payload);
+      dms.count = (dms.count ?? dms.results.length - 1) + 1;
+    },
+
+    /**
+     * Refresh a conversation row's preview when a message arrives for it,
+     * and float it to the top so the list stays newest-first like the API
+     * returns it.
+     */
+    socialConversationTouched(
+      state,
+      action: PayloadAction<{
+        userId: number;
+        lastMessage: string;
+        lastMessageAt: string | null;
+      }>,
+    ) {
+      const users = state.FetchSocialUsersState.FetchSocialUsersData;
+      if (!users?.results) return;
+      const index = users.results.findIndex(
+        (user) => user.id === action.payload.userId,
+      );
+      // An unknown contact means a brand-new conversation — the list has to
+      // be refetched to get their profile, which the screen handles.
+      if (index === -1) return;
+
+      const [user] = users.results.splice(index, 1);
+      user.last_message = action.payload.lastMessage;
+      user.last_message_at = action.payload.lastMessageAt;
+      users.results.unshift(user);
+    },
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(createMetaOAuthUrl.pending, (state) => {
+        state.FetchMetaOauthURLState.FetchMetaOauthURLIsLoading = true;
+        state.FetchMetaOauthURLState.FetchMetaOauthURLIsSuccess = false;
+        state.FetchMetaOauthURLState.FetchMetaOauthURLIsError = null;
+      })
+      .addCase(createMetaOAuthUrl.fulfilled, (state, action) => {
+        state.FetchMetaOauthURLState.FetchMetaOauthURLIsLoading = false;
+        state.FetchMetaOauthURLState.FetchMetaOauthURLIsSuccess = true;
+        state.FetchMetaOauthURLState.FetchMetaOauthURLData = action.payload;
+      })
+      .addCase(createMetaOAuthUrl.rejected, (state, action) => {
+        state.FetchMetaOauthURLState.FetchMetaOauthURLIsLoading = false;
+        state.FetchMetaOauthURLState.FetchMetaOauthURLIsSuccess = false;
+        state.FetchMetaOauthURLState.FetchMetaOauthURLIsError =
+          action.payload as string | object;
+      })
+      .addCase(fetchSocialAccountsSubscriptions.pending, (state) => {
+        state.FetchSocialAccountSubscriptionsState.FetchSocialAccountsSubscriptionsIsLoading = true;
+        state.FetchSocialAccountSubscriptionsState.FetchSocialAccountsSubscriptionsIsSuccess = false;
+        state.FetchSocialAccountSubscriptionsState.FetchSocialAccountsSubscriptionsIsError =
+          null;
+      })
+      .addCase(fetchSocialAccountsSubscriptions.fulfilled, (state, action) => {
+        state.FetchSocialAccountSubscriptionsState.FetchSocialAccountsSubscriptionsIsLoading = false;
+        state.FetchSocialAccountSubscriptionsState.FetchSocialAccountsSubscriptionsIsSuccess = true;
+        state.FetchSocialAccountSubscriptionsState.FetchSocialAccountsSubscriptionsData =
+          action.payload;
+      })
+      .addCase(fetchSocialAccountsSubscriptions.rejected, (state, action) => {
+        state.FetchSocialAccountSubscriptionsState.FetchSocialAccountsSubscriptionsIsLoading = false;
+        state.FetchSocialAccountSubscriptionsState.FetchSocialAccountsSubscriptionsIsSuccess = false;
+        state.FetchSocialAccountSubscriptionsState.FetchSocialAccountsSubscriptionsIsError =
+          action.payload as string | object;
+      })
+      .addCase(fetchSocialPosts.pending, (state) => {
+        state.FetchSocialPostsState.FetchSocialPostsIsLoading = true;
+        state.FetchSocialPostsState.FetchSocialPostsIsSuccess = false;
+        state.FetchSocialPostsState.FetchSocialPostsIsError = null;
+      })
+      .addCase(fetchSocialPosts.fulfilled, (state, action) => {
+        state.FetchSocialPostsState.FetchSocialPostsIsLoading = false;
+        state.FetchSocialPostsState.FetchSocialPostsIsSuccess = true;
+        state.FetchSocialPostsState.FetchSocialPostsData = mergePage(
+          state.FetchSocialPostsState.FetchSocialPostsData,
+          action.payload,
+          action.meta.arg.page ?? 1,
+        );
+      })
+      .addCase(fetchSocialPosts.rejected, (state, action) => {
+        state.FetchSocialPostsState.FetchSocialPostsIsLoading = false;
+        state.FetchSocialPostsState.FetchSocialPostsIsSuccess = false;
+        state.FetchSocialPostsState.FetchSocialPostsIsError = action.payload as
+          | string
+          | object;
+      })
+      .addCase(fetchSocialUsers.pending, (state) => {
+        state.FetchSocialUsersState.FetchSocialUsersIsLoading = true;
+        state.FetchSocialUsersState.FetchSocialUsersIsSuccess = false;
+        state.FetchSocialUsersState.FetchSocialUsersIsError = null;
+      })
+      .addCase(fetchSocialUsers.fulfilled, (state, action) => {
+        state.FetchSocialUsersState.FetchSocialUsersIsLoading = false;
+        state.FetchSocialUsersState.FetchSocialUsersIsSuccess = true;
+        state.FetchSocialUsersState.FetchSocialUsersData = mergePage(
+          state.FetchSocialUsersState.FetchSocialUsersData,
+          action.payload,
+          action.meta.arg.page ?? 1,
+        );
+      })
+      .addCase(fetchSocialUsers.rejected, (state, action) => {
+        state.FetchSocialUsersState.FetchSocialUsersIsLoading = false;
+        state.FetchSocialUsersState.FetchSocialUsersIsSuccess = false;
+        state.FetchSocialUsersState.FetchSocialUsersIsError = action.payload as
+          | string
+          | object;
+      })
+      .addCase(fetchPostComments.pending, (state) => {
+        state.FetchPostCommentsState.FetchPostCommentsIsLoading = true;
+        state.FetchPostCommentsState.FetchPostCommentsIsSuccess = false;
+        state.FetchPostCommentsState.FetchPostCommentsIsError = null;
+      })
+      .addCase(fetchPostComments.fulfilled, (state, action) => {
+        state.FetchPostCommentsState.FetchPostCommentsIsLoading = false;
+        state.FetchPostCommentsState.FetchPostCommentsIsSuccess = true;
+        state.FetchPostCommentsState.FetchPostCommentsData = mergePage(
+          state.FetchPostCommentsState.FetchPostCommentsData,
+          action.payload,
+          action.meta.arg.page ?? 1,
+        );
+      })
+      .addCase(fetchPostComments.rejected, (state, action) => {
+        state.FetchPostCommentsState.FetchPostCommentsIsLoading = false;
+        state.FetchPostCommentsState.FetchPostCommentsIsSuccess = false;
+        state.FetchPostCommentsState.FetchPostCommentsIsError =
+          action.payload as string | object;
+      })
+      .addCase(fetchCommentTopics.pending, (state) => {
+        state.FetchCommentTopicsState.FetchCommentTopicsIsLoading = true;
+        state.FetchCommentTopicsState.FetchCommentTopicsIsSuccess = false;
+        state.FetchCommentTopicsState.FetchCommentTopicsIsError = null;
+      })
+      .addCase(fetchCommentTopics.fulfilled, (state, action) => {
+        state.FetchCommentTopicsState.FetchCommentTopicsIsLoading = false;
+        state.FetchCommentTopicsState.FetchCommentTopicsIsSuccess = true;
+        state.FetchCommentTopicsState.FetchCommentTopicsData = action.payload;
+      })
+      .addCase(fetchCommentTopics.rejected, (state, action) => {
+        state.FetchCommentTopicsState.FetchCommentTopicsIsLoading = false;
+        state.FetchCommentTopicsState.FetchCommentTopicsIsSuccess = false;
+        state.FetchCommentTopicsState.FetchCommentTopicsIsError =
+          action.payload as string | object;
+      })
+      .addCase(fetchSocialDms.pending, (state) => {
+        state.FetchSocialDmsState.FetchSocialDmsIsLoading = true;
+        state.FetchSocialDmsState.FetchSocialDmsIsSuccess = false;
+        state.FetchSocialDmsState.FetchSocialDmsIsError = null;
+      })
+      .addCase(fetchSocialDms.fulfilled, (state, action) => {
+        state.FetchSocialDmsState.FetchSocialDmsIsLoading = false;
+        state.FetchSocialDmsState.FetchSocialDmsIsSuccess = true;
+        state.FetchSocialDmsState.FetchSocialDmsData = mergePage(
+          state.FetchSocialDmsState.FetchSocialDmsData,
+          action.payload,
+          action.meta.arg.page ?? 1,
+        );
+      })
+      .addCase(fetchSocialDms.rejected, (state, action) => {
+        state.FetchSocialDmsState.FetchSocialDmsIsLoading = false;
+        state.FetchSocialDmsState.FetchSocialDmsIsSuccess = false;
+        state.FetchSocialDmsState.FetchSocialDmsIsError = action.payload as
+          | string
+          | object;
+      })
+      .addCase(fetchWhatsAppTemplates.pending, (state) => {
+        state.FetchWhatsAppTemplatesState.FetchWhatsAppTemplatesIsLoading = true;
+        state.FetchWhatsAppTemplatesState.FetchWhatsAppTemplatesIsSuccess = false;
+        state.FetchWhatsAppTemplatesState.FetchWhatsAppTemplatesIsError = null;
+      })
+      .addCase(fetchWhatsAppTemplates.fulfilled, (state, action) => {
+        state.FetchWhatsAppTemplatesState.FetchWhatsAppTemplatesIsLoading = false;
+        state.FetchWhatsAppTemplatesState.FetchWhatsAppTemplatesIsSuccess = true;
+        state.FetchWhatsAppTemplatesState.FetchWhatsAppTemplatesData =
+          action.payload;
+      })
+      .addCase(fetchWhatsAppTemplates.rejected, (state, action) => {
+        state.FetchWhatsAppTemplatesState.FetchWhatsAppTemplatesIsLoading = false;
+        state.FetchWhatsAppTemplatesState.FetchWhatsAppTemplatesIsSuccess = false;
+        state.FetchWhatsAppTemplatesState.FetchWhatsAppTemplatesIsError =
+          action.payload as string | object;
+      })
+      .addCase(updateWhatsAppTemplateActive.pending, (state) => {
+        state.UpdateWhatsAppTemplateActiveState.UpdateWhatsAppTemplateActiveIsLoading = true;
+        state.UpdateWhatsAppTemplateActiveState.UpdateWhatsAppTemplateActiveIsSuccess = false;
+        state.UpdateWhatsAppTemplateActiveState.UpdateWhatsAppTemplateActiveIsError =
+          null;
+      })
+      .addCase(updateWhatsAppTemplateActive.fulfilled, (state, action) => {
+        state.UpdateWhatsAppTemplateActiveState.UpdateWhatsAppTemplateActiveIsLoading = false;
+        state.UpdateWhatsAppTemplateActiveState.UpdateWhatsAppTemplateActiveIsSuccess = true;
+        const rows =
+          state.FetchWhatsAppTemplatesState.FetchWhatsAppTemplatesData;
+        const index = rows.findIndex((row) => row.id === action.payload.id);
+        if (index !== -1) rows[index] = action.payload;
+      })
+      .addCase(updateWhatsAppTemplateActive.rejected, (state, action) => {
+        state.UpdateWhatsAppTemplateActiveState.UpdateWhatsAppTemplateActiveIsLoading = false;
+        state.UpdateWhatsAppTemplateActiveState.UpdateWhatsAppTemplateActiveIsSuccess = false;
+        state.UpdateWhatsAppTemplateActiveState.UpdateWhatsAppTemplateActiveIsError =
+          action.payload as string | object;
+      })
+      .addCase(fetchWhatsAppTemplateLibrary.pending, (state) => {
+        state.FetchWhatsAppTemplateLibraryState.FetchWhatsAppTemplateLibraryIsLoading = true;
+        state.FetchWhatsAppTemplateLibraryState.FetchWhatsAppTemplateLibraryIsSuccess = false;
+        state.FetchWhatsAppTemplateLibraryState.FetchWhatsAppTemplateLibraryIsError =
+          null;
+      })
+      .addCase(fetchWhatsAppTemplateLibrary.fulfilled, (state, action) => {
+        state.FetchWhatsAppTemplateLibraryState.FetchWhatsAppTemplateLibraryIsLoading = false;
+        state.FetchWhatsAppTemplateLibraryState.FetchWhatsAppTemplateLibraryIsSuccess = true;
+        state.FetchWhatsAppTemplateLibraryState.FetchWhatsAppTemplateLibraryData =
+          action.payload;
+      })
+      .addCase(fetchWhatsAppTemplateLibrary.rejected, (state, action) => {
+        state.FetchWhatsAppTemplateLibraryState.FetchWhatsAppTemplateLibraryIsLoading = false;
+        state.FetchWhatsAppTemplateLibraryState.FetchWhatsAppTemplateLibraryIsSuccess = false;
+        state.FetchWhatsAppTemplateLibraryState.FetchWhatsAppTemplateLibraryIsError =
+          action.payload as string | object;
+      })
+      .addCase(likeMetaComment.pending, (state) => {
+        state.LikeMetaCommentState.isLoading = true;
+        state.LikeMetaCommentState.isSuccess = false;
+        state.LikeMetaCommentState.isError = null;
+      })
+      .addCase(likeMetaComment.fulfilled, (state) => {
+        state.LikeMetaCommentState.isLoading = false;
+        state.LikeMetaCommentState.isSuccess = true;
+      })
+      .addCase(likeMetaComment.rejected, (state, action) => {
+        state.LikeMetaCommentState.isLoading = false;
+        state.LikeMetaCommentState.isSuccess = false;
+        state.LikeMetaCommentState.isError = action.payload as string | object;
+      })
+      .addCase(hideMetaComment.pending, (state) => {
+        state.HideMetaCommentState.isLoading = true;
+        state.HideMetaCommentState.isSuccess = false;
+        state.HideMetaCommentState.isError = null;
+      })
+      .addCase(hideMetaComment.fulfilled, (state) => {
+        state.HideMetaCommentState.isLoading = false;
+        state.HideMetaCommentState.isSuccess = true;
+      })
+      .addCase(hideMetaComment.rejected, (state, action) => {
+        state.HideMetaCommentState.isLoading = false;
+        state.HideMetaCommentState.isSuccess = false;
+        state.HideMetaCommentState.isError = action.payload as string | object;
+      })
+      .addCase(deleteMetaComment.pending, (state) => {
+        state.DeleteMetaCommentState.isLoading = true;
+        state.DeleteMetaCommentState.isSuccess = false;
+        state.DeleteMetaCommentState.isError = null;
+      })
+      .addCase(deleteMetaComment.fulfilled, (state) => {
+        state.DeleteMetaCommentState.isLoading = false;
+        state.DeleteMetaCommentState.isSuccess = true;
+      })
+      .addCase(deleteMetaComment.rejected, (state, action) => {
+        state.DeleteMetaCommentState.isLoading = false;
+        state.DeleteMetaCommentState.isSuccess = false;
+        state.DeleteMetaCommentState.isError = action.payload as
+          | string
+          | object;
+      })
+      .addCase(replyToMetaMessage.pending, (state) => {
+        state.ReplyToMetaMessageState.isLoading = true;
+        state.ReplyToMetaMessageState.isSuccess = false;
+        state.ReplyToMetaMessageState.isError = null;
+      })
+      .addCase(replyToMetaMessage.fulfilled, (state) => {
+        state.ReplyToMetaMessageState.isLoading = false;
+        state.ReplyToMetaMessageState.isSuccess = true;
+      })
+      .addCase(replyToMetaMessage.rejected, (state, action) => {
+        state.ReplyToMetaMessageState.isLoading = false;
+        state.ReplyToMetaMessageState.isSuccess = false;
+        state.ReplyToMetaMessageState.isError = action.payload as
+          | string
+          | object;
+      })
+      .addCase(replyToMetaComment.pending, (state) => {
+        state.ReplyToMetaCommentState.isLoading = true;
+        state.ReplyToMetaCommentState.isSuccess = false;
+        state.ReplyToMetaCommentState.isError = null;
+      })
+      .addCase(replyToMetaComment.fulfilled, (state) => {
+        state.ReplyToMetaCommentState.isLoading = false;
+        state.ReplyToMetaCommentState.isSuccess = true;
+      })
+      .addCase(replyToMetaComment.rejected, (state, action) => {
+        state.ReplyToMetaCommentState.isLoading = false;
+        state.ReplyToMetaCommentState.isSuccess = false;
+        state.ReplyToMetaCommentState.isError = action.payload as
+          | string
+          | object;
+      })
+      .addCase(reactToMetaMessage.pending, (state) => {
+        state.ReactToMetaMessageState.isLoading = true;
+        state.ReactToMetaMessageState.isSuccess = false;
+        state.ReactToMetaMessageState.isError = null;
+      })
+      .addCase(reactToMetaMessage.fulfilled, (state) => {
+        state.ReactToMetaMessageState.isLoading = false;
+        state.ReactToMetaMessageState.isSuccess = true;
+      })
+      .addCase(reactToMetaMessage.rejected, (state, action) => {
+        state.ReactToMetaMessageState.isLoading = false;
+        state.ReactToMetaMessageState.isSuccess = false;
+        state.ReactToMetaMessageState.isError = action.payload as
+          | string
+          | object;
+      })
+      .addCase(fetchCommentSettings.pending, (state) => {
+        state.FetchCommentSettingsState.FetchCommentSettingsIsLoading = true;
+        state.FetchCommentSettingsState.FetchCommentSettingsIsSuccess = false;
+        state.FetchCommentSettingsState.FetchCommentSettingsIsError = null;
+        // Clear immediately so an account switch never shows the previous
+        // account's rules behind the loading state.
+        state.FetchCommentSettingsState.FetchCommentSettingsData = null;
+      })
+      .addCase(fetchCommentSettings.fulfilled, (state, action) => {
+        state.FetchCommentSettingsState.FetchCommentSettingsIsLoading = false;
+        state.FetchCommentSettingsState.FetchCommentSettingsIsSuccess = true;
+        state.FetchCommentSettingsState.FetchCommentSettingsData =
+          action.payload;
+      })
+      .addCase(fetchCommentSettings.rejected, (state, action) => {
+        state.FetchCommentSettingsState.FetchCommentSettingsIsLoading = false;
+        state.FetchCommentSettingsState.FetchCommentSettingsIsSuccess = false;
+        state.FetchCommentSettingsState.FetchCommentSettingsIsError =
+          action.payload as string | object;
+      })
+      // The three rule writes patch the loaded config in place, so leaving
+      // the screen and coming back shows the saved rules without a refetch.
+      // Guarded by account: a save can resolve after the picker moved on.
+      .addCase(saveIntentRule.fulfilled, (state, action) => {
+        const config = state.FetchCommentSettingsState.FetchCommentSettingsData;
+        if (!config || String(config.account.id) !== action.meta.arg.accountId)
+          return;
+        const index = config.intents.findIndex(
+          (rule) => rule.id === action.payload.id,
+        );
+        if (index !== -1) config.intents[index] = action.payload;
+      })
+      .addCase(saveTopicRule.fulfilled, (state, action) => {
+        const config = state.FetchCommentSettingsState.FetchCommentSettingsData;
+        if (!config || String(config.account.id) !== action.meta.arg.accountId)
+          return;
+        const index = config.topic_rules.findIndex(
+          (rule) => rule.topic === action.payload.topic,
+        );
+        if (index === -1) config.topic_rules.push(action.payload);
+        else config.topic_rules[index] = action.payload;
+        // A saved suggestion is no longer a suggestion.
+        config.suggested_topic_rules = config.suggested_topic_rules.filter(
+          (rule) => rule.topic !== action.payload.topic,
+        );
+      })
+      .addCase(deleteTopicRule.fulfilled, (state, action) => {
+        const config = state.FetchCommentSettingsState.FetchCommentSettingsData;
+        if (!config || String(config.account.id) !== action.meta.arg.accountId)
+          return;
+        config.topic_rules = config.topic_rules.filter(
+          (rule) => rule.topic !== action.meta.arg.topic,
+        );
+      })
+      .addCase(fetchCommentDrafts.pending, (state) => {
+        state.FetchCommentDraftsState.FetchCommentDraftsIsLoading = true;
+        state.FetchCommentDraftsState.FetchCommentDraftsIsSuccess = false;
+        state.FetchCommentDraftsState.FetchCommentDraftsIsError = null;
+      })
+      .addCase(fetchCommentDrafts.fulfilled, (state, action) => {
+        state.FetchCommentDraftsState.FetchCommentDraftsIsLoading = false;
+        state.FetchCommentDraftsState.FetchCommentDraftsIsSuccess = true;
+        state.FetchCommentDraftsState.FetchCommentDraftsData = mergePage(
+          state.FetchCommentDraftsState.FetchCommentDraftsData,
+          action.payload,
+          action.meta.arg.page ?? 1,
+        );
+      })
+      .addCase(fetchCommentDrafts.rejected, (state, action) => {
+        state.FetchCommentDraftsState.FetchCommentDraftsIsLoading = false;
+        state.FetchCommentDraftsState.FetchCommentDraftsIsSuccess = false;
+        state.FetchCommentDraftsState.FetchCommentDraftsIsError =
+          action.payload as string | object;
+      })
+      // A saved edit returns the updated draft — swap the row in place.
+      .addCase(updateCommentDraft.fulfilled, (state, action) => {
+        const drafts = state.FetchCommentDraftsState.FetchCommentDraftsData;
+        if (!drafts?.results) return;
+        const index = drafts.results.findIndex(
+          (row) => row.id === action.payload.id,
+        );
+        if (index !== -1) drafts.results[index] = action.payload;
+      })
+      // The linked customer lives on the conversation row — patch it in
+      // place so the header updates without refetching (and resetting)
+      // the paged conversations list.
+      .addCase(SocialUserCustomerLink.fulfilled, (state, action) => {
+        const users = state.FetchSocialUsersState.FetchSocialUsersData;
+        const row = users?.results?.find(
+          (user) => user.id === action.meta.arg.userId,
+        );
+        if (row) row.customer = action.payload;
+      })
+      // A handled draft is gone for good — the API never returns approved
+      // or discarded drafts, so drop the row rather than restyle it.
+      .addMatcher(
+        isAnyOf(approveCommentDraft.fulfilled, discardCommentDraft.fulfilled),
+        (state, action) => {
+          const drafts = state.FetchCommentDraftsState.FetchCommentDraftsData;
+          if (!drafts?.results) return;
+          const before = drafts.results.length;
+          drafts.results = drafts.results.filter(
+            (row) => row.id !== action.meta.arg.draftId,
+          );
+          if (drafts.results.length < before && drafts.count) drafts.count -= 1;
+        },
+      );
+  },
+});
+
+export const {
+  accountAutoRespondSet,
+  clearWhatsAppTemplates,
+  commentDraftReceived,
+  commentDraftChanged,
+  socialUserDmDraftFlagSet,
+  socialDmReceived,
+  socialConversationTouched,
+} = SocialAISlice.actions;
+
+export default SocialAISlice.reducer;

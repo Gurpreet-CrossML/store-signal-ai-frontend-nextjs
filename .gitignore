@@ -31,7 +31,9 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # env files (can opt-in for committing if needed)
-.env*
+.env
+.env.*
+!.env.sample
 
 # vercel
 .vercel
@@ -42,3 +44,6 @@ next-env.d.ts
 
 # vscode
 .vscode/
+
+# claude
+.claude/

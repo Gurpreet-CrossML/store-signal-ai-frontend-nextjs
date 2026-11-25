@@ -1,0 +1,355 @@
+import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
+import { toast } from "sonner";
+import { isAxiosError } from "axios";
+
+import { axiosInstance } from "@/redux/axios-config";
+import { ENDPOINTS } from "@/lib/config";
+
+// --- Types ------------------------------------------------------------
+// Kept in the API's snake_case: the socket pushes the same serializer
+// output as the list API returns, so one shape serves both.
+
+export type NotificationType =
+  | "ticket_assigned"
+  | "ticket_message"
+  | "chat_assigned"
+  | "chat_message";
+
+export type AgentNotification = {
+  id: number;
+  notification_type: NotificationType;
+  title: string;
+  message: string;
+  /** Set for ticket notifications; opens `/helpdesk?ticket=<id>`. */
+  ticket: number | null;
+  /** Set for live chat notifications; opens `/support?chat=<id>`. */
+  thread: string | null;
+  store_code: string;
+  is_read: boolean;
+  created_at: string;
+};
+
+/** The notification drawer's tabs. */
+export type NotificationTab = "unread" | "tickets" | "messages";
+
+export type NotificationCounts = Record<NotificationTab, number>;
+
+export type NotificationListResponse = {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: AgentNotification[];
+};
+
+// The list API's filter for each tab: Tickets are the help desk's, Messages
+// the live support chats'. Every tab lists unread ones only, so a
+// notification leaves its tab once it is opened.
+const TAB_FILTERS: Record<NotificationTab, Record<string, string>> = {
+  unread: { is_read: "false" },
+  tickets: { is_read: "false", ticket__isnull: "false" },
+  messages: { is_read: "false", thread__isnull: "false" },
+};
+
+/** One page of the store's notifications in a tab. */
+async function getNotificationPage(
+  storeCode: string,
+  tab: NotificationTab,
+  page: number,
+): Promise<NotificationListResponse> {
+  const params = new URLSearchParams({
+    store_code: storeCode,
+    page: String(page),
+    ...TAB_FILTERS[tab],
+  });
+
+  const response = await axiosInstance.get(
+    `${ENDPOINTS.notifications()}?${params.toString()}`,
+    { useBackend: true },
+  );
+  return response.data.data;
+}
+
+// --- Thunks -------------------------------------------------------------
+// Notifications are store-scoped: every call names the store with
+// `?store_code=`, and the backend returns only the logged-in agent's own
+// notifications of that store.
+
+/** The first page of a tab; replaces the list. */
+export const FetchNotifications = createAsyncThunk(
+  "FetchNotifications",
+  async (
+    { storeCode, tab }: { storeCode: string; tab: NotificationTab },
+    thunkAPI,
+  ) => {
+    try {
+      return await getNotificationPage(storeCode, tab, 1);
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Couldn't load notifications.", {
+        description: data?.message || "Please try again later.",
+      });
+      return thunkAPI.rejectWithValue(data || "Couldn't load notifications.");
+    }
+  },
+);
+
+/** A later page of a tab, as the agent scrolls; added to the list. */
+export const FetchMoreNotifications = createAsyncThunk(
+  "FetchMoreNotifications",
+  async (
+    {
+      storeCode,
+      tab,
+      page,
+    }: { storeCode: string; tab: NotificationTab; page: number },
+    thunkAPI,
+  ) => {
+    try {
+      return await getNotificationPage(storeCode, tab, page);
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Couldn't load more notifications.", {
+        description: data?.message || "Please try again later.",
+      });
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't load more notifications.",
+      );
+    }
+  },
+);
+
+// The bell's badge (`unread`) and the drawer's tab sizes, in one request.
+// No error toast: this runs in the background.
+export const FetchNotificationCounts = createAsyncThunk(
+  "FetchNotificationCounts",
+  async ({ storeCode }: { storeCode: string }, thunkAPI) => {
+    try {
+      const params = new URLSearchParams({ store_code: storeCode });
+
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.notificationCounts()}?${params.toString()}`,
+        { useBackend: true },
+      );
+      const data: NotificationCounts = response.data.data;
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      return thunkAPI.rejectWithValue(
+        response?.data || "Couldn't fetch notification counts.",
+      );
+    }
+  },
+);
+
+export const MarkNotificationRead = createAsyncThunk(
+  "MarkNotificationRead",
+  async ({ storeCode, id }: { storeCode: string; id: number }, thunkAPI) => {
+    try {
+      const response = await axiosInstance.put(
+        `${ENDPOINTS.notificationMarkRead(id)}?store_code=${storeCode}`,
+      );
+      const data: AgentNotification = response.data.data;
+      // The badge drops once the backend has it as read.
+      thunkAPI.dispatch(FetchNotificationCounts({ storeCode }));
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Couldn't mark the notification as read.", {
+        description: data?.message || "Please try again later.",
+      });
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't mark the notification as read.",
+      );
+    }
+  },
+);
+
+/** Marks all of the agent's unread notifications of the store read. */
+export const MarkAllNotificationsRead = createAsyncThunk(
+  "MarkAllNotificationsRead",
+  async ({ storeCode }: { storeCode: string }, thunkAPI) => {
+    try {
+      const response = await axiosInstance.put(
+        `${ENDPOINTS.notificationsMarkAllRead()}?store_code=${storeCode}`,
+      );
+      const data: { marked_read: number } = response.data.data;
+      thunkAPI.dispatch(FetchNotificationCounts({ storeCode }));
+      return data;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      const data = response?.data;
+      toast.error("Couldn't mark the notifications as read.", {
+        description: data?.message || "Please try again later.",
+      });
+      return thunkAPI.rejectWithValue(
+        data || "Couldn't mark the notifications as read.",
+      );
+    }
+  },
+);
+
+// --- Slice ----------------------------------------------------------------
+
+const NotificationSlice = createSlice({
+  name: "Notification",
+  initialState: {
+    FetchNotificationsState: {
+      FetchNotificationsIsLoading: false,
+      FetchNotificationsIsSuccess: false,
+      FetchNotificationsIsError: null as null | string | object,
+      /** The last page loaded into the list. */
+      FetchNotificationsPage: 1,
+      FetchNotificationsListData: {
+        count: 0,
+        next: null,
+        previous: null,
+        results: [],
+      } as NotificationListResponse,
+    },
+    FetchMoreNotificationsState: {
+      FetchMoreNotificationsIsLoading: false,
+      FetchMoreNotificationsIsSuccess: false,
+      FetchMoreNotificationsIsError: null as null | string | object,
+    },
+    FetchNotificationCountsState: {
+      FetchNotificationCountsIsLoading: false,
+      FetchNotificationCountsIsSuccess: false,
+      FetchNotificationCountsIsError: null as null | string | object,
+      /** The newest request; only its response may set the counts. */
+      FetchNotificationCountsRequestId: null as null | string,
+      FetchNotificationCountsData: {
+        unread: 0,
+        tickets: 0,
+        messages: 0,
+      } as NotificationCounts,
+    },
+    MarkNotificationReadState: {
+      MarkNotificationReadIsLoading: false,
+      MarkNotificationReadIsSuccess: false,
+      MarkNotificationReadIsError: null as null | string | object,
+    },
+    MarkAllNotificationsReadState: {
+      MarkAllNotificationsReadIsLoading: false,
+      MarkAllNotificationsReadIsSuccess: false,
+      MarkAllNotificationsReadIsError: null as null | string | object,
+    },
+  },
+  reducers: {},
+  extraReducers: (builder) => {
+    builder
+      .addCase(FetchNotifications.pending, (state) => {
+        state.FetchNotificationsState.FetchNotificationsIsLoading = true;
+        state.FetchNotificationsState.FetchNotificationsIsSuccess = false;
+        state.FetchNotificationsState.FetchNotificationsIsError = null;
+      })
+      .addCase(FetchNotifications.fulfilled, (state, action) => {
+        state.FetchNotificationsState.FetchNotificationsIsLoading = false;
+        state.FetchNotificationsState.FetchNotificationsIsSuccess = true;
+        state.FetchNotificationsState.FetchNotificationsPage = 1;
+        state.FetchNotificationsState.FetchNotificationsListData =
+          action.payload;
+      })
+      .addCase(FetchNotifications.rejected, (state, action) => {
+        state.FetchNotificationsState.FetchNotificationsIsLoading = false;
+        state.FetchNotificationsState.FetchNotificationsIsSuccess = false;
+        state.FetchNotificationsState.FetchNotificationsIsError =
+          action.payload || "Couldn't load notifications.";
+      })
+      .addCase(FetchMoreNotifications.pending, (state) => {
+        state.FetchMoreNotificationsState.FetchMoreNotificationsIsLoading = true;
+        state.FetchMoreNotificationsState.FetchMoreNotificationsIsSuccess = false;
+        state.FetchMoreNotificationsState.FetchMoreNotificationsIsError = null;
+      })
+      .addCase(FetchMoreNotifications.fulfilled, (state, action) => {
+        state.FetchMoreNotificationsState.FetchMoreNotificationsIsLoading = false;
+        state.FetchMoreNotificationsState.FetchMoreNotificationsIsSuccess = true;
+        state.FetchNotificationsState.FetchNotificationsPage =
+          action.meta.arg.page;
+        state.FetchNotificationsState.FetchNotificationsListData = {
+          ...action.payload,
+          results: [
+            ...state.FetchNotificationsState.FetchNotificationsListData.results,
+            ...action.payload.results,
+          ],
+        };
+      })
+      .addCase(FetchMoreNotifications.rejected, (state, action) => {
+        state.FetchMoreNotificationsState.FetchMoreNotificationsIsLoading = false;
+        state.FetchMoreNotificationsState.FetchMoreNotificationsIsSuccess = false;
+        state.FetchMoreNotificationsState.FetchMoreNotificationsIsError =
+          action.payload || "Couldn't load more notifications.";
+      })
+      .addCase(FetchNotificationCounts.pending, (state, action) => {
+        state.FetchNotificationCountsState.FetchNotificationCountsIsLoading = true;
+        state.FetchNotificationCountsState.FetchNotificationCountsIsSuccess = false;
+        state.FetchNotificationCountsState.FetchNotificationCountsIsError =
+          null;
+        state.FetchNotificationCountsState.FetchNotificationCountsRequestId =
+          action.meta.requestId;
+      })
+      .addCase(FetchNotificationCounts.fulfilled, (state, action) => {
+        // A burst of notifications sends overlapping requests, and an older
+        // one may answer last; its counts are stale, so they are dropped.
+        if (
+          action.meta.requestId !==
+          state.FetchNotificationCountsState.FetchNotificationCountsRequestId
+        ) {
+          return;
+        }
+        state.FetchNotificationCountsState.FetchNotificationCountsIsLoading = false;
+        state.FetchNotificationCountsState.FetchNotificationCountsIsSuccess = true;
+        state.FetchNotificationCountsState.FetchNotificationCountsData =
+          action.payload;
+      })
+      .addCase(FetchNotificationCounts.rejected, (state, action) => {
+        state.FetchNotificationCountsState.FetchNotificationCountsIsLoading = false;
+        state.FetchNotificationCountsState.FetchNotificationCountsIsSuccess = false;
+        state.FetchNotificationCountsState.FetchNotificationCountsIsError =
+          action.payload || "Couldn't fetch notification counts.";
+      })
+      .addCase(MarkNotificationRead.pending, (state) => {
+        state.MarkNotificationReadState.MarkNotificationReadIsLoading = true;
+        state.MarkNotificationReadState.MarkNotificationReadIsSuccess = false;
+        state.MarkNotificationReadState.MarkNotificationReadIsError = null;
+      })
+      .addCase(MarkNotificationRead.fulfilled, (state) => {
+        state.MarkNotificationReadState.MarkNotificationReadIsLoading = false;
+        state.MarkNotificationReadState.MarkNotificationReadIsSuccess = true;
+      })
+      .addCase(MarkNotificationRead.rejected, (state, action) => {
+        state.MarkNotificationReadState.MarkNotificationReadIsLoading = false;
+        state.MarkNotificationReadState.MarkNotificationReadIsSuccess = false;
+        state.MarkNotificationReadState.MarkNotificationReadIsError =
+          action.payload || "Couldn't mark the notification as read.";
+      })
+      .addCase(MarkAllNotificationsRead.pending, (state) => {
+        state.MarkAllNotificationsReadState.MarkAllNotificationsReadIsLoading = true;
+        state.MarkAllNotificationsReadState.MarkAllNotificationsReadIsSuccess = false;
+        state.MarkAllNotificationsReadState.MarkAllNotificationsReadIsError =
+          null;
+      })
+      .addCase(MarkAllNotificationsRead.fulfilled, (state) => {
+        state.MarkAllNotificationsReadState.MarkAllNotificationsReadIsLoading = false;
+        state.MarkAllNotificationsReadState.MarkAllNotificationsReadIsSuccess = true;
+        // Every tab lists unread ones only, so whichever is open is now empty.
+        state.FetchNotificationsState.FetchNotificationsPage = 1;
+        state.FetchNotificationsState.FetchNotificationsListData = {
+          count: 0,
+          next: null,
+          previous: null,
+          results: [],
+        };
+      })
+      .addCase(MarkAllNotificationsRead.rejected, (state, action) => {
+        state.MarkAllNotificationsReadState.MarkAllNotificationsReadIsLoading = false;
+        state.MarkAllNotificationsReadState.MarkAllNotificationsReadIsSuccess = false;
+        state.MarkAllNotificationsReadState.MarkAllNotificationsReadIsError =
+          action.payload || "Couldn't mark the notifications as read.";
+      });
+  },
+});
+
+export default NotificationSlice.reducer;
