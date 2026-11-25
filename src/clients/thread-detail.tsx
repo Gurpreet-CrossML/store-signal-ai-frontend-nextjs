@@ -829,7 +829,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
           <div className="flex justify-between">
             <span>Cart</span>
             <span className="text-sm font-normal text-muted-foreground">
-              {cartItems.length} Items
+              {cartItems.length} {cartItems.length === 1 ? "Item" : "Items"}
             </span>
           </div>
         }

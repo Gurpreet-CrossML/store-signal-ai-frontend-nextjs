@@ -12,8 +12,8 @@ import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { PageHeading } from "@/components/custom/page-heading";
 import { ThreadsDataTable } from "@/components/custom/threads-data-table";
 import { threadsColumns } from "@/components/custom/threads-columns";
+import { PAGE_SIZE_OPTIONS } from "@/components/custom/threads-data-table-pagination";
 import { useDebounce } from "@/hooks/use-debounce";
-import { getThreadHref } from "@/lib/helpers";
 import ThreadFilteration, {
   DEFAULT_THREAD_FILTERS,
   type ThreadFilterState,
@@ -62,7 +62,9 @@ export default function Threads() {
   const [pagination, setPagination] = useState<PaginationState>(() => {
     const pageParam = Number(searchParams?.get("page"));
     const pageIndex = pageParam > 1 ? Math.floor(pageParam) - 1 : 0;
-    return { pageIndex, pageSize: 25 };
+    const sizeParam = Number(searchParams?.get("pageSize"));
+    const pageSize = PAGE_SIZE_OPTIONS.includes(sizeParam) ? sizeParam : 25;
+    return { pageIndex, pageSize };
   });
 
   const [filters, setFilters] = useState<ThreadFilterState>(() => ({
@@ -82,6 +84,11 @@ export default function Threads() {
       pagination.pageIndex > 0 ? String(pagination.pageIndex + 1) : null;
     if (desired) params.set("page", desired);
     else params.delete("page");
+    if (pagination.pageSize !== 25) {
+      params.set("pageSize", String(pagination.pageSize));
+    } else {
+      params.delete("pageSize");
+    }
     THREAD_FILTER_KEYS.forEach((key) => {
       const value = filters[key];
       if (value) params.set(key, value);
@@ -96,7 +103,14 @@ export default function Threads() {
     router.replace(query ? `${basePath}?${query}` : basePath, {
       scroll: false,
     });
-  }, [pagination.pageIndex, queryString, basePath, router, filters]);
+  }, [
+    pagination.pageIndex,
+    pagination.pageSize,
+    queryString,
+    basePath,
+    router,
+    filters,
+  ]);
 
   // Each thread opens as its own page; browser back returns to this list
   // (the `?page=` param keeps the list position).
