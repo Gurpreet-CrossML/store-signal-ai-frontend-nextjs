@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -483,6 +483,12 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
 
     const loadData = async () => {
       const result = await dispatch(FetchThreadDetails(threadId)).unwrap();
+
+      // The layout guard below redirects active conversations before paint.
+      if (result.is_active) {
+        return;
+      }
+
       setThreadMessages(result.messages ?? []);
 
       dispatch(FetchConversationSummary(threadId));
@@ -552,6 +558,15 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
   // so every section shows its own loader rather than the last thread's
   // answer. Each section then falls back to its own request's flag.
   const detailsLoading = !isThisThread;
+
+  // The thunk updates Redux before the async loader resumes. Redirect before
+  // the browser paints that active response as a (misleading) closed thread.
+  useLayoutEffect(() => {
+    if (details?.is_active) {
+      router.replace(`/support/?chat=${threadId}`);
+    }
+  }, [details?.is_active, router, threadId]);
+
   // Breadcrumb title: the thread's own name, else what the customer first asked.
   const threadTitle =
     details?.name ||
@@ -567,6 +582,10 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
     !details?.customer &&
     !details?.customer_name &&
     !details?.customer_email;
+
+  if (details?.is_active) {
+    return <LoadingState label="Opening Live Chat…" className="min-h-64" />;
+  }
 
   // Only a genuine failure replaces the screen. Everything else renders
   // the shell and fills in section by section.
