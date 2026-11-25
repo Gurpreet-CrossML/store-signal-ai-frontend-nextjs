@@ -14,13 +14,12 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Typography } from "@/components/ui/typography";
+import {
+  KNOWLEDGE_FILE_MAX_PAGES,
+  KNOWLEDGE_FILE_MAX_RECORDS,
+  KNOWLEDGE_FILE_MAX_SIZE_BYTES,
+} from "@/lib/config";
 import { cn } from "@/lib/utils";
-
-/** Per-file upload limit for knowledge documents. Mirrors KNOWLEDGE_MAX_FILE_SIZE in the backend (core/constants.py). */
-export const KNOWLEDGE_FILE_MAX_SIZE_BYTES = 20 * 1024 * 1024;
-
-/** Longest document allowed, in pages. Mirrors KNOWLEDGE_MAX_PAGES in the backend; the backend enforces it. */
-export const KNOWLEDGE_FILE_MAX_PAGES = 100;
 
 function FileTypeIcon({
   fileType,
@@ -186,7 +185,9 @@ export function MultiFileUploadDropzone({
           </Typography>
           <Typography variant="muted" className="text-xs font-medium">
             Maximum file size: {formatBytes(maxFileSizeBytes)} per file ·{" "}
-            {KNOWLEDGE_FILE_MAX_PAGES} pages per document
+            {KNOWLEDGE_FILE_MAX_PAGES} pages per document ·{" "}
+            {KNOWLEDGE_FILE_MAX_RECORDS.toLocaleString("en-US")} rows per data
+            file
             {typeof maxFiles === "number" ? ` · up to ${maxFiles} files` : ""}
           </Typography>
           <input

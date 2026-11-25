@@ -989,10 +989,18 @@ export const KNOWLEDGE_APPROVAL_WAITING_DESCRIPTION =
 // `max_length`.
 export const KNOWLEDGE_FAQ_CAP = 20;
 // Pages and links that can be added in one request.
-export const KNOWLEDGE_WEBSITE_URL_CAP = 100;
+export const KNOWLEDGE_WEBSITE_URL_CAP = 20;
 // Specific pages that can be listed in the field at once.
 export const KNOWLEDGE_SPECIFIC_PAGE_CAP = 20;
 export const KNOWLEDGE_FILE_CAP = 15;
+// Per-file limits for uploaded documents. They mirror the backend's
+// `KNOWLEDGE_MAX_FILE_SIZE`, `KNOWLEDGE_MAX_PAGES` and `KNOWLEDGE_MAX_RECORDS`,
+// which enforce them; the dropzone only shows them.
+export const KNOWLEDGE_FILE_MAX_SIZE_BYTES = 20 * 1024 * 1024;
+// Longest document, in pages.
+export const KNOWLEDGE_FILE_MAX_PAGES = 100;
+// Most records (rows or items) a CSV, JSON or spreadsheet may hold.
+export const KNOWLEDGE_FILE_MAX_RECORDS = 5000;
 export const KNOWLEDGE_URL_MAX_LENGTH = 2048;
 // How long the pages field waits after typing stops before it is read.
 export const KNOWLEDGE_URL_INPUT_DELAY_MS = 500;
@@ -1021,6 +1029,9 @@ export const KNOWLEDGE_SCAN_ACTIVE_STATUSES: readonly KnowledgeScanStatus[] = [
 ];
 // How often the checklist is re-read while the import is not complete.
 export const KNOWLEDGE_SCAN_POLL_MS = 5000;
+// How often knowledge item statuses and storage are refreshed while
+// pending or processing items are visible.
+export const KNOWLEDGE_STATUS_POLL_MS = 5_000;
 
 // The Help Desk ticket's language dropdown footer while no agent has changed
 // the language. Once one has, it says who changed it instead.
