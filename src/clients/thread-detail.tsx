@@ -432,6 +432,10 @@ function formatDayFirst(value?: string | null) {
 export default function ThreadDetail({ threadId }: { threadId: string }) {
   const dispatch = useAppDispatch();
   const router = useRouter();
+  const returnToThreads = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault();
+    router.back();
+  };
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
   );
@@ -927,6 +931,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
             >
               <Link
                 href="/threads"
+                onClick={returnToThreads}
                 className="flex shrink-0 items-center gap-1 text-muted-foreground hover:text-foreground"
               >
                 <IconChevronLeft className="size-4" />
