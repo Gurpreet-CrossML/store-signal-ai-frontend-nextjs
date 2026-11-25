@@ -2212,6 +2212,17 @@ export default function HelpDesk() {
 
   const ticketTags = FetchSupportTicketTagsData?.results;
 
+  const ticketMatchesSocketList = useCallback(
+    (ticket: SupportTicket) => {
+      const channel = helpdeskFilterToQuery(activeFilter).channel;
+      return (
+        listStatuses.includes(ticket.status) &&
+        (!channel?.length || channel.includes(ticket.channel))
+      );
+    },
+    [activeFilter, listStatuses],
+  );
+
   const upsertSocketTicket = useCallback(
     (incomingTicket: SupportTicket) => {
       setTicketRows((currentRows) => {
@@ -2245,7 +2256,7 @@ export default function HelpDesk() {
 
           // A status that changed on its own (a customer reply reopening a
           // closed ticket) takes the ticket out of the queue being viewed.
-          if (!listStatuses.includes(updatedTicket.status)) {
+          if (!ticketMatchesSocketList(updatedTicket)) {
             return currentRows.filter((row) => row.id !== incomingTicket.id);
           }
 
@@ -2254,7 +2265,7 @@ export default function HelpDesk() {
           );
         }
 
-        if (!listStatuses.includes(incomingTicket.status)) {
+        if (!ticketMatchesSocketList(incomingTicket)) {
           return currentRows;
         }
 
@@ -2294,7 +2305,7 @@ export default function HelpDesk() {
         };
       });
     },
-    [listStatuses],
+    [ticketMatchesSocketList],
   );
 
   const appendSocketMessage = useCallback(
@@ -2478,7 +2489,7 @@ export default function HelpDesk() {
 
               // The reply may have reopened the ticket, moving it to
               // another queue.
-              if (!listStatuses.includes(updatedTicket.status)) {
+              if (!ticketMatchesSocketList(updatedTicket)) {
                 return rowsWithoutTicket;
               }
 
@@ -2491,7 +2502,7 @@ export default function HelpDesk() {
               return [updatedTicket, ...rowsWithoutTicket];
             }
 
-            if (!listStatuses.includes(incomingTicket.status)) {
+            if (!ticketMatchesSocketList(incomingTicket)) {
               return currentRows;
             }
 
