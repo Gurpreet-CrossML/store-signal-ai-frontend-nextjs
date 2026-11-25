@@ -24,12 +24,12 @@ import {
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 
 /**
- * The Test AI screen. On a wide screen the AI test chat takes the larger left
- * side and the questions sit in a panel on the right with two tabs, "Test
- * Questions" and "Unanswered Questions". On a phone or tablet the chat fills
- * the screen, and a button at the top right opens the same panel in a drawer
- * from the right. Every question has an Ask button, and the user can type their
- * own question; the AI answers in the chat, which is not saved and is
+ * The Test AI screen. On a wide screen the questions take 70% in a panel with
+ * two tabs, "Test Questions" and "Unanswered Questions" (each a table), and
+ * the AI test chat takes the other 30% on the right. On a phone or tablet the
+ * chat fills the screen, and a button at the top right opens the same panel in
+ * a drawer from the right. Every question has an Ask button, and the user can type
+ * their own question; the AI answers in the chat, which is not saved and is
  * cleared when the user leaves the page. While it answers, the input and every Ask button are off.
  */
 export function TestAiPage() {
@@ -100,11 +100,7 @@ export function TestAiPage() {
         />
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-3 sm:gap-4 desktop:grid desktop:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] desktop:grid-rows-[minmax(0,1fr)]">
-        <div className="min-h-0 min-w-0 flex-1 desktop:h-full desktop:flex-none">
-          <TestChatPanel onAsk={handleAsk} isAsking={isAsking} />
-        </div>
-
+      <div className="flex min-h-0 flex-1 flex-col gap-3 sm:gap-4 desktop:grid desktop:grid-cols-[minmax(0,7fr)_minmax(0,3fr)] desktop:grid-rows-[minmax(0,1fr)]">
         {!isBelowLg && (
           <QuestionsPanel
             {...panelProps}
@@ -113,6 +109,10 @@ export function TestAiPage() {
             className="hidden rounded-xl border desktop:flex desktop:h-full desktop:min-h-0"
           />
         )}
+
+        <div className="min-h-0 min-w-0 flex-1 desktop:h-full desktop:flex-none">
+          <TestChatPanel onAsk={handleAsk} isAsking={isAsking} />
+        </div>
       </div>
 
       <Sheet open={isBelowLg && drawerOpen} onOpenChange={setDrawerOpen}>

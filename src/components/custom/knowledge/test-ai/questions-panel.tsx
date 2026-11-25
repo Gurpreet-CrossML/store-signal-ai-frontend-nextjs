@@ -1,5 +1,7 @@
 "use client";
 
+import { IconFilter } from "@tabler/icons-react";
+
 import { TestQuestionsTab } from "@/components/custom/knowledge/test-ai/test-questions-tab";
 import { UnansweredQuestionsTab } from "@/components/custom/knowledge/test-ai/unanswered-questions-tab";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -7,32 +9,12 @@ import { KNOWLEDGE_TEST_AI_TABS, type KnowledgeTestAiTab } from "@/lib/config";
 import { cn } from "@/lib/utils";
 import { useAppSelector } from "@/redux/hooks";
 
-/** How many questions a tab holds; left out until its list has loaded. */
-function TabCount({
-  count,
-  active,
-}: {
-  count: number | undefined;
-  active: boolean;
-}) {
-  if (count === undefined) return null;
-  return (
-    <span
-      className={cn(
-        "ml-auto text-xs tabular-nums",
-        active ? "font-semibold text-primary" : "text-muted-foreground",
-      )}
-    >
-      {count}
-    </span>
-  );
-}
-
 /**
  * A tab drawn as a button, so it reads as clickable: bordered, with a hover
- * state. The selected one is drawn like a selected row of the help desk's
- * inbox list: tinted, with a dot before its name and its count at the end in
- * the app colour.
+ * state, and as wide as its name. The name is followed by how many questions
+ * the tab holds, in brackets (left out until its list has loaded). The
+ * selected one is tinted and outlined in the app colour, with a filter icon
+ * before its name.
  */
 function PanelTab({
   value,
@@ -48,22 +30,22 @@ function PanelTab({
   return (
     <TabsTrigger
       value={value}
-      className="h-10 min-w-0 flex-none cursor-pointer justify-start gap-2.5 border-border bg-background px-3 text-foreground shadow-xs transition-colors hover:border-foreground/25 hover:bg-muted @lg/tabs:flex-1 data-active:border-primary/40 data-active:bg-primary/10 data-active:font-medium data-active:text-primary data-active:shadow-none data-active:hover:bg-primary/10 group-data-[variant=default]/tabs-list:data-active:shadow-none dark:border-input dark:bg-transparent dark:data-active:border-primary/40 dark:data-active:bg-primary/10 dark:data-active:text-primary"
+      className="h-10 min-w-0 flex-none cursor-pointer justify-center gap-2 border-border bg-background px-4 text-foreground shadow-xs transition-colors hover:border-foreground/25 hover:bg-muted data-active:border-primary/40 data-active:bg-primary/10 data-active:font-medium data-active:text-primary data-active:shadow-none data-active:hover:bg-primary/10 group-data-[variant=default]/tabs-list:data-active:shadow-none dark:border-input dark:bg-transparent dark:data-active:border-primary/40 dark:data-active:bg-primary/10 dark:data-active:text-primary"
     >
-      {active && (
-        <span aria-hidden className="size-2 shrink-0 rounded-full bg-primary" />
-      )}
-      <span className="truncate">{label}</span>
-      <TabCount count={count} active={active} />
+      {active && <IconFilter aria-hidden className="size-4 shrink-0" />}
+      <span className="truncate">
+        {label}
+        {count !== undefined && ` (${count})`}
+      </span>
     </TabsTrigger>
   );
 }
 
 /**
  * The questions to ask the AI, in two tabs: "Test Questions" and "Unanswered
- * Questions", each with how many it holds. The tabs sit side by side when
- * the panel is wide enough to show both names in full, and stacked when it is
- * not. Both lists are kept mounted so both counts show at once; the one not
+ * Questions", each with how many it holds. The tabs sit side by side at the
+ * start of the panel, and wrap onto a second line when it is too narrow for
+ * both. Both lists are kept mounted so both counts show at once; the one not
  * selected is hidden. It sits in the right column on a wide screen and in the
  * right drawer on a phone or tablet.
  */
@@ -104,7 +86,7 @@ export function QuestionsPanel({
       )}
     >
       <div className="border-b p-3">
-        <TabsList className="h-auto w-full group-data-horizontal/tabs:h-auto flex-col items-stretch gap-1 bg-transparent p-0 @lg/tabs:flex-row">
+        <TabsList className="h-auto w-full flex-row flex-wrap justify-start gap-2 bg-transparent p-0 group-data-horizontal/tabs:h-auto">
           <PanelTab
             value={KNOWLEDGE_TEST_AI_TABS.questions}
             label="Test Questions"
