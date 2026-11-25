@@ -43,6 +43,12 @@ export type KnowledgeStatus =
   | "processing"
   | "failed";
 
+/** Why a `failed` item failed, when the backend knows (`failure_reason`). */
+export type KnowledgeFailureReason =
+  | "storage_limit"
+  | "record_limit"
+  | "no_content";
+
 export type AIScope = "sales" | "support" | "social" | "internal";
 
 export type PolicyType =
@@ -120,6 +126,8 @@ export type KnowledgeItem = {
   fileType?: string;
   fileSize?: number;
   processingError?: string | null;
+  /** Why a failed item failed, when known: plan storage full, too many records, or nothing to index. */
+  failureReason?: KnowledgeFailureReason;
   lastProcessedAt?: string | null;
 
   // Google Drive
@@ -239,6 +247,8 @@ type ApiKnowledgeItem = {
   source: KnowledgeSource;
   title: string;
   status: KnowledgeStatus;
+  failure_reason?: "" | KnowledgeFailureReason;
+  error_message?: string | null;
   ai_scope: AIScope[];
   tags: string[];
   knowledge_categories?: KnowledgeCategoryRef[];
@@ -269,6 +279,12 @@ function mapApiKnowledgeItem(api: ApiKnowledgeItem): KnowledgeItem {
     source: api.source,
     title: api.title,
     status: api.status,
+    // The error text is only shown for a failure the backend has classified
+    // (`failure_reason`); the raw text of any other failure stays out of the UI.
+    processingError: api.failure_reason
+      ? api.error_message || undefined
+      : undefined,
+    failureReason: api.failure_reason || undefined,
     aiScope: api.ai_scope ?? [],
     tags: api.tags ?? [],
     createdAt: api.created_at,
@@ -374,6 +390,7 @@ export const FetchKnowledgeItems = createAsyncThunk(
       createdBy = [],
       knowledgeCategory = [],
       approvalWaiting = false,
+      silent = false,
     }: {
       storeCode: string;
       page?: number;
@@ -391,6 +408,8 @@ export const FetchKnowledgeItems = createAsyncThunk(
       knowledgeCategory?: string[];
       /** Only the pages the automatic import saved as drafts for approval. */
       approvalWaiting?: boolean;
+      /** Suppress errors and loading UI for interval refreshes. */
+      silent?: boolean;
     },
     thunkAPI,
   ) => {
@@ -423,9 +442,11 @@ export const FetchKnowledgeItems = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
-      toast.error("Couldn't load knowledge items.", {
-        description: data?.message || "Please try again later.",
-      });
+      if (!silent) {
+        toast.error("Couldn't load knowledge items.", {
+          description: data?.message || "Please try again later.",
+        });
+      }
       return thunkAPI.rejectWithValue(data || "Couldn't load knowledge items.");
     }
   },
@@ -437,11 +458,14 @@ export const FetchKnowledgeStats = createAsyncThunk(
     {
       storeCode,
       knowledgeCategory = [],
+      silent = false,
     }: {
       storeCode: string;
       /** Limits the item counts and creators to these knowledge categories;
        * the storage figures always cover the whole store. */
       knowledgeCategory?: string[];
+      /** Suppress loading UI for interval refreshes. */
+      silent?: boolean;
     },
     thunkAPI,
   ) => {
@@ -453,6 +477,7 @@ export const FetchKnowledgeStats = createAsyncThunk(
         `${ENDPOINTS.fetchKnowledgeStats()}?${params.toString()}`,
         { useBackend: true },
       );
+
       return response.data?.data as KnowledgeStats;
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
@@ -554,7 +579,7 @@ export const CreateKnowledgeItemsBulk = createAsyncThunk(
 
       let payload: FormData | Record<string, unknown>;
       // The shared axios instance gives up after 30s, but a big batch (up to
-      // 100 pages, each re-checked and queued for indexing) can take longer.
+      // 20 pages, each re-checked and queued for indexing) can take longer.
       // Giving up early is worse than waiting: the backend still saves
       // everything, so the user sees an error for items that were added.
       let requestConfig: {
@@ -1190,7 +1215,9 @@ const KnowledgeRagSlice = createSlice({
     builder
       // FetchKnowledgeItems
       .addCase(FetchKnowledgeItems.pending, (state, action) => {
-        state.FetchKnowledgeItemsState.FetchKnowledgeItemsIsLoading = true;
+        if (!action.meta.arg.silent) {
+          state.FetchKnowledgeItemsState.FetchKnowledgeItemsIsLoading = true;
+        }
         state.FetchKnowledgeItemsState.FetchKnowledgeItemsIsSuccess = false;
         state.FetchKnowledgeItemsState.FetchKnowledgeItemsIsError = null;
         state.FetchKnowledgeItemsState.FetchKnowledgeItemsLatestRequestId =
@@ -1203,7 +1230,9 @@ const KnowledgeRagSlice = createSlice({
         ) {
           return;
         }
-        state.FetchKnowledgeItemsState.FetchKnowledgeItemsIsLoading = false;
+        if (!action.meta.arg.silent) {
+          state.FetchKnowledgeItemsState.FetchKnowledgeItemsIsLoading = false;
+        }
         state.FetchKnowledgeItemsState.FetchKnowledgeItemsIsSuccess = true;
         state.FetchKnowledgeItemsState.FetchKnowledgeItemsListData =
           action.payload;
@@ -1215,16 +1244,20 @@ const KnowledgeRagSlice = createSlice({
         ) {
           return;
         }
-        state.FetchKnowledgeItemsState.FetchKnowledgeItemsIsLoading = false;
+        if (!action.meta.arg.silent) {
+          state.FetchKnowledgeItemsState.FetchKnowledgeItemsIsLoading = false;
+        }
         state.FetchKnowledgeItemsState.FetchKnowledgeItemsIsSuccess = false;
-        state.FetchKnowledgeItemsState.FetchKnowledgeItemsIsError =
-          "Couldn't load knowledge items.";
-        state.FetchKnowledgeItemsState.FetchKnowledgeItemsListData = {
-          count: 0,
-          next: null,
-          previous: null,
-          results: [],
-        };
+        if (!action.meta.arg.silent) {
+          state.FetchKnowledgeItemsState.FetchKnowledgeItemsIsError =
+            "Couldn't load knowledge items.";
+          state.FetchKnowledgeItemsState.FetchKnowledgeItemsListData = {
+            count: 0,
+            next: null,
+            previous: null,
+            results: [],
+          };
+        }
       })
       // CreateKnowledgeItemsBulk
       .addCase(CreateKnowledgeItemsBulk.pending, (state) => {
@@ -1346,20 +1379,28 @@ const KnowledgeRagSlice = createSlice({
           state.DiscoverWebsiteUrlsState.DiscoverWebsiteUrlsThrottled = true;
       })
       // FetchKnowledgeStats
-      .addCase(FetchKnowledgeStats.pending, (state) => {
-        state.FetchKnowledgeStatsState.FetchKnowledgeStatsIsLoading = true;
+      .addCase(FetchKnowledgeStats.pending, (state, action) => {
+        if (!action.meta.arg.silent) {
+          state.FetchKnowledgeStatsState.FetchKnowledgeStatsIsLoading = true;
+        }
         state.FetchKnowledgeStatsState.FetchKnowledgeStatsIsError = null;
       })
       .addCase(FetchKnowledgeStats.fulfilled, (state, action) => {
-        state.FetchKnowledgeStatsState.FetchKnowledgeStatsIsLoading = false;
+        if (!action.meta.arg.silent) {
+          state.FetchKnowledgeStatsState.FetchKnowledgeStatsIsLoading = false;
+        }
         state.FetchKnowledgeStatsState.FetchKnowledgeStatsIsSuccess = true;
         state.FetchKnowledgeStatsState.FetchKnowledgeStatsData = action.payload;
       })
-      .addCase(FetchKnowledgeStats.rejected, (state) => {
-        state.FetchKnowledgeStatsState.FetchKnowledgeStatsIsLoading = false;
+      .addCase(FetchKnowledgeStats.rejected, (state, action) => {
+        if (!action.meta.arg.silent) {
+          state.FetchKnowledgeStatsState.FetchKnowledgeStatsIsLoading = false;
+        }
         state.FetchKnowledgeStatsState.FetchKnowledgeStatsIsSuccess = false;
-        state.FetchKnowledgeStatsState.FetchKnowledgeStatsIsError =
-          "Couldn't load knowledge statistics.";
+        if (!action.meta.arg.silent) {
+          state.FetchKnowledgeStatsState.FetchKnowledgeStatsIsError =
+            "Couldn't load knowledge statistics.";
+        }
       })
       // FetchKnowledgeCategories
       .addCase(FetchKnowledgeCategories.pending, (state) => {

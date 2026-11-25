@@ -21,6 +21,7 @@ import { BADGE_TONE_STYLES } from "@/lib/badge-tones";
 import {
   KNOWLEDGE_FAQ_CAP,
   KNOWLEDGE_FILE_CAP,
+  KNOWLEDGE_FILE_MAX_SIZE_BYTES,
   KNOWLEDGE_SPECIFIC_PAGE_CAP,
   KNOWLEDGE_TITLE_MAX_LENGTH,
   KNOWLEDGE_TITLE_MIN_LENGTH,
@@ -48,10 +49,7 @@ import {
   type AddableSource,
   type AddStep,
 } from "@/components/custom/knowledge/add-knowledge-parts";
-import {
-  KNOWLEDGE_FILE_MAX_SIZE_BYTES,
-  MultiFileUploadDropzone,
-} from "@/components/custom/knowledge/file-upload-dropzone";
+import { MultiFileUploadDropzone } from "@/components/custom/knowledge/file-upload-dropzone";
 import {
   KnowledgeCategoriesField,
   useKnowledgeCategoryOptions,
