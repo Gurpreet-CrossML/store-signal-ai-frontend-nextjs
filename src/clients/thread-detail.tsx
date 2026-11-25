@@ -483,6 +483,15 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
 
     const loadData = async () => {
       const result = await dispatch(FetchThreadDetails(threadId)).unwrap();
+
+      // A thread can become active again after this read-only URL was opened
+      // (or be reached through a stale link). Active conversations belong in
+      // Live Chats, never the closed Threads detail view.
+      if (result.is_active) {
+        router.replace(`/support/?chat=${threadId}`);
+        return;
+      }
+
       setThreadMessages(result.messages ?? []);
 
       dispatch(FetchConversationSummary(threadId));
@@ -502,7 +511,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
     };
 
     loadData();
-  }, [dispatch, storeCode, threadId]);
+  }, [dispatch, router, storeCode, threadId]);
 
   const handleGenerateInsights = async () => {
     if (!threadId) return;
