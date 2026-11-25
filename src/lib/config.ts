@@ -284,6 +284,11 @@ export const ENDPOINTS = {
   // platform, so it is the cheap one to reach for.
   fetchCustomerOrders: (customerId: number) =>
     createAPIUrl(`/chat/customers/${customerId}/orders/`, "django"),
+  // Guests: browsers that opened the chat widget, known by a random key the
+  // widget keeps. Paginated list + one guest with chats, activity, orders.
+  fetchGuests: () => createAPIUrl("/chat/visitors/list/", "django"),
+  fetchGuestDetails: (guestId: number) =>
+    createAPIUrl(`/chat/visitors/${guestId}/`, "django"),
   // GET, not POST: refreshing a customer's history from Shopify or Magento
   // and handing it back. The single sync route — the thread-scoped and
   // ticket-scoped ones it replaced both went through the customer anyway.

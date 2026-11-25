@@ -16,6 +16,7 @@ import AIUsageSlice from "@/redux/api-slice/ai-usage-slice";
 import StoreSettingsSlice from "@/redux/api-slice/store-settings-slice";
 import CustomerSlice from "@/redux/api-slice/customer-slice";
 import OrderSlice from "@/redux/api-slice/order-slice";
+import GuestSlice from "@/redux/api-slice/guest-slice";
 import CampaignSlice from "@/redux/api-slice/campaign-slice";
 import NotificationSlice from "@/redux/api-slice/notification-slice";
 import SlaPolicySlice from "@/redux/api-slice/sla-policy-slice";
@@ -30,6 +31,7 @@ const store = configureStore({
     GetStoreSettingsReducer: StoreSettingsSlice,
     GetCustomerReducer: CustomerSlice,
     GetOrderReducer: OrderSlice,
+    GetGuestReducer: GuestSlice,
     GetDashboardReducer: DashboardSlice,
     GetThreadReducer: ThreadSlice,
     GetKnowledgeRagReducer: KnowledgeRagSlice,
