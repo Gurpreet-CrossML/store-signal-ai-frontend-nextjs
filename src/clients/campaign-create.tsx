@@ -464,7 +464,7 @@ export default function CampaignCreate({
           <Button variant="ghost" size="icon-sm" asChild>
             <Link
               href={
-                campaignUrlId
+                isEditMode
                   ? `/campaign/campaigns/${campaignUrlId}`
                   : "/campaign/campaigns"
               }
