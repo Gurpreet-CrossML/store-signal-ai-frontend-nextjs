@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   IconAlertCircle,
   IconCircleCheck,
+  IconFilterOff,
   IconPlus,
   IconTestPipe,
 } from "@tabler/icons-react";
@@ -42,6 +43,7 @@ import {
 import { useDebounce } from "@/hooks/use-debounce";
 import { BADGE_TONE_STYLES } from "@/lib/badge-tones";
 import {
+  ACTIVE_FILTER_STYLE,
   KNOWLEDGE_TEST_QUESTIONS_PAGE_SIZE,
   KNOWLEDGE_TEST_STATUS_NOT_ASKED,
 } from "@/lib/config";
@@ -189,6 +191,15 @@ export function TestQuestionsTab({
   const items = questions?.results ?? [];
   const isFiltered =
     debouncedSearch.trim() !== "" || category !== ALL || status !== ALL;
+  // Counts what was just typed too, so Clear shows as soon as the user types.
+  const hasFilters = search.trim() !== "" || category !== ALL || status !== ALL;
+
+  const clearFilters = () => {
+    setSearch("");
+    setCategory(ALL);
+    setStatus(ALL);
+    setPage(1);
+  };
 
   return (
     <div className="flex flex-col gap-3">
@@ -211,7 +222,10 @@ export function TestQuestionsTab({
             setPage(1);
           }}
         >
-          <SelectTrigger aria-label="Category" className="min-w-36">
+          <SelectTrigger
+            aria-label="Category"
+            className={cn("min-w-36", category !== ALL && ACTIVE_FILTER_STYLE)}
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -230,7 +244,10 @@ export function TestQuestionsTab({
             setPage(1);
           }}
         >
-          <SelectTrigger aria-label="Status" className="min-w-32">
+          <SelectTrigger
+            aria-label="Status"
+            className={cn("min-w-32", status !== ALL && ACTIVE_FILTER_STYLE)}
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -241,6 +258,12 @@ export function TestQuestionsTab({
             ))}
           </SelectContent>
         </Select>
+        {hasFilters && (
+          <Button variant="ghost" onClick={clearFilters}>
+            <IconFilterOff className="size-4" />
+            Clear filters
+          </Button>
+        )}
         <Button variant="outline" asChild>
           <Link href="/knowledge/new">
             <IconPlus className="size-4" />
