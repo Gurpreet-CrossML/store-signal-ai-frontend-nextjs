@@ -9,6 +9,11 @@ import {
 } from "@/redux/api-slice/thread-slice";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import ReactMarkdown from "react-markdown";
+import { gfmTable } from "micromark-extension-gfm-table";
+import { gfmTableFromMarkdown } from "mdast-util-gfm-table";
+import type { Processor } from "unified";
+// Types only: registers the extension lists on unified's Data (as remark-gfm does).
+import type {} from "remark-parse";
 import { formatDateTime } from "@/lib/helpers";
 import { CreditLabel } from "@/components/custom/credit-label";
 import { MessageAppear } from "@/components/custom/message-appear";
@@ -38,6 +43,14 @@ import { InfoIcon } from "@/components/custom/info-icon";
 import { cn } from "@/lib/utils";
 import { Spinner } from "../ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
+
+// Markdown tables only. Full remark-gfm would also turn bare emails and URLs
+// in old messages into links, which the dashboard never showed before.
+function remarkTables(this: Processor) {
+  const data = this.data();
+  (data.micromarkExtensions ??= []).push(gfmTable());
+  (data.fromMarkdownExtensions ??= []).push(gfmTableFromMarkdown());
+}
 
 /** "You" when `email` is the signed-in user, otherwise their name. */
 function whoIs(
@@ -544,7 +557,7 @@ export function MessagePan({
                             ) {
                               return (
                                 <>
-                                  <ReactMarkdown>
+                                  <ReactMarkdown remarkPlugins={[remarkTables]}>
                                     {message.message}
                                   </ReactMarkdown>
                                   <div className="mt-3">
@@ -558,7 +571,9 @@ export function MessagePan({
 
                             // Strategy 2: plain markdown fallback
                             return (
-                              <ReactMarkdown>{message.message}</ReactMarkdown>
+                              <ReactMarkdown remarkPlugins={[remarkTables]}>
+                                {message.message}
+                              </ReactMarkdown>
                             );
                           })()
                         ) : (
@@ -1094,7 +1109,7 @@ export function LiveMessagePan({
                             ) {
                               return (
                                 <>
-                                  <ReactMarkdown>
+                                  <ReactMarkdown remarkPlugins={[remarkTables]}>
                                     {message.message}
                                   </ReactMarkdown>
                                   <div className="mt-3">
@@ -1108,7 +1123,9 @@ export function LiveMessagePan({
 
                             // Strategy 2: plain markdown fallback
                             return (
-                              <ReactMarkdown>{message.message}</ReactMarkdown>
+                              <ReactMarkdown remarkPlugins={[remarkTables]}>
+                                {message.message}
+                              </ReactMarkdown>
                             );
                           })()
                         ) : (
