@@ -1,12 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   IconArrowLeft,
   IconArrowRight,
-  IconCircleCheck,
   IconPencil,
   IconPlus,
   IconTrash,
@@ -41,6 +39,7 @@ import { cn, randomId } from "@/lib/utils";
 import {
   AddKnowledgeStepper,
   ContentLayout,
+  KnowledgeAddedScreen,
   PrimaryAction,
   ShopifySyncedNote,
   SOURCE_META,
@@ -183,13 +182,10 @@ export function NewKnowledgePage() {
 
   const unsavedChanges = useRef<UnsavedChangesDialogHandle>(null);
 
+  // Cancel (and the Knowledge link) always lead to the main Knowledge screen,
+  // never to whatever page came before this one.
   const goToLibrary = () =>
-    unsavedChanges.current?.confirmLeave(() => {
-      // The library keeps its filters in its URL, so stepping back in
-      // history restores the same view; a direct visit has nothing behind it.
-      if (window.history.length > 1) router.back();
-      else router.push("/knowledge");
-    });
+    unsavedChanges.current?.confirmLeave(() => router.push("/knowledge"));
 
   // Going back to the sources drops what was entered, so it asks first. If
   // the prompt's Save Changes added it, the "added" screen stays.
@@ -531,14 +527,6 @@ export function NewKnowledgePage() {
             >
               Cancel
             </Button>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={isSubmitting}
-              onClick={backToSources}
-            >
-              Back
-            </Button>
             <PrimaryAction
               type="button"
               loading={isSubmitting}
@@ -552,35 +540,27 @@ export function NewKnowledgePage() {
       )}
 
       {step === "done" && added && (
-        <div className="mx-auto flex max-w-lg flex-1 flex-col items-center justify-center gap-3 py-10 text-center">
-          <IconCircleCheck className="size-12 text-emerald-500" />
-          <Typography variant="h4" as="h2">
-            {added.label} Added
-          </Typography>
-          {added.sent > added.count && (
-            <p
-              role="status"
-              className={`rounded-lg border px-3 py-2 text-sm ${BADGE_TONE_STYLES.warning}`}
-            >
-              {added.sent - added.count} of {added.sent} weren&apos;t added
-              because they would go over your storage limit. Free up space or
-              upgrade your plan, then add them again.
-            </p>
-          )}
-          <Typography variant="muted">
-            {source === "faq"
+        <KnowledgeAddedScreen
+          title={`${added.label} Added`}
+          description={
+            source === "faq"
               ? "Your assistant can use them straight away."
-              : "We're reading them now. Each one goes live in your assistant as soon as it's ready, and you can follow its progress in Knowledge."}
-          </Typography>
-          <div className="mt-2 flex flex-wrap justify-center gap-2">
-            <Button asChild>
-              <Link href="/knowledge">View In Knowledge</Link>
-            </Button>
-            <Button type="button" variant="outline" onClick={startAgain}>
-              Add More
-            </Button>
-          </div>
-        </div>
+              : "We're reading them now. Each one goes live in your assistant as soon as it's ready, and you can follow its progress in Knowledge."
+          }
+          notice={
+            added.sent > added.count && (
+              <p
+                role="status"
+                className={`rounded-lg border px-3 py-2 text-sm ${BADGE_TONE_STYLES.warning}`}
+              >
+                {added.sent - added.count} of {added.sent} weren&apos;t added
+                because they would go over your storage limit. Free up space or
+                upgrade your plan, then add them again.
+              </p>
+            )
+          }
+          onAddMore={startAgain}
+        />
       )}
 
       <UnsavedChangesDialog
