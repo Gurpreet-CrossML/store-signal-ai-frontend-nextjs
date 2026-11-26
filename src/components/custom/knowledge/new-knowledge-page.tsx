@@ -116,7 +116,13 @@ const plural = (count: number, one: string, many = `${one}s`) =>
 export function NewKnowledgePage() {
   const dispatch = useAppDispatch();
   const router = useRouter();
-  const sourceParam = useSearchParams()?.get("source");
+  const searchParams = useSearchParams();
+  const sourceParam = searchParams?.get("source");
+  // `?question=` (from a question the AI couldn't answer) starts the first FAQ
+  // with that question already in it, so the user only has to write the answer.
+  const prefilledQuestion = (searchParams?.get("question") ?? "")
+    .trim()
+    .slice(0, FAQ_QUESTION_MAX_LENGTH);
 
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
@@ -158,7 +164,11 @@ export function NewKnowledgePage() {
     Record<string, number[]>
   >({});
   const [documents, setDocuments] = useState<DocumentRow[]>([]);
-  const [faqRows, setFaqRows] = useState<FaqRow[]>([emptyFaqRow()]);
+  const [faqRows, setFaqRows] = useState<FaqRow[]>([
+    initialSource === "faq" && prefilledQuestion
+      ? { ...emptyFaqRow(), question: prefilledQuestion }
+      : emptyFaqRow(),
+  ]);
   // One set of categories for every question added together.
   const [faqCategories, setFaqCategories] = useState<number[]>([]);
 
@@ -210,9 +220,15 @@ export function NewKnowledgePage() {
         : completeFaqs.length;
   // Anything picked or typed in that isn't added yet, half-filled
   // questions included.
+  // A question that came in ready-made and wasn't touched isn't an edit.
+  const onlyPrefilledQuestion =
+    filledFaqs.length === 1 &&
+    filledFaqs[0].question === prefilledQuestion &&
+    !filledFaqs[0].answer.trim();
   const isDirty =
     step === "content" &&
-    (source === "faq" ? filledFaqs.length : readyCount) > 0;
+    (source === "faq" ? filledFaqs.length : readyCount) > 0 &&
+    !(source === "faq" && onlyPrefilledQuestion);
   const alreadyAdded = discoveredPages.filter(
     (page) => page.alreadyAdded,
   ).length;
