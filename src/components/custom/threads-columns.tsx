@@ -86,18 +86,20 @@ export function TagsCell({ tags }: { tags: ThreadTag[] }) {
 }
 
 export const threadsColumns: ColumnDef<Thread>[] = [
-  // Customer — name as primary text, email as sub-text.
+  // Customer — name as primary text, email as sub-text. With no name the
+  // email is the primary text and is not repeated; with neither, "Guest".
   {
     accessorKey: "name",
     header: "Customer",
     cell: ({ row }) => {
       const customer = row.original.customer;
+      const name = customer?.name?.trim();
       return (
         <div className="flex flex-col gap-0.5">
           <Typography variant="small" as="span">
-            {customer?.name || customer?.email || "Guest"}
+            {name || customer?.email?.trim() || "Guest"}
           </Typography>
-          {customer?.email && (
+          {name && customer?.email && (
             <Typography variant="muted" as="span" className="text-xs">
               {customer.email}
             </Typography>

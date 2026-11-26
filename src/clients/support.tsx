@@ -3063,7 +3063,11 @@ export default function Support() {
                           the take-over banner above the composer. */}
                       <div className="flex min-w-0 items-center gap-2">
                         <CustomerContact
-                          email={selectedThread?.customer?.email}
+                          email={
+                            selectedThread?.customer?.name?.trim()
+                              ? selectedThread.customer.email
+                              : null
+                          }
                           phone={selectedThread?.customer?.phone}
                           // Orders keep the last thread's rows until the new
                           // ones land; reading them sooner would show the
@@ -3176,7 +3180,10 @@ export default function Support() {
                         <LiveMessagePan
                           messages={threadMessages}
                           handlerEvents={handlerEvents}
-                          customerName={selectedThread?.customer?.name}
+                          customerName={
+                            selectedThread?.customer?.name?.trim() ||
+                            selectedThread?.customer?.email
+                          }
                           onReplyWithAI={
                             connectedAgent === session?.user?.email
                               ? handleReplyWithAI
