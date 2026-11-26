@@ -1,34 +1,22 @@
 "use client";
 
-import { IconFilter } from "@tabler/icons-react";
+import { IconSearch, IconX } from "@tabler/icons-react";
 
 import { DateRangePicker } from "@/components/custom/date-range-picker";
-import { Badge } from "@/components/ui/badge";
+import { FilterSelect } from "@/components/custom/thread-filteration";
 import { Button } from "@/components/ui/button";
-import { CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Typography } from "@/components/ui/typography";
 import { ACTIVE_FILTER_STYLE } from "@/lib/config";
 import { cn } from "@/lib/utils";
+import type { OrderOrdering } from "@/redux/api-slice/order-slice";
 
 /**
  * Shopify's own `financial_status` values. Matches the set StatusBadge
- * already knows how to colour, so a filter chip and the badge it selects
- * for can't disagree.
+ * already knows how to colour, so a filter and the badge it selects for
+ * can't disagree.
  */
-export const FINANCIAL_STATUSES = [
+const FINANCIAL_STATUSES = [
+  { value: "", label: "All Payments" },
   { value: "paid", label: "Paid" },
   { value: "pending", label: "Pending" },
   { value: "authorized", label: "Authorized" },
@@ -37,300 +25,159 @@ export const FINANCIAL_STATUSES = [
   { value: "refunded", label: "Refunded" },
   { value: "voided", label: "Voided" },
   { value: "unpaid", label: "Unpaid" },
-] as const;
+];
 
 /**
  * "unfulfilled" is ours, not the platform's: Shopify models "nothing has
  * shipped" as a null rather than a string, and a filter cannot send null.
  */
-export const FULFILLMENT_STATUSES = [
+const FULFILLMENT_STATUSES = [
+  { value: "", label: "All Fulfillments" },
   { value: "fulfilled", label: "Fulfilled" },
   { value: "partial", label: "Partially Fulfilled" },
   { value: "unfulfilled", label: "Unfulfilled" },
   { value: "restocked", label: "Restocked" },
-] as const;
+];
 
-export type OrderFilterSelection = {
-  financialStatuses: string[];
-  fulfillmentStatuses: string[];
-  totalMin: string;
-  totalMax: string;
+const SORT_OPTIONS: { value: OrderOrdering; label: string }[] = [
+  { value: "-created_at", label: "Newest First" },
+  { value: "created_at", label: "Oldest First" },
+  { value: "-total_price", label: "Highest Value" },
+  { value: "total_price", label: "Lowest Value" },
+  { value: "-order_number", label: "Order Number" },
+];
+
+/** The list screen's filters; "" means the filter is off. */
+export type OrderFilterState = {
+  search: string;
   createdFrom: string;
   createdTo: string;
-  money: "any" | "outstanding" | "refunded";
-  cancelled: "any" | "yes" | "no";
+  financialStatus: string;
+  fulfillmentStatus: string;
+  cancelled: "" | "true" | "false";
+  ordering: OrderOrdering;
 };
 
-export const EMPTY_ORDER_FILTERS: OrderFilterSelection = {
-  financialStatuses: [],
-  fulfillmentStatuses: [],
-  totalMin: "",
-  totalMax: "",
+export const DEFAULT_ORDER_FILTERS: OrderFilterState = {
+  search: "",
   createdFrom: "",
   createdTo: "",
-  money: "any",
-  cancelled: "any",
+  financialStatus: "",
+  fulfillmentStatus: "",
+  cancelled: "",
+  ordering: "-created_at",
 };
 
-export function countActiveOrderFilters(filters: OrderFilterSelection) {
-  return (
-    filters.financialStatuses.length +
-    filters.fulfillmentStatuses.length +
-    Number(Boolean(filters.totalMin || filters.totalMax)) +
-    Number(Boolean(filters.createdFrom || filters.createdTo)) +
-    Number(filters.money !== "any") +
-    Number(filters.cancelled !== "any")
+/** True when anything narrows the list; the sort order doesn't. */
+export function hasOrderFilters(filters: OrderFilterState) {
+  return Boolean(
+    filters.search ||
+    filters.createdFrom ||
+    filters.createdTo ||
+    filters.financialStatus ||
+    filters.fulfillmentStatus ||
+    filters.cancelled,
   );
 }
 
-/** Same group anatomy as the customer filters, so the two popovers match. */
-function FilterGroup({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <fieldset className="flex flex-col gap-3">
-      <legend className="mb-3">
-        <Typography variant="small" as="span">
-          {title}
-        </Typography>
-      </legend>
-      {children}
-    </fieldset>
-  );
-}
-
-/**
- * Statuses as toggling chips rather than a multi-select: there are only a
- * handful, they all fit, and seeing which are on takes no interaction.
- */
-function StatusChips({
-  options,
-  selected,
-  onToggle,
-}: {
-  options: readonly { value: string; label: string }[];
-  selected: string[];
-  onToggle: (value: string) => void;
-}) {
-  return (
-    <div className="flex flex-wrap gap-1.5">
-      {options.map((option) => {
-        const isOn = selected.includes(option.value);
-        return (
-          <button
-            key={option.value}
-            type="button"
-            onClick={() => onToggle(option.value)}
-          >
-            <Badge
-              variant="outline"
-              className={cn(
-                "cursor-pointer",
-                isOn && "border-primary/20 bg-primary/10 text-primary",
-              )}
-            >
-              {option.label}
-            </Badge>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function RangeRow({
-  label,
-  min,
-  max,
-  onChange,
-}: {
-  label: string;
-  min: string;
-  max: string;
-  onChange: (next: { min: string; max: string }) => void;
-}) {
-  return (
-    <div className="flex items-center gap-2">
-      <Input
-        type="number"
-        min={0}
-        inputMode="decimal"
-        value={min}
-        placeholder="Min"
-        className={cn(min && ACTIVE_FILTER_STYLE)}
-        aria-label={`${label} minimum`}
-        onChange={(event) => onChange({ min: event.target.value, max })}
-      />
-      <span className="shrink-0 text-muted-foreground">–</span>
-      <Input
-        type="number"
-        min={0}
-        inputMode="decimal"
-        value={max}
-        placeholder="Max"
-        className={cn(max && ACTIVE_FILTER_STYLE)}
-        aria-label={`${label} maximum`}
-        onChange={(event) => onChange({ min, max: event.target.value })}
-      />
-    </div>
-  );
-}
-
-export function OrderFilterPopover({
-  open,
-  onOpenChange,
+/** The same inline search and filter bar as the Threads page. */
+export function OrderFilterBar({
   filters,
-  onFiltersChange,
-  onApply,
+  onChange,
   onClear,
-  activeCount,
 }: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  filters: OrderFilterSelection;
-  onFiltersChange: (filters: OrderFilterSelection) => void;
-  onApply: () => void;
+  filters: OrderFilterState;
+  onChange: (filters: OrderFilterState) => void;
   onClear: () => void;
-  activeCount: number;
 }) {
-  const toggle =
-    (key: "financialStatuses" | "fulfillmentStatuses") => (value: string) =>
-      onFiltersChange({
-        ...filters,
-        [key]: filters[key].includes(value)
-          ? filters[key].filter((entry) => entry !== value)
-          : [...filters[key], value],
-      });
-
   return (
-    <Popover open={open} onOpenChange={onOpenChange}>
-      <PopoverTrigger asChild>
+    <div className="flex flex-wrap items-center gap-2">
+      <div className="relative min-w-64 flex-1">
+        <IconSearch className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={filters.search}
+          onChange={(event) =>
+            onChange({ ...filters, search: event.target.value })
+          }
+          placeholder="Search order number, email, phone or tracking…"
+          aria-label="Search orders"
+          className={cn("pl-8", filters.search && ACTIVE_FILTER_STYLE)}
+        />
+      </div>
+
+      <DateRangePicker
+        from={filters.createdFrom}
+        to={filters.createdTo}
+        onRangeChange={(createdFrom, createdTo) =>
+          onChange({ ...filters, createdFrom, createdTo })
+        }
+        disabled={{ after: new Date() }}
+      />
+
+      <FilterSelect
+        ariaLabel="Filter by payment status"
+        value={filters.financialStatus}
+        activeClassName={ACTIVE_FILTER_STYLE}
+        onChange={(financialStatus) =>
+          onChange({ ...filters, financialStatus })
+        }
+        options={FINANCIAL_STATUSES}
+      />
+
+      <FilterSelect
+        ariaLabel="Filter by fulfillment status"
+        value={filters.fulfillmentStatus}
+        activeClassName={ACTIVE_FILTER_STYLE}
+        onChange={(fulfillmentStatus) =>
+          onChange({ ...filters, fulfillmentStatus })
+        }
+        options={FULFILLMENT_STATUSES}
+      />
+
+      <FilterSelect
+        ariaLabel="Filter by cancelled"
+        value={filters.cancelled}
+        activeClassName={ACTIVE_FILTER_STYLE}
+        onChange={(cancelled) =>
+          onChange({
+            ...filters,
+            cancelled: cancelled as OrderFilterState["cancelled"],
+          })
+        }
+        options={[
+          { value: "", label: "Include Cancelled" },
+          { value: "false", label: "Hide Cancelled" },
+          { value: "true", label: "Only Cancelled" },
+        ]}
+      />
+
+      <FilterSelect
+        ariaLabel="Sort orders"
+        value={filters.ordering}
+        // Always has a value, so highlighted only once moved off the default.
+        activeClassName={
+          filters.ordering !== DEFAULT_ORDER_FILTERS.ordering
+            ? ACTIVE_FILTER_STYLE
+            : undefined
+        }
+        onChange={(ordering) =>
+          onChange({ ...filters, ordering: ordering as OrderOrdering })
+        }
+        options={SORT_OPTIONS}
+      />
+
+      {hasOrderFilters(filters) && (
         <Button
-          variant="outline"
-          aria-label="Filter Orders"
-          className={cn(activeCount > 0 && ACTIVE_FILTER_STYLE)}
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="text-muted-foreground"
+          onClick={onClear}
         >
-          <IconFilter className="size-4" />
-          Filters
-          {activeCount > 0 ? (
-            <span className="flex size-4 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
-              {activeCount}
-            </span>
-          ) : null}
+          <IconX />
+          Clear
         </Button>
-      </PopoverTrigger>
-      <PopoverContent align="end" className="w-90 p-0">
-        <div className="border-b px-4 py-3">
-          <CardTitle>Filter Orders</CardTitle>
-        </div>
-
-        <div className="max-h-[65vh] space-y-6 overflow-y-auto p-4">
-          <FilterGroup title="Payment Status">
-            <StatusChips
-              options={FINANCIAL_STATUSES}
-              selected={filters.financialStatuses}
-              onToggle={toggle("financialStatuses")}
-            />
-          </FilterGroup>
-
-          <FilterGroup title="Delivery Status">
-            <StatusChips
-              options={FULFILLMENT_STATUSES}
-              selected={filters.fulfillmentStatuses}
-              onToggle={toggle("fulfillmentStatuses")}
-            />
-          </FilterGroup>
-
-          <FilterGroup title="Money">
-            <Select
-              value={filters.money}
-              onValueChange={(money) =>
-                onFiltersChange({
-                  ...filters,
-                  money: money as OrderFilterSelection["money"],
-                })
-              }
-            >
-              <SelectTrigger
-                aria-label="Outstanding or refunded"
-                className={cn(filters.money !== "any" && ACTIVE_FILTER_STYLE)}
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="any">Any</SelectItem>
-                <SelectItem value="outstanding">Has Amount Owing</SelectItem>
-                <SelectItem value="refunded">Has A Refund</SelectItem>
-              </SelectContent>
-            </Select>
-          </FilterGroup>
-
-          <FilterGroup title="Cancelled">
-            <Select
-              value={filters.cancelled}
-              onValueChange={(cancelled) =>
-                onFiltersChange({
-                  ...filters,
-                  cancelled: cancelled as OrderFilterSelection["cancelled"],
-                })
-              }
-            >
-              <SelectTrigger
-                aria-label="Cancelled orders"
-                className={cn(
-                  filters.cancelled !== "any" && ACTIVE_FILTER_STYLE,
-                )}
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="any">Any</SelectItem>
-                <SelectItem value="no">Hide Cancelled</SelectItem>
-                <SelectItem value="yes">Only Cancelled</SelectItem>
-              </SelectContent>
-            </Select>
-          </FilterGroup>
-
-          <FilterGroup title="Order Total">
-            <RangeRow
-              label="Order Total"
-              min={filters.totalMin}
-              max={filters.totalMax}
-              onChange={({ min, max }) =>
-                onFiltersChange({ ...filters, totalMin: min, totalMax: max })
-              }
-            />
-          </FilterGroup>
-
-          <FilterGroup title="Placed">
-            <DateRangePicker
-              from={filters.createdFrom}
-              to={filters.createdTo}
-              disabled={{ after: new Date() }}
-              onRangeChange={(createdFrom, createdTo) =>
-                onFiltersChange({ ...filters, createdFrom, createdTo })
-              }
-            />
-          </FilterGroup>
-        </div>
-
-        <div className="flex items-center justify-between border-t p-3">
-          {activeCount > 0 ? (
-            <Button variant="ghost" size="sm" onClick={onClear}>
-              Clear
-            </Button>
-          ) : (
-            <span />
-          )}
-          <Button size="sm" onClick={onApply}>
-            Apply Filters
-          </Button>
-        </div>
-      </PopoverContent>
-    </Popover>
+      )}
+    </div>
   );
 }

@@ -8,7 +8,6 @@ import {
   IconCalendarPlus,
   IconHome,
   IconMail,
-  IconMessage,
   IconPhone,
   IconRosetteDiscountCheck,
   IconShoppingBag,
@@ -155,36 +154,6 @@ function AddressCard({ address }: { address: CustomerAddress }) {
           </Typography>
         </div>
       ) : null}
-    </div>
-  );
-}
-
-/** Whether a channel may be contacted, said plainly rather than as a pill. */
-function ConsentRow({
-  icon: Icon,
-  channel,
-  granted,
-}: {
-  icon: typeof IconMail;
-  channel: string;
-  granted: boolean;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <div className="flex items-center gap-2">
-        <Icon className="size-4 text-muted-foreground" />
-        <Typography variant="small" as="span" className="font-normal">
-          {channel}
-        </Typography>
-      </div>
-      <Badge
-        variant="outline"
-        className={
-          granted ? BADGE_TONE_STYLES.success : BADGE_TONE_STYLES.neutral
-        }
-      >
-        {granted ? "Opted In" : "Not Opted In"}
-      </Badge>
     </div>
   );
 }
@@ -387,30 +356,6 @@ export default function CustomerDetail({ customerId }: { customerId: number }) {
         </Card>
 
         <div className="flex flex-col gap-6">
-          <Card size="sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <IconMessage className="size-4" />
-                Marketing Permissions
-              </CardTitle>
-              <CardDescription>
-                What this customer has agreed to receive.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-3">
-              <ConsentRow
-                icon={IconMail}
-                channel="Email"
-                granted={customer.accepts_email_marketing}
-              />
-              <ConsentRow
-                icon={IconMessage}
-                channel="SMS And WhatsApp"
-                granted={customer.accepts_sms_marketing}
-              />
-            </CardContent>
-          </Card>
-
           <Card size="sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">

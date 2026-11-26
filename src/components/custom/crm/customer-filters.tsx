@@ -1,284 +1,128 @@
 "use client";
 
-import { IconFilter } from "@tabler/icons-react";
+import { IconSearch, IconX } from "@tabler/icons-react";
 
 import { DateRangePicker } from "@/components/custom/date-range-picker";
+import { FilterSelect } from "@/components/custom/thread-filteration";
 import { Button } from "@/components/ui/button";
-import { CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Typography } from "@/components/ui/typography";
 import { ACTIVE_FILTER_STYLE } from "@/lib/config";
 import { cn } from "@/lib/utils";
+import type { CustomerOrdering } from "@/redux/api-slice/customer-slice";
 
-/**
- * The list screen's filter state.
- *
- * Booleans are tri-state on purpose: "opted in", "not opted in" and "don't
- * care" are three different questions, and a plain checkbox can only ask
- * two of them.
- */
-export type CustomerFilterSelection = {
-  emailConsent: "any" | "yes" | "no";
-  smsConsent: "any" | "yes" | "no";
-  emailVerified: "any" | "yes" | "no";
-  ordersMin: string;
-  ordersMax: string;
-  spentMin: string;
-  spentMax: string;
+/** The list screen's filters; "" means the filter is off. */
+export type CustomerFilterState = {
+  search: string;
   registeredFrom: string;
   registeredTo: string;
+  hasOrders: "" | "true" | "false";
+  ordering: CustomerOrdering;
 };
 
-export const EMPTY_CUSTOMER_FILTERS: CustomerFilterSelection = {
-  emailConsent: "any",
-  smsConsent: "any",
-  emailVerified: "any",
-  ordersMin: "",
-  ordersMax: "",
-  spentMin: "",
-  spentMax: "",
+export const DEFAULT_CUSTOMER_FILTERS: CustomerFilterState = {
+  search: "",
   registeredFrom: "",
   registeredTo: "",
+  hasOrders: "",
+  ordering: "-total_spent",
 };
 
-export function countActiveCustomerFilters(filters: CustomerFilterSelection) {
-  return (
-    Number(filters.emailConsent !== "any") +
-    Number(filters.smsConsent !== "any") +
-    Number(filters.emailVerified !== "any") +
-    Number(Boolean(filters.ordersMin || filters.ordersMax)) +
-    Number(Boolean(filters.spentMin || filters.spentMax)) +
-    Number(Boolean(filters.registeredFrom || filters.registeredTo))
+const SORT_OPTIONS: { value: CustomerOrdering; label: string }[] = [
+  { value: "-total_spent", label: "Top Spenders" },
+  { value: "-orders_count", label: "Most Orders" },
+  { value: "-registered_at", label: "Newest Customers" },
+  { value: "registered_at", label: "Oldest Customers" },
+  { value: "first_name", label: "Name (A–Z)" },
+];
+
+/** True when anything narrows the list; the sort order doesn't. */
+export function hasCustomerFilters(filters: CustomerFilterState) {
+  return Boolean(
+    filters.search ||
+    filters.registeredFrom ||
+    filters.registeredTo ||
+    filters.hasOrders,
   );
 }
 
-/**
- * Every group is built the same way — one heading treatment, one gap — so
- * the sections read as siblings. Previously "Permissions" was a heading and
- * the three below it were field labels, which made one popover look like
- * two different forms stacked.
- */
-function FilterGroup({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <fieldset className="flex flex-col gap-3">
-      <legend className="mb-3">
-        <Typography variant="small" as="span">
-          {title}
-        </Typography>
-      </legend>
-      {children}
-    </fieldset>
-  );
-}
-
-function TriStateRow({
-  label,
-  description,
-  value,
-  onChange,
-}: {
-  label: string;
-  description: string;
-  value: "any" | "yes" | "no";
-  onChange: (value: "any" | "yes" | "no") => void;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <div className="min-w-0">
-        <Typography variant="small" as="p" className="font-normal">
-          {label}
-        </Typography>
-        <Typography variant="muted">{description}</Typography>
-      </div>
-      <Select value={value} onValueChange={onChange}>
-        <SelectTrigger
-          className={cn(
-            "w-28 shrink-0",
-            value !== "any" && ACTIVE_FILTER_STYLE,
-          )}
-        >
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="any">Any</SelectItem>
-          <SelectItem value="yes">Yes</SelectItem>
-          <SelectItem value="no">No</SelectItem>
-        </SelectContent>
-      </Select>
-    </div>
-  );
-}
-
-function RangeRow({
-  label,
-  min,
-  max,
-  onChange,
-}: {
-  label: string;
-  min: string;
-  max: string;
-  onChange: (next: { min: string; max: string }) => void;
-}) {
-  return (
-    <div className="flex items-center gap-2">
-      <Input
-        type="number"
-        min={0}
-        inputMode="numeric"
-        value={min}
-        placeholder="Min"
-        className={cn(min && ACTIVE_FILTER_STYLE)}
-        aria-label={`${label} minimum`}
-        onChange={(event) => onChange({ min: event.target.value, max })}
-      />
-      <span className="shrink-0 text-muted-foreground">–</span>
-      <Input
-        type="number"
-        min={0}
-        inputMode="numeric"
-        value={max}
-        placeholder="Max"
-        className={cn(max && ACTIVE_FILTER_STYLE)}
-        aria-label={`${label} maximum`}
-        onChange={(event) => onChange({ min, max: event.target.value })}
-      />
-    </div>
-  );
-}
-
-export function CustomerFilterPopover({
-  open,
-  onOpenChange,
+/** The same inline search and filter bar as the Threads page. */
+export function CustomerFilterBar({
   filters,
-  onFiltersChange,
-  onApply,
+  onChange,
   onClear,
-  activeCount,
 }: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  filters: CustomerFilterSelection;
-  onFiltersChange: (filters: CustomerFilterSelection) => void;
-  onApply: () => void;
+  filters: CustomerFilterState;
+  onChange: (filters: CustomerFilterState) => void;
   onClear: () => void;
-  activeCount: number;
 }) {
   return (
-    <Popover open={open} onOpenChange={onOpenChange}>
-      <PopoverTrigger asChild>
+    <div className="flex flex-wrap items-center gap-2">
+      <div className="relative min-w-64 flex-1">
+        <IconSearch className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={filters.search}
+          onChange={(event) =>
+            onChange({ ...filters, search: event.target.value })
+          }
+          placeholder="Search name, email, phone or customer ID…"
+          aria-label="Search customers"
+          className={cn("pl-8", filters.search && ACTIVE_FILTER_STYLE)}
+        />
+      </div>
+
+      <DateRangePicker
+        from={filters.registeredFrom}
+        to={filters.registeredTo}
+        onRangeChange={(registeredFrom, registeredTo) =>
+          onChange({ ...filters, registeredFrom, registeredTo })
+        }
+        disabled={{ after: new Date() }}
+      />
+
+      <FilterSelect
+        ariaLabel="Filter by orders"
+        value={filters.hasOrders}
+        activeClassName={ACTIVE_FILTER_STYLE}
+        onChange={(hasOrders) =>
+          onChange({
+            ...filters,
+            hasOrders: hasOrders as CustomerFilterState["hasOrders"],
+          })
+        }
+        options={[
+          { value: "", label: "All Orders" },
+          { value: "true", label: "With Orders" },
+          { value: "false", label: "Without Orders" },
+        ]}
+      />
+
+      <FilterSelect
+        ariaLabel="Sort customers"
+        value={filters.ordering}
+        // Always has a value, so highlighted only once moved off the default.
+        activeClassName={
+          filters.ordering !== DEFAULT_CUSTOMER_FILTERS.ordering
+            ? ACTIVE_FILTER_STYLE
+            : undefined
+        }
+        onChange={(ordering) =>
+          onChange({ ...filters, ordering: ordering as CustomerOrdering })
+        }
+        options={SORT_OPTIONS}
+      />
+
+      {hasCustomerFilters(filters) && (
         <Button
-          variant="outline"
-          aria-label="Filter Customers"
-          className={cn(activeCount > 0 && ACTIVE_FILTER_STYLE)}
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="text-muted-foreground"
+          onClick={onClear}
         >
-          <IconFilter className="size-4" />
-          Filters
-          {activeCount > 0 ? (
-            <span className="flex size-4 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
-              {activeCount}
-            </span>
-          ) : null}
+          <IconX />
+          Clear
         </Button>
-      </PopoverTrigger>
-      <PopoverContent align="end" className="w-90 p-0">
-        <div className="border-b px-4 py-3">
-          <CardTitle>Filter Customers</CardTitle>
-        </div>
-
-        <div className="max-h-[65vh] space-y-6 overflow-y-auto p-4">
-          <FilterGroup title="Permissions">
-            <TriStateRow
-              label="Email Marketing"
-              description="Opted in to email campaigns."
-              value={filters.emailConsent}
-              onChange={(emailConsent) =>
-                onFiltersChange({ ...filters, emailConsent })
-              }
-            />
-            <TriStateRow
-              label="SMS Marketing"
-              description="Opted in to SMS and WhatsApp."
-              value={filters.smsConsent}
-              onChange={(smsConsent) =>
-                onFiltersChange({ ...filters, smsConsent })
-              }
-            />
-            <TriStateRow
-              label="Email Verified"
-              description="Address confirmed by the platform."
-              value={filters.emailVerified}
-              onChange={(emailVerified) =>
-                onFiltersChange({ ...filters, emailVerified })
-              }
-            />
-          </FilterGroup>
-
-          <FilterGroup title="Orders">
-            <RangeRow
-              label="Orders"
-              min={filters.ordersMin}
-              max={filters.ordersMax}
-              onChange={({ min, max }) =>
-                onFiltersChange({ ...filters, ordersMin: min, ordersMax: max })
-              }
-            />
-          </FilterGroup>
-
-          <FilterGroup title="Total Spent">
-            <RangeRow
-              label="Total Spent"
-              min={filters.spentMin}
-              max={filters.spentMax}
-              onChange={({ min, max }) =>
-                onFiltersChange({ ...filters, spentMin: min, spentMax: max })
-              }
-            />
-          </FilterGroup>
-
-          <FilterGroup title="Customer Since">
-            <DateRangePicker
-              from={filters.registeredFrom}
-              to={filters.registeredTo}
-              disabled={{ after: new Date() }}
-              onRangeChange={(registeredFrom, registeredTo) =>
-                onFiltersChange({ ...filters, registeredFrom, registeredTo })
-              }
-            />
-          </FilterGroup>
-        </div>
-
-        <div className="flex items-center justify-between border-t p-3">
-          {activeCount > 0 ? (
-            <Button variant="ghost" size="sm" onClick={onClear}>
-              Clear
-            </Button>
-          ) : (
-            <span />
-          )}
-          <Button size="sm" onClick={onApply}>
-            Apply Filters
-          </Button>
-        </div>
-      </PopoverContent>
-    </Popover>
+      )}
+    </div>
   );
 }

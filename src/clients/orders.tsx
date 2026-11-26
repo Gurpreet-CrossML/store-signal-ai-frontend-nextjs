@@ -1,90 +1,27 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { IconSearch, IconX } from "@tabler/icons-react";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table";
-import type { ReadonlyURLSearchParams } from "next/navigation";
 
 import { DataTable } from "@/components/custom/data-table";
 import { getOrderColumns } from "@/components/custom/crm/orders-columns";
 import {
-  EMPTY_ORDER_FILTERS,
-  FINANCIAL_STATUSES,
-  FULFILLMENT_STATUSES,
-  OrderFilterPopover,
-  countActiveOrderFilters,
-  type OrderFilterSelection,
+  DEFAULT_ORDER_FILTERS,
+  OrderFilterBar,
+  hasOrderFilters,
+  type OrderFilterState,
 } from "@/components/custom/crm/order-filters";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { useDebounce } from "@/hooks/use-debounce";
 import { endOfDay, startOfDay } from "@/lib/helpers";
-import {
-  FetchOrders,
-  type OrderFilters,
-  type OrderOrdering,
-} from "@/redux/api-slice/order-slice";
+import { FetchOrders, type OrderFilters } from "@/redux/api-slice/order-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { ACTIVE_FILTER_STYLE } from "@/lib/config";
-import { cn } from "@/lib/utils";
 
 const PER_PAGE = 25;
-
-const SORT_OPTIONS: { value: OrderOrdering; label: string }[] = [
-  { value: "-created_at", label: "Newest First" },
-  { value: "created_at", label: "Oldest First" },
-  { value: "-total_price", label: "Highest Value" },
-  { value: "total_price", label: "Lowest Value" },
-  { value: "-order_number", label: "Order Number" },
-];
-
-function numeric(value: string) {
-  if (!value.trim()) return undefined;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : undefined;
-}
-
-// The applied filters live in the URL (same names the API takes), so they can
-// be seen, shared and survive a refresh.
-function filtersFromParams(
-  params: ReadonlyURLSearchParams | null,
-): OrderFilterSelection {
-  if (!params) return EMPTY_ORDER_FILTERS;
-  const known = (list: readonly { value: string }[], key: string) =>
-    params.getAll(key).filter((v) => list.some((o) => o.value === v));
-  return {
-    financialStatuses: known(FINANCIAL_STATUSES, "financial_status"),
-    fulfillmentStatuses: known(FULFILLMENT_STATUSES, "fulfillment_status"),
-    totalMin: params.get("total_min") ?? "",
-    totalMax: params.get("total_max") ?? "",
-    createdFrom: params.get("created_from") ?? "",
-    createdTo: params.get("created_to") ?? "",
-    money:
-      params.get("has_outstanding") === "true"
-        ? "outstanding"
-        : params.get("has_refund") === "true"
-          ? "refunded"
-          : "any",
-    cancelled:
-      params.get("cancelled") === "true"
-        ? "yes"
-        : params.get("cancelled") === "false"
-          ? "no"
-          : "any",
-  };
-}
 
 export default function Orders() {
   const dispatch = useAppDispatch();
   const router = useRouter();
-  const pathname = usePathname();
-  const safePathname = pathname ?? "/crm/orders";
   const searchParams = useSearchParams();
 
   // Set when arriving from a customer's page, so the list opens scoped to
@@ -105,100 +42,52 @@ export default function Orders() {
   const [page, setPage] = useState(1);
   // Arriving from a customer's page fills the search with their email, so
   // the list opens scoped to that shopper and the filter shows in the box.
-  const [searchInput, setSearchInput] = useState(
-    () => searchParams?.get("search")?.trim() ?? "",
-  );
-  const [debouncedSearch, setDebouncedSearch] = useState(
-    () => searchParams?.get("search")?.trim() ?? "",
-  );
-  const [ordering, setOrdering] = useState<OrderOrdering>(() => {
-    const value = searchParams?.get("ordering");
-    return SORT_OPTIONS.some((o) => o.value === value)
-      ? (value as OrderOrdering)
-      : "-created_at";
-  });
-
-  const [draftFilters, setDraftFilters] = useState<OrderFilterSelection>(() =>
-    filtersFromParams(searchParams),
-  );
-  const [appliedFilters, setAppliedFilters] = useState<OrderFilterSelection>(
-    () => filtersFromParams(searchParams),
-  );
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(searchInput.trim());
-      setPage(1);
-    }, 350);
-    return () => clearTimeout(timer);
-  }, [searchInput]);
+  const [filters, setFilters] = useState<OrderFilterState>(() => ({
+    ...DEFAULT_ORDER_FILTERS,
+    search: searchParams?.get("search")?.trim() ?? "",
+  }));
+  // So a request isn't fired per keystroke.
+  const debouncedSearch = useDebounce(filters.search.trim());
 
   const requestFilters: OrderFilters = useMemo(
     () => ({
       ...(debouncedSearch ? { search: debouncedSearch } : {}),
       ...(customerId ? { customer: customerId } : {}),
-      ...(appliedFilters.financialStatuses.length
-        ? { financial_status: appliedFilters.financialStatuses }
+      ...(filters.financialStatus
+        ? { financial_status: [filters.financialStatus] }
         : {}),
-      ...(appliedFilters.fulfillmentStatuses.length
-        ? { fulfillment_status: appliedFilters.fulfillmentStatuses }
+      ...(filters.fulfillmentStatus
+        ? { fulfillment_status: [filters.fulfillmentStatus] }
         : {}),
-      total_min: numeric(appliedFilters.totalMin),
-      total_max: numeric(appliedFilters.totalMax),
-      ...(appliedFilters.money === "outstanding"
-        ? { has_outstanding: true }
-        : {}),
-      ...(appliedFilters.money === "refunded" ? { has_refund: true } : {}),
-      ...(appliedFilters.cancelled === "any"
-        ? {}
-        : { cancelled: appliedFilters.cancelled === "yes" }),
+      ...(filters.cancelled ? { cancelled: filters.cancelled === "true" } : {}),
       // The picker yields whole days; the range has to cover all of its
       // last one or "up to today" would stop at midnight.
-      ...(appliedFilters.createdFrom
-        ? { created_from: startOfDay(appliedFilters.createdFrom) }
+      ...(filters.createdFrom
+        ? { created_from: startOfDay(filters.createdFrom) }
         : {}),
-      ...(appliedFilters.createdTo
-        ? { created_to: endOfDay(appliedFilters.createdTo) }
-        : {}),
-      ordering,
+      ...(filters.createdTo ? { created_to: endOfDay(filters.createdTo) } : {}),
+      ordering: filters.ordering,
     }),
-    [appliedFilters, customerId, debouncedSearch, ordering],
+    [
+      debouncedSearch,
+      customerId,
+      filters.financialStatus,
+      filters.fulfillmentStatus,
+      filters.cancelled,
+      filters.createdFrom,
+      filters.createdTo,
+      filters.ordering,
+    ],
   );
 
-  // Mirror the search, sort and applied filters into the URL.
-  useEffect(() => {
-    const params = new URLSearchParams();
-    if (customerId) params.set("customer", String(customerId));
-    if (debouncedSearch) params.set("search", debouncedSearch);
-    if (ordering !== "-created_at") params.set("ordering", ordering);
-    for (const [key, value] of Object.entries(requestFilters)) {
-      if (["search", "customer", "ordering"].includes(key)) continue;
-      if (value === undefined) continue;
-      if (Array.isArray(value)) value.forEach((v) => params.append(key, v));
-      else params.set(key, String(value));
-    }
+  // A new search, filter or sort starts again from page 1 (during render, as
+  // on Threads, so the fetch below never runs with the old page).
+  const [prevRequestFilters, setPrevRequestFilters] = useState(requestFilters);
+  if (requestFilters !== prevRequestFilters) {
+    setPrevRequestFilters(requestFilters);
+    setPage(1);
+  }
 
-    // The request carries whole-day timestamps; the URL keeps the picked day.
-    if (appliedFilters.createdFrom)
-      params.set("created_from", appliedFilters.createdFrom);
-    if (appliedFilters.createdTo)
-      params.set("created_to", appliedFilters.createdTo);
-    const query = params.toString();
-    if (query === (searchParams?.toString() ?? "")) return;
-    router.replace(query ? `${safePathname}?${query}` : safePathname, {
-      scroll: false,
-    });
-  }, [
-    appliedFilters,
-    customerId,
-    debouncedSearch,
-    ordering,
-    safePathname,
-    requestFilters,
-    router,
-    searchParams,
-  ]);
   useEffect(() => {
     if (!storeCode) return;
     dispatch(
@@ -212,7 +101,6 @@ export default function Orders() {
   }, [dispatch, storeCode, page, requestFilters]);
 
   const columns = useMemo(() => getOrderColumns(), []);
-  const activeFilterCount = countActiveOrderFilters(appliedFilters);
 
   const pagination: PaginationState = {
     pageIndex: page - 1,
@@ -223,80 +111,15 @@ export default function Orders() {
     setPage(next.pageIndex + 1);
   };
 
-  const hasQuery =
-    Boolean(debouncedSearch) || activeFilterCount > 0 || Boolean(customerId);
+  const hasQuery = hasOrderFilters(filters) || Boolean(customerId);
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="relative w-full max-w-sm">
-          <IconSearch className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={searchInput}
-            onChange={(event) => setSearchInput(event.target.value)}
-            placeholder="Search order number, email, phone or tracking…"
-            aria-label="Search orders"
-            className="pl-9"
-          />
-          {searchInput ? (
-            <button
-              type="button"
-              onClick={() => setSearchInput("")}
-              aria-label="Clear order search"
-              className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            >
-              <IconX className="size-4" />
-            </button>
-          ) : null}
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Select
-            value={ordering}
-            onValueChange={(value) => {
-              setOrdering(value as OrderOrdering);
-              setPage(1);
-            }}
-          >
-            <SelectTrigger
-              // A sort order is always applied, including the default.
-              className={cn("w-44", ACTIVE_FILTER_STYLE)}
-              aria-label="Sort orders"
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {SORT_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <OrderFilterPopover
-            open={isFilterOpen}
-            onOpenChange={(open) => {
-              setIsFilterOpen(open);
-              if (open) setDraftFilters(appliedFilters);
-            }}
-            filters={draftFilters}
-            onFiltersChange={setDraftFilters}
-            activeCount={activeFilterCount}
-            onApply={() => {
-              setAppliedFilters(draftFilters);
-              setPage(1);
-              setIsFilterOpen(false);
-            }}
-            onClear={() => {
-              setDraftFilters(EMPTY_ORDER_FILTERS);
-              setAppliedFilters(EMPTY_ORDER_FILTERS);
-              setPage(1);
-              setIsFilterOpen(false);
-            }}
-          />
-        </div>
-      </div>
+    <div className="flex flex-col gap-6">
+      <OrderFilterBar
+        filters={filters}
+        onChange={setFilters}
+        onClear={() => setFilters(DEFAULT_ORDER_FILTERS)}
+      />
 
       <DataTable
         columns={columns}
