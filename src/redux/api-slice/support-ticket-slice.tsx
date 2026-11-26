@@ -89,9 +89,7 @@ type GetSupportTicketsArgs = {
 };
 
 export type SupportTicketCustomer = {
-  id: number;
-  /** `id` encrypted by the backend, for page URLs. */
-  url_id: string;
+  id: string;
   addresses: unknown[];
   name: string;
   first_name: string;
@@ -233,7 +231,7 @@ export type SupportTicketMessage = {
 
 export type SupportTicketDraftMessage = {
   id: number;
-  ticket: number;
+  ticket: string;
   agent: number;
   message: string;
   draft_type: SupportTicketDraftType;
@@ -243,9 +241,7 @@ export type SupportTicketDraftMessage = {
 export type SupportTicketCreatedBy = "agent" | "ai" | "email";
 
 export type SupportTicket = {
-  id: number;
-  /** `id` encrypted by the backend, for page URLs. */
-  url_id: string;
+  id: string;
   ticket_id: string;
   created_by_type?: SupportTicketCreatedBy;
   /** The agent who raised it; null when the AI or a rule did. */
@@ -265,8 +261,6 @@ export type SupportTicket = {
   thread?: string | null;
   /** Whether that chat is still open; null when there is none. */
   thread_is_active?: boolean | null;
-  /** `thread` encrypted by the backend, for page URLs. */
-  thread_url_id?: string | null;
   internal_assignee: SupportTicketAssignee | null;
 
   subject: string;
@@ -421,7 +415,7 @@ export const FetchSupportTicketFilterCounts = createAsyncThunk<
 export const FetchSupportTicketDetails = createAsyncThunk(
   "FetchSupportTicketDetails",
   async (
-    { storeCode, ticketId }: { storeCode: string; ticketId: number },
+    { storeCode, ticketId }: { storeCode: string; ticketId: string },
     thunkAPI,
   ) => {
     try {
@@ -451,7 +445,7 @@ export const SupportTicketMessageSend = createAsyncThunk(
       storeCode,
       ticketId,
       formData,
-    }: { storeCode: string; ticketId: number; formData: FormData },
+    }: { storeCode: string; ticketId: string; formData: FormData },
     thunkAPI,
   ) => {
     try {
@@ -543,7 +537,7 @@ export type CreateSupportTicketPayload = {
   description: string;
   priority: SupportTicketPriority;
   /** The order this is about, by id. Omitted when it is about nothing in particular. */
-  order?: number;
+  order?: string;
   tags?: { name: string }[];
   /** Language of the conversation. The server defaults to English. */
   language?: TicketLanguage;
@@ -657,7 +651,7 @@ export const SupportTicketCustomerLink = createAsyncThunk(
       storeCode,
       ticketId,
       customerId,
-    }: { storeCode: string; ticketId: number; customerId: number },
+    }: { storeCode: string; ticketId: string; customerId: string },
     thunkAPI,
   ) => {
     try {
@@ -690,7 +684,7 @@ export const SupportTicketStaffAssign = createAsyncThunk(
       payload,
     }: {
       storeCode: string;
-      ticketId: number;
+      ticketId: string;
       payload: SupportTicketStaffAssignData;
     },
     thunkAPI,
@@ -723,7 +717,7 @@ export const SupportTicketAgentDraftSave = createAsyncThunk(
       storeCode,
       ticketId,
       payload,
-    }: { storeCode: string; ticketId: number; payload: { message: string } },
+    }: { storeCode: string; ticketId: string; payload: { message: string } },
     thunkAPI,
   ) => {
     try {
@@ -756,7 +750,7 @@ export const SupportTicketTagAssign = createAsyncThunk(
       storeCode,
       ticketId,
       tagId,
-    }: { storeCode: string; ticketId: number; tagId: number },
+    }: { storeCode: string; ticketId: string; tagId: number },
     thunkAPI,
   ) => {
     try {
@@ -788,7 +782,7 @@ export const SupportTicketTagRemove = createAsyncThunk(
       storeCode,
       ticketId,
       tagId,
-    }: { storeCode: string; ticketId: number; tagId: number },
+    }: { storeCode: string; ticketId: string; tagId: number },
     thunkAPI,
   ) => {
     try {
@@ -820,7 +814,7 @@ export const SupportMessageImprove = createAsyncThunk(
       payload,
     }: {
       storeCode: string;
-      ticketId: number;
+      ticketId: string;
       payload: SupportMessageImproveResponse;
     },
     thunkAPI,
@@ -855,7 +849,7 @@ export const SupportTicketSnooze = createAsyncThunk(
       payload,
     }: {
       storeCode: string;
-      ticketId: number;
+      ticketId: string;
       payload: SupportTicketSnoozeResponse;
     },
     thunkAPI,
@@ -884,7 +878,7 @@ export const SupportTicketSnooze = createAsyncThunk(
 export const SupportTicketMarkRead = createAsyncThunk(
   "SupportTicketMarkRead",
   async (
-    { storeCode, ticketId }: { storeCode: string; ticketId: number },
+    { storeCode, ticketId }: { storeCode: string; ticketId: string },
     thunkAPI,
   ) => {
     try {
@@ -1032,7 +1026,7 @@ export const TicketTagUpdate = createAsyncThunk(
 export const SupportTicketAIMessageDraftGenerate = createAsyncThunk(
   "SupportTicketAIMessageDraftGenerate",
   async (
-    { storeCode, ticketId }: { storeCode: string; ticketId: number },
+    { storeCode, ticketId }: { storeCode: string; ticketId: string },
     thunkAPI,
   ) => {
     try {
@@ -1064,7 +1058,7 @@ export const SupportTicketStatusUpdate = createAsyncThunk(
       payload,
     }: {
       storeCode: string;
-      ticketId: number;
+      ticketId: string;
       payload: { status: SupportTicketStatus };
       /**
        * The status the ticket is leaving. Not sent to the API; it lets the
@@ -1106,7 +1100,7 @@ export const SupportTicketPriorityUpdate = createAsyncThunk(
       payload,
     }: {
       storeCode: string;
-      ticketId: number;
+      ticketId: string;
       payload: { priority: SupportTicketPriority };
     },
     thunkAPI,
@@ -1160,7 +1154,7 @@ export type SupportTicketActivityItem = {
 export const SupportTicketActivityFetch = createAsyncThunk(
   "SupportTicketActivityFetch",
   async (
-    { storeCode, ticketId }: { storeCode: string; ticketId: number },
+    { storeCode, ticketId }: { storeCode: string; ticketId: string },
     thunkAPI,
   ) => {
     try {
@@ -1193,7 +1187,7 @@ export const SupportTicketLanguageSentimentUpdate = createAsyncThunk(
       payload,
     }: {
       storeCode: string;
-      ticketId: number;
+      ticketId: string;
       payload: { language?: TicketLanguage; sentiment?: TicketSentiment };
     },
     thunkAPI,
@@ -1226,7 +1220,7 @@ export const SupportTicketMessagesTranslate = createAsyncThunk<
   SupportTicketTranslateResponse,
   {
     storeCode: string;
-    ticketId: number;
+    ticketId: string;
     payload: { language_code: string; language_name: string };
   }
 >(
@@ -1259,7 +1253,7 @@ export const SupportTicketMessagesTranslate = createAsyncThunk<
 // local Next API has no Copilot route.
 export const FetchCopilotConversation = createAsyncThunk<
   CopilotConversation,
-  { storeCode: string; ticketId: number }
+  { storeCode: string; ticketId: string }
 >("FetchCopilotConversation", async ({ storeCode, ticketId }, thunkAPI) => {
   try {
     const response = await axiosInstance.get(
@@ -1279,7 +1273,7 @@ export const FetchCopilotConversation = createAsyncThunk<
 
 export const CopilotActionRun = createAsyncThunk<
   { reused: boolean; message?: CopilotMessage; actions: CopilotActions },
-  { storeCode: string; ticketId: number; action: CopilotAction }
+  { storeCode: string; ticketId: string; action: CopilotAction }
 >("CopilotActionRun", async ({ storeCode, ticketId, action }, thunkAPI) => {
   try {
     const response = await axiosInstance.post(
@@ -1325,7 +1319,7 @@ export const CopilotMessageRate = createAsyncThunk<
   { message: CopilotMessage; actions: CopilotActions },
   {
     storeCode: string;
-    ticketId: number;
+    ticketId: string;
     messageId: number;
     feedback: CopilotFeedback;
     feedbackMessage?: string;
@@ -1579,11 +1573,11 @@ const SupportTicketsSlice = createSlice({
       FetchCopilotConversationIsError: null as null | string | object | unknown,
       // Kept per ticket, so reopening a ticket shows its answers at once
       // while they reload.
-      FetchCopilotConversationData: {} as Record<number, CopilotConversation>,
+      FetchCopilotConversationData: {} as Record<string, CopilotConversation>,
     },
     CopilotActionRunState: {
       CopilotActionRunIsLoading: false,
-      CopilotActionRunTicketId: null as number | null,
+      CopilotActionRunTicketId: null as string | null,
       CopilotActionRunAction: null as CopilotAction | null,
     },
     CopilotMessageRateState: {

@@ -17,8 +17,6 @@ export type SupportDashboardMessageEvent = {
   message: string;
   role: string;
   thread_id: string;
-  /** `thread_id` encrypted by the backend, for page URLs. */
-  thread_url_id: string;
   customer?: Customer | null;
   is_active: boolean;
   created_at: string;

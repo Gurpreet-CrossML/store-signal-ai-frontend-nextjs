@@ -278,7 +278,7 @@ function WorkflowQuestions({
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground">
                 <span>{formatDateTime(item.askedAt)}</span>
                 <Link
-                  href={getThreadHref(item.threadUrlId, item.threadIsActive)}
+                  href={getThreadHref(item.threadId, item.threadIsActive)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="font-medium text-primary hover:underline"

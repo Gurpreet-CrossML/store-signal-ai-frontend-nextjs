@@ -272,7 +272,7 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
         window.history.replaceState(
           null,
           "",
-          `/knowledge/articles/${created.urlId}`,
+          `/knowledge/articles/${created.id}`,
         );
         ok = true;
       }

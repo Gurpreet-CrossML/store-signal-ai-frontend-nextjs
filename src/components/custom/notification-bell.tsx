@@ -308,8 +308,8 @@ export function NotificationBell() {
     }
     router.push(
       notification.ticket !== null
-        ? `/helpdesk?ticket=${notification.ticket_url_id}`
-        : `/support?chat=${notification.thread_url_id ?? ""}`,
+        ? `/helpdesk?ticket=${notification.ticket}`
+        : `/support?chat=${encodeURIComponent(notification.thread ?? "")}`,
     );
     handleOpenChange(false);
   };

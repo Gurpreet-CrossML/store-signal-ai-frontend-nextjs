@@ -74,7 +74,7 @@ function validateEmailTemplate(values: {
 export default function EmailTemplateForm({
   templateId,
 }: {
-  templateId?: number;
+  templateId?: string;
 }) {
   const dispatch = useAppDispatch();
   const router = useRouter();

@@ -31,13 +31,7 @@ const THREAD_FILTER_KEYS = [
   "to",
 ] as const;
 
-export default function Threads({
-  beforeThreadId,
-}: {
-  /** Set by the "Past chats" link: only threads started before that one.
-   *  Decrypted from ?before_thread_id= by the page on the server. */
-  beforeThreadId?: string;
-}) {
+export default function Threads() {
   const dispatch = useAppDispatch();
   const router = useRouter();
   const pathname = usePathname();
@@ -107,8 +101,12 @@ export default function Threads({
   // Each thread opens as its own page; browser back returns to this list
   // (the `?page=` param keeps the list position).
   const handleSelectThread = useCallback(
-    (threadUrlId: string, isActive: boolean) => {
-      router.push(getThreadHref(threadUrlId, isActive));
+    (threadId: string, isActive: boolean) => {
+      if (isActive) {
+        router.push(`/support/?chat=${threadId}`);
+      } else {
+        router.push(`/threads/${threadId}`);
+      }
     },
     [router],
   );
@@ -141,6 +139,9 @@ export default function Threads({
     setPrevFilterSignature(filterSignature);
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
   }
+
+  // Set by the "Past chats" link: only threads started before that one.
+  const beforeThreadId = searchParams?.get("before_thread_id") ?? undefined;
 
   // Everything that narrows the list except the tag selection. The tag chips
   // are counted against exactly this, so picking a tag never hides the others.

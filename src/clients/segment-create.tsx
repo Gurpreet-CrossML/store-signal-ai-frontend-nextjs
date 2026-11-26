@@ -183,7 +183,7 @@ export default function SegmentCreate({
   useEffect(() => {
     if (!segmentId || !storeCode) return;
     let cancelled = false;
-    dispatch(fetchSegmentDetail({ storeCode, segmentId: Number(segmentId) }))
+    dispatch(fetchSegmentDetail({ storeCode, segmentId }))
       .unwrap()
       .then((segment) => {
         if (cancelled) return;
@@ -336,7 +336,7 @@ export default function SegmentCreate({
     try {
       if (isEditMode && segmentId) {
         await dispatch(
-          updateSegment({ storeCode, segmentId: Number(segmentId), payload }),
+          updateSegment({ storeCode, segmentId, payload }),
         ).unwrap();
         toast.success("Segment updated");
       } else {

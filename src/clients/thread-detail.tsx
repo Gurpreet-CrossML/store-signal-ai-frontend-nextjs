@@ -810,7 +810,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Link
-                      href={`/crm/customers/${details.customer.url_id}`}
+                      href={`/crm/customers/${details.customer.id}`}
                       className="inline-flex items-center gap-1 font-semibold hover:underline hover:underline-offset-2"
                     >
                       {customerName}
@@ -977,7 +977,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
             {/* <Button variant="outline">Flag for review</Button> */}
             {existingThreadTicket ? (
               <Button asChild>
-                <Link href={`/helpdesk?ticket=${existingThreadTicket.url_id}`}>
+                <Link href={`/helpdesk?ticket=${existingThreadTicket.id}`}>
                   Open Ticket #{existingThreadTicket.ticket_id}
                 </Link>
               </Button>
@@ -1065,7 +1065,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
         </Button>
         {existingThreadTicket ? (
           <Button className="flex-1" asChild>
-            <Link href={`/helpdesk?ticket=${existingThreadTicket.url_id}`}>
+            <Link href={`/helpdesk?ticket=${existingThreadTicket.id}`}>
               Open Ticket #{existingThreadTicket.ticket_id}
             </Link>
           </Button>

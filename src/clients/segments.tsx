@@ -64,7 +64,7 @@ import {
 function getColumns(
   categoryById: Map<number, SegmentCategory>,
   onToggleActive: (segment: Segment, checked: boolean) => void,
-  toggling: number | null,
+  toggling: string | null,
   onEdit: (segment: Segment) => void,
   onDelete: (segment: Segment) => void,
 ): ColumnDef<Segment>[] {
@@ -243,7 +243,7 @@ export default function Segments() {
     [segments, pagination],
   );
 
-  const [togglingId, setTogglingId] = useState<number | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
   const handleToggleActive = useCallback(
     async (segment: Segment, checked: boolean) => {
       if (!storeCode) return;
@@ -314,7 +314,7 @@ export default function Segments() {
         categoryById,
         handleToggleActive,
         togglingId,
-        (segment) => router.push(`/campaign/segments/${segment.url_id}/edit`),
+        (segment) => router.push(`/campaign/segments/${segment.id}/edit`),
         (segment) => setSegmentToDelete(segment),
       ),
     [categoryById, handleToggleActive, togglingId, router],

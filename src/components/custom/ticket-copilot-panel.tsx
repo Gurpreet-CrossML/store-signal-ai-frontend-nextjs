@@ -79,7 +79,7 @@ export function TicketCopilotPanel({
   onInsertDraft,
 }: {
   storeCode: string;
-  ticketId: number;
+  ticketId: string;
   refreshKey: string;
   /** Put the draft in the reply editor. Copilot never sends anything. */
   onInsertDraft: (text: string) => void;

@@ -65,14 +65,14 @@ import {
 } from "@/redux/api-slice/campaign-slice";
 
 function getColumns(
-  segmentById: Map<number, Segment>,
+  segmentById: Map<string, Segment>,
   onView: (campaign: Campaign) => void,
   onToggleActive: (campaign: Campaign, checked: boolean) => void,
-  toggling: number | null,
+  toggling: string | null,
   onEdit: (campaign: Campaign) => void,
   onDelete: (campaign: Campaign) => void,
   onReschedule: (campaign: Campaign) => void,
-  rescheduling: number | null,
+  rescheduling: string | null,
 ): ColumnDef<Campaign>[] {
   return [
     {
@@ -282,8 +282,8 @@ export default function Campaigns() {
     [campaigns, pagination],
   );
 
-  const [togglingId, setTogglingId] = useState<number | null>(null);
-  const [reschedulingId, setReschedulingId] = useState<number | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [reschedulingId, setReschedulingId] = useState<string | null>(null);
   const handleToggleActive = useCallback(
     async (campaign: Campaign, checked: boolean) => {
       if (!storeCode) return;
@@ -367,11 +367,10 @@ export default function Campaigns() {
     () =>
       getColumns(
         segmentById,
-        (campaign) => router.push(`/campaign/campaigns/${campaign.url_id}`),
+        (campaign) => router.push(`/campaign/campaigns/${campaign.id}`),
         handleToggleActive,
         togglingId,
-        (campaign) =>
-          router.push(`/campaign/campaigns/${campaign.url_id}/edit`),
+        (campaign) => router.push(`/campaign/campaigns/${campaign.id}/edit`),
         (campaign) => setCampaignToDelete(campaign),
         handleReschedule,
         reschedulingId,

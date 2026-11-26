@@ -289,7 +289,7 @@ export default function WhatsAppTemplateCreate({
       fetchLocalWhatsAppTemplate({
         storeCode,
         accountId: String(account.id),
-        templateId: Number(templateId),
+        templateId,
       }),
     )
       .unwrap()
@@ -572,7 +572,7 @@ export default function WhatsAppTemplateCreate({
           updateWhatsAppTemplate({
             storeCode,
             accountId: String(account.id),
-            templateId: Number(templateId),
+            templateId,
             payload: { ...formPayload, ...mediaFields },
           }),
         ).unwrap();

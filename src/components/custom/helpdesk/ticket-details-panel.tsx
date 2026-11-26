@@ -833,7 +833,7 @@ export type TicketDetailsProps = TagProps & {
   /** Adds the Copilot tab; left out when no store is selected. */
   copilot?: {
     storeCode: string;
-    ticketId: number;
+    ticketId: string;
     /** Changes whenever the ticket does, so Copilot re-checks its buttons. */
     refreshKey: string;
     onInsertDraft: (text: string) => void;
@@ -863,7 +863,7 @@ export type TicketDetailsProps = TagProps & {
   otherTickets: ThreadTicketData[];
   otherTicketsLoading?: boolean;
   onLinkCustomer: () => void;
-  onOpenTicket: (ticketId: number) => void;
+  onOpenTicket: (ticketId: string) => void;
   activity: SupportTicketActivityItem[];
   activityLoading?: boolean;
 };
@@ -1334,7 +1334,7 @@ function CustomerTab({
                 admin when there is one, else our own customer page, either
                 way in a new tab so the ticket stays open here. */}
             <Link
-              href={customer.admin_url || `/crm/customers/${customer.url_id}`}
+              href={customer.admin_url || `/crm/customers/${customer.id}`}
               target="_blank"
               rel="noreferrer"
               className="flex max-w-full items-center gap-1 text-base font-semibold hover:underline"
@@ -1482,7 +1482,7 @@ function CustomerTab({
             {shownTickets.map((item) => (
               <Link
                 key={item.id}
-                href={`/helpdesk?ticket=${item.url_id}&status=${item.status}`}
+                href={`/helpdesk?ticket=${item.id}&status=${item.status}`}
                 target="_blank"
                 rel="noreferrer"
                 className="flex items-center gap-2 rounded-lg border px-3 py-2.5 text-left hover:bg-muted/50"

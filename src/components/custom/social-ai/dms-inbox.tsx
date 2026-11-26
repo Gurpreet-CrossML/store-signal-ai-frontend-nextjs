@@ -1138,7 +1138,6 @@ export default function DmsInbox({
   const panelCustomer = linkedCustomer
     ? {
         id: linkedCustomer.id,
-        url_id: linkedCustomer.url_id,
         name:
           linkedCustomer.name ||
           `${customerDetails?.first_name ?? ""} ${customerDetails?.last_name ?? ""}`.trim() ||
@@ -1176,7 +1175,6 @@ export default function DmsInbox({
           userId: activeConversationId,
           customer: {
             id: customer.id,
-            url_id: customer.url_id,
             name:
               `${customer.first_name ?? ""} ${customer.last_name ?? ""}`.trim() ||
               customer.email,
@@ -1374,7 +1372,7 @@ export default function DmsInbox({
                             → offers the link dialog. Same affordance as the
                             Live Support header. */}
                           <CrmLinkButton
-                            customerUrlId={activeConversation.customer?.url_id}
+                            customerId={activeConversation.customer?.id}
                             onLinkCustomer={() => setIsLinkCustomerOpen(true)}
                           />
                         </div>

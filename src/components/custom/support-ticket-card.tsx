@@ -222,7 +222,7 @@ export function SupportTicketCard({
             </Button>
             <Button asChild>
               <a
-                href={`/helpdesk?ticket=${ticket.url_id}`}
+                href={`/helpdesk?ticket=${ticket.id}`}
                 target="_blank"
                 rel="noopener noreferrer"
               >

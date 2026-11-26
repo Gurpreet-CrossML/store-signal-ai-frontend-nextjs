@@ -1,7 +1,6 @@
 import { Suspense } from "react";
 
 import Support from "@/clients/support";
-import { decryptUrlId } from "@/lib/url-id";
 
 /**
  * Rendered per request. What this screen shows is decided by the
@@ -15,15 +14,10 @@ export const metadata = {
   title: "Support",
 };
 
-export default async function Page({
-  searchParams,
-}: {
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
-}) {
-  const { chat } = await searchParams;
+export default function Page() {
   return (
     <Suspense fallback={null}>
-      <Support chatParam={decryptUrlId("Thread", chat)} />
+      <Support />
     </Suspense>
   );
 }

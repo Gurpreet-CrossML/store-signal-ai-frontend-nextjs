@@ -36,8 +36,6 @@ export type UnansweredQuestion = {
   /** Code of the workflow that couldn't answer it. */
   workflow: string | null;
   threadId: string;
-  /** `threadId` encrypted by the backend, for page URLs. */
-  threadUrlId: string;
   /** Whether the conversation is still open (it is in Support) or closed (in Threads). */
   threadIsActive: boolean;
   askedAt: string;
@@ -48,7 +46,6 @@ type ApiUnansweredQuestion = {
   question: string;
   workflow: string | null;
   thread_id: string;
-  thread_url_id: string;
   thread_is_active: boolean;
   asked_at: string;
 };
@@ -67,9 +64,7 @@ export type TestMessage = {
   /** AI messages only: the knowledge the answer was based on. */
   citations: {
     /** The knowledge item the passage came from. */
-    id: number | null;
-    /** `id` encrypted by the backend, for page URLs. */
-    url_id: string | null;
+    id: string | null;
     title: string | null;
     url: string | null;
   }[];
@@ -220,7 +215,6 @@ export const FetchUnansweredQuestions = createAsyncThunk(
             question: item.question,
             workflow: item.workflow,
             threadId: item.thread_id,
-            threadUrlId: item.thread_url_id,
             threadIsActive: item.thread_is_active,
             askedAt: item.asked_at,
           }),

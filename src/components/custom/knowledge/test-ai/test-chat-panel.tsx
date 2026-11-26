@@ -120,7 +120,7 @@ function AnswerMessage({ item }: { item: TestMessage }) {
             ...sources.map((source) => (
               <Link
                 key={source.id}
-                href={getKnowledgeItemHref(source.url_id as string)}
+                href={getKnowledgeItemHref(source.id as string)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="font-medium text-primary hover:underline"

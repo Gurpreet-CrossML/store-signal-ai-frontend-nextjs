@@ -48,9 +48,7 @@ export type CustomerSegment =
   | "";
 
 export type CustomerRecord = {
-  id: number;
-  /** `id` encrypted by the backend, for page URLs. */
-  url_id: string;
+  id: string;
   first_name: string;
   last_name: string;
   email: string;
@@ -185,7 +183,7 @@ export const FetchCustomers = createAsyncThunk(
 export const FetchCustomerDetails = createAsyncThunk(
   "FetchCustomerDetails",
   async (
-    { storeCode, customerId }: { storeCode: string; customerId: number },
+    { storeCode, customerId }: { storeCode: string; customerId: string },
     thunkAPI,
   ) => {
     try {

@@ -92,7 +92,7 @@ export function CustomerDetailsPanel({
   ordersDisabled,
   tickets,
   cart,
-  currentThreadUrlId,
+  currentThreadId,
   userMetadataLoading,
   open,
   onOpenChange,
@@ -111,7 +111,7 @@ export function CustomerDetailsPanel({
   tickets?: { data: ThreadTicketData[]; loading?: boolean };
   /** Omit entirely on screens with no live cart. */
   cart?: { data: CartDataResponse | null; loading?: boolean };
-  currentThreadUrlId?: string | null;
+  currentThreadId?: string | null;
   /** True while `userMetadata` may still be the previous thread's. */
   userMetadataLoading?: boolean;
   /**
@@ -128,7 +128,7 @@ export function CustomerDetailsPanel({
    */
   copilot?: {
     storeCode: string;
-    ticketId: number;
+    ticketId: string;
     /** Changes whenever the ticket does, so Copilot re-checks its buttons. */
     refreshKey: string;
     onInsertDraft: (text: string) => void;
@@ -186,7 +186,7 @@ export function CustomerDetailsPanel({
             <SessionDataCard
               userMetadata={userMetadata}
               customer={customerData}
-              currentThreadUrlId={currentThreadUrlId}
+              currentThreadId={currentThreadId}
               loading={userMetadataLoading}
             />
           </>

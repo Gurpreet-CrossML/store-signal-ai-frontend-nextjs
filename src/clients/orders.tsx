@@ -47,22 +47,15 @@ function numeric(value: string) {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
-export default function Orders({
-  customerParam,
-}: {
-  /** ?customer=, decrypted by the page on the server; 0 when absent. */
-  customerParam: number;
-}) {
+export default function Orders() {
   const dispatch = useAppDispatch();
   const router = useRouter();
   const searchParams = useSearchParams();
 
   // Set when arriving from a customer's page, so the list opens scoped to
   // that shopper rather than making you search for them again.
-  const customerId =
-    Number.isInteger(customerParam) && customerParam > 0
-      ? customerParam
-      : undefined;
+  // proxy.ts lets only a valid customer token through (lib/public-ids).
+  const customerId = searchParams?.get("customer") || undefined;
 
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
@@ -235,7 +228,7 @@ export default function Orders({
         onPaginationChange={handlePaginationChange}
         isLoading={FetchOrdersIsLoading}
         noun="order"
-        onRowClick={(order) => router.push(`/crm/orders/${order.url_id}`)}
+        onRowClick={(order) => router.push(`/crm/orders/${order.id}`)}
         emptyTitle={hasQuery ? "No Matching Orders" : "No Orders Yet"}
         emptyDescription={
           hasQuery

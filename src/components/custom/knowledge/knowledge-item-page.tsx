@@ -205,7 +205,7 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
         const loaded = result.payload;
         // Articles have their own editor.
         if (loaded.source === "article") {
-          router.replace(`/knowledge/articles/${loaded.urlId}`);
+          router.replace(`/knowledge/articles/${loaded.id}`);
           return;
         }
         setItem(loaded);

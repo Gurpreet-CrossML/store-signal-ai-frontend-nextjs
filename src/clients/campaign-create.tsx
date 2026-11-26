@@ -147,11 +147,8 @@ function parseFieldErrors(rejected: unknown): Record<string, string> {
 
 export default function CampaignCreate({
   campaignId,
-  campaignUrlId,
 }: {
   campaignId?: string;
-  /** `campaignId` as it appears in page URLs. */
-  campaignUrlId?: string;
 } = {}) {
   const router = useRouter();
   const dispatch = useAppDispatch();
@@ -203,12 +200,12 @@ export default function CampaignCreate({
       try {
         const [c, stepsResponse] = await Promise.all([
           dispatch(
-            fetchCampaignDetail({ storeCode, campaignId: Number(campaignId) }),
+            fetchCampaignDetail({ storeCode, campaignId }),
           ).unwrap(),
           dispatch(
             fetchCampaignSequenceSteps({
               storeCode,
-              campaignId: Number(campaignId),
+              campaignId,
             }),
           ).unwrap(),
         ]);
@@ -376,12 +373,12 @@ export default function CampaignCreate({
       status: isEditMode ? existingStatus : publish ? "published" : "draft",
       is_active: isEditMode ? existingIsActive : publish,
       start_time: paddedStartTime,
-      segment: Number(segmentId),
+      segment: segmentId,
       continuous_entry: continuousEntry,
       sequence_steps: steps.map((s, index) => ({
         whatsapp_template:
-          s.channel === "whatsapp" ? Number(s.templateId) : null,
-        email_template: s.channel === "email" ? Number(s.templateId) : null,
+          s.channel === "whatsapp" ? s.templateId : null,
+        email_template: s.channel === "email" ? s.templateId : null,
         // First step's start_time is overridden by the backend to the
         // campaign's own start_time; sending it just to satisfy the required
         // field on the serializer.
@@ -399,17 +396,17 @@ export default function CampaignCreate({
         await dispatch(
           updateCampaign({
             storeCode,
-            campaignId: Number(campaignId),
+            campaignId,
             payload,
           }),
         ).unwrap();
         // The backend removes a campaign's schedules on edit, so a live one
         // is scheduled again straight away.
-        const detailUrl = `/campaign/campaigns/${campaignUrlId}`;
+        const detailUrl = `/campaign/campaigns/${campaignId}`;
         if (existingStatus === "published" && existingIsActive) {
           try {
             await dispatch(
-              scheduleCampaign({ storeCode, campaignId: Number(campaignId) }),
+              scheduleCampaign({ storeCode, campaignId }),
             ).unwrap();
           } catch {
             // The thunk already surfaced why scheduling failed. The edit
@@ -436,7 +433,7 @@ export default function CampaignCreate({
           ).unwrap();
         } catch {
           // Published but not scheduled: the detail screen can reschedule.
-          router.push(`/campaign/campaigns/${created.url_id}`);
+          router.push(`/campaign/campaigns/${created.id}`);
           return;
         }
         toast.success("Campaign published");
@@ -465,7 +462,7 @@ export default function CampaignCreate({
             <Link
               href={
                 isEditMode
-                  ? `/campaign/campaigns/${campaignUrlId}`
+                  ? `/campaign/campaigns/${campaignId}`
                   : "/campaign/campaigns"
               }
               aria-label="Back to campaigns"
@@ -792,7 +789,7 @@ export default function CampaignCreate({
                     // channel-specific list we already fetched; look it
                     // up by id and open the matching preview dialog.
                     onClick={() => {
-                      const pickedId = Number(step.templateId);
+                      const pickedId = step.templateId;
                       if (!pickedId) return;
                       if (step.channel === "whatsapp") {
                         const wa = waTemplates.find((t) => t.id === pickedId);

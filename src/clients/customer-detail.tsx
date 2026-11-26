@@ -189,7 +189,7 @@ function ConsentRow({
   );
 }
 
-export default function CustomerDetail({ customerId }: { customerId: number }) {
+export default function CustomerDetail({ customerId }: { customerId: string }) {
   const dispatch = useAppDispatch();
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
@@ -312,9 +312,7 @@ export default function CustomerDetail({ customerId }: { customerId: number }) {
           label="Orders"
           value={String(orders)}
           hint={orders === 0 ? "Never ordered" : undefined}
-          href={
-            orders > 0 ? `/crm/orders?customer=${customer.url_id}` : undefined
-          }
+          href={orders > 0 ? `/crm/orders?customer=${customer.id}` : undefined}
         />
         {/* The platform's own registration date when it sent one; failing
             that, when we first saw them, said plainly rather than passed

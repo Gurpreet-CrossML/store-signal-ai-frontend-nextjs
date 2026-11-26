@@ -66,9 +66,7 @@ type GetThreadsArgs = {
 
 export type Customer = {
   // Null for a guest — decides which tickets endpoint the UI calls.
-  id: number | null;
-  /** `id` encrypted by the backend, for page URLs; null for a guest. */
-  url_id: string | null;
+  id: string | null;
   name: string;
   email: string;
   phone?: string | null;
@@ -86,8 +84,6 @@ export type ThreadHandlerUser = {
 
 export type Thread = {
   id: string;
-  /** `id` encrypted by the backend, for page URLs. */
-  url_id: string;
   name: string | null;
   customer: Customer | null;
   /** The customer's segment when they were linked to this chat; kept after. */
@@ -299,12 +295,7 @@ export type ThreadDetails = {
   customer_name: string | null;
   customer_email: string | null;
   /** Identity, plus the phone and past-thread count the side panel shows. */
-  customer: {
-    id: number;
-    url_id: string;
-    phone: string;
-    past_threads_count: number;
-  } | null;
+  customer: { id: string; phone: string; past_threads_count: number } | null;
   is_active: boolean;
   close_reason?: ThreadCloseReason | null;
   closed_by_type?: ThreadClosedByType | null;
@@ -395,9 +386,7 @@ export type TicketStatus =
 export type TicketPriority = "low" | "normal" | "high" | "urgent";
 
 export type ThreadTicketData = {
-  id: number;
-  /** `id` encrypted by the backend, for page URLs. */
-  url_id: string;
+  id: string;
   ticket_id: string;
   subject: string;
   description: string;
@@ -450,7 +439,7 @@ export type OrderShippingAddress = {
 };
 
 export type OrderData = {
-  id: number;
+  id: string;
   order_id: string;
   order_number: string;
   created_at: string;
@@ -850,7 +839,7 @@ export const FetchFreshdeskTicketId = createAsyncThunk(
       threadId,
       customerId,
       storeCode,
-    }: { threadId: string; customerId?: number | null; storeCode: string },
+    }: { threadId: string; customerId?: string | null; storeCode: string },
     thunkAPI,
   ) => {
     try {

@@ -142,7 +142,7 @@ export default function EmailTemplates() {
       getEmailTemplateColumns(
         (template) => setPreviewTemplate(template),
         (template) =>
-          router.push(`/campaign/email-templates/${template.url_id}/edit`),
+          router.push(`/campaign/email-templates/${template.id}/edit`),
         (template) => setTemplateToDelete(template),
         handleToggleActive,
       ),

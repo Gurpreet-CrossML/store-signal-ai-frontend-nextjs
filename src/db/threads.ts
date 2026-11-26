@@ -1,6 +1,5 @@
 import { alias } from "drizzle-orm/pg-core";
 import { getDb } from "@/lib/tenant-context";
-import { encryptUrlId } from "@/lib/url-id";
 import { queueScope, storeIdScope, scopedThreadFilter } from "@/db/access";
 import { FEEDBACK_RATING_VALUES } from "@/lib/config";
 import {
@@ -179,8 +178,6 @@ type ThreadListRow = {
 
 export type ThreadListItem = {
   id: string;
-  /** `id` encrypted for page URLs (lib/url-id). */
-  url_id: string;
   name: string | null;
   source: string | null;
   chat_handler: string;
@@ -191,7 +188,6 @@ export type ThreadListItem = {
   customer_segment: string;
   customer: {
     id: number | null;
-    url_id: string | null;
     name: string | null;
     email: string | null;
     phone: string;
@@ -420,7 +416,6 @@ export async function list_threads(
         : "";
     return {
       id: row.id,
-      url_id: encryptUrlId("Thread", row.id),
       name: row.name,
       source: row.source,
       chat_handler: row.chat_handler,
@@ -438,10 +433,6 @@ export async function list_threads(
       customer: {
         // Null for a guest — the UI keys its tickets lookup off this.
         id: row.customer_id ?? null,
-        url_id:
-          row.customer_id != null
-            ? encryptUrlId("Customer", row.customer_id)
-            : null,
         name: hasCustomer ? customerName : null,
         email: row.customer_email,
         phone: row.customer_phone || "",
@@ -785,7 +776,6 @@ export type ThreadDetail =
       /** Identity, plus the phone and past-thread count the side panel shows. */
       customer: {
         id: number;
-        url_id: string;
         phone: string;
         past_threads_count: number;
       } | null;
@@ -1036,7 +1026,6 @@ export async function get_thread_details(
       t.customer_id != null
         ? {
             id: Number(t.customer_id),
-            url_id: encryptUrlId("Customer", t.customer_id),
             phone: t.customer_phone || "",
             past_threads_count: Number(t.customer_past_threads_count ?? 0),
           }
@@ -1330,7 +1319,12 @@ export async function get_user_metadata(
   };
 }
 
-export async function get_order_data(thread_id: string): Promise<OrderData[]> {
+/** An order as stored: its `id` reaches the client as a token (lib/public-ids). */
+type OrderDataRow = Omit<OrderData, "id"> & { id: number };
+
+export async function get_order_data(
+  thread_id: string,
+): Promise<OrderDataRow[]> {
   const db = getDb();
 
   // Scoped like every thread lookup: the caller's stores, and for a support

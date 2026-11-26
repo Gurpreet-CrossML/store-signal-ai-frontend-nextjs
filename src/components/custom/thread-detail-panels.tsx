@@ -206,12 +206,12 @@ export function ViewedProductsCard({
 export function SessionDataCard({
   userMetadata,
   customer,
-  currentThreadUrlId,
+  currentThreadId,
   loading,
 }: {
   userMetadata?: UserMetadata | null;
   customer?: Customer | null;
-  currentThreadUrlId?: string | null;
+  currentThreadId?: string | null;
   loading?: boolean;
 }) {
   const device =
@@ -257,9 +257,9 @@ export function SessionDataCard({
             </Fragment>
           ))}
           <Typography variant="muted">Past Chats</Typography>
-          {customer?.email && currentThreadUrlId && pastThreadsCount > 0 ? (
+          {customer?.email && currentThreadId && pastThreadsCount > 0 ? (
             <Link
-              href={`/threads?search=${encodeURIComponent(customer.email)}&before_thread_id=${currentThreadUrlId}`}
+              href={`/threads?search=${encodeURIComponent(customer.email)}&before_thread_id=${encodeURIComponent(currentThreadId)}`}
               className="min-w-0 truncate text-sm font-medium text-primary hover:underline"
             >
               {pastChatsLabel}
@@ -504,7 +504,7 @@ export function OrdersCard({
   }, null);
   const { visible: visibleOrders, hiddenCount: hiddenOrderCount } =
     useCollapsibleList(orderList);
-  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   // Opening a row loads that order from /chat/orders/{id}/.
   //
@@ -526,7 +526,7 @@ export function OrdersCard({
   // The two figures that used to sit in a card of their own above this
   // one. They are a fact about these orders, so they belong to the section
   // that lists them — and the pane gets a whole card's height back.
-  const toggleOrder = (id: number) => {
+  const toggleOrder = (id: string) => {
     setExpandedId((prev) => {
       if (prev === id) return null;
       if (storeCode) dispatch(FetchOrderDetails({ storeCode, orderId: id }));
@@ -708,7 +708,7 @@ export function OrdersCard({
           })}
           {hiddenOrderCount > 0 && customerData?.id ? (
             <Link
-              href={`/crm/orders?customer=${customerData.url_id}`}
+              href={`/crm/orders?customer=${customerData.id}`}
               className="text-center text-primary underline underline-offset-2 hover:text-primary"
             >
               View All Orders

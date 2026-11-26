@@ -32,7 +32,7 @@ interface ThreadsDataTableProps<TData, TValue> {
   onPaginationChange: OnChangeFn<PaginationState>;
   isLoading?: boolean;
   /** Navigate to a thread's detail page. */
-  onSelectThread: (threadUrlId: string, isActive: boolean) => void;
+  onSelectThread: (threadId: string, isActive: boolean) => void;
 }
 
 // "Today · Sep 29, 2026" / "Yesterday · …" / "Mon · …", in the viewer's timezone.
@@ -136,7 +136,7 @@ export function ThreadsDataTable<TData, TValue>({
                     <TableRow
                       onClick={() =>
                         onSelectThread(
-                          (row.original as Thread).url_id,
+                          (row.original as Thread).id,
                           (row.original as Thread).is_active,
                         )
                       }

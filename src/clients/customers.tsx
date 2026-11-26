@@ -220,9 +220,7 @@ export default function Customers() {
         onPaginationChange={handlePaginationChange}
         isLoading={FetchCustomersIsLoading}
         noun="customer"
-        onRowClick={(customer) =>
-          router.push(`/crm/customers/${customer.url_id}`)
-        }
+        onRowClick={(customer) => router.push(`/crm/customers/${customer.id}`)}
         emptyTitle={hasQuery ? "No Matching Customers" : "No Customers Yet"}
         emptyDescription={
           hasQuery

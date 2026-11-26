@@ -583,7 +583,7 @@ function TicketListPanel({
   /** Visibility below `lg`, where list and conversation take turns. */
   className?: string;
   rows: SupportTicket[];
-  activeTicketId: number | null;
+  activeTicketId: string | null;
   /** The status of the selected tab; the list shows only these tickets. */
   listStatuses: SupportTicketStatus[];
   /** The status picked in the filter, if any; it gets its own tab. */
@@ -594,7 +594,7 @@ function TicketListPanel({
   onQueueChange: (queue: SupportTicketStatus) => void;
   sortOrder: SupportTicketOrdering;
   onSortChange: (order: SupportTicketOrdering) => void;
-  onSelectTicket: (ticketId: number) => void;
+  onSelectTicket: (ticketId: string) => void;
   isLoading: boolean;
   isLoadingMore: boolean;
   hasMore: boolean;
@@ -1184,8 +1184,8 @@ function ConversationPanel({
   // threads page once closed, and no link when there is none.
   const chatHref = ticket.thread
     ? ticket.thread_is_active
-      ? `/support/?chat=${ticket.thread_url_id}`
-      : `/threads/${ticket.thread_url_id}`
+      ? `/support/?chat=${ticket.thread}`
+      : `/threads/${ticket.thread}`
     : null;
   const staffNames = staff.map((member) =>
     `${member.first_name} ${member.last_name}`.trim(),
@@ -1917,17 +1917,13 @@ function ConversationPanel({
   );
 }
 
-export default function HelpDesk({
-  linkedTicketId,
-}: {
-  /** Deep link to one ticket, e.g. from the Live Support detail panel; the
-   *  page decrypts it from ?ticket= on the server, 0 when there is none. */
-  linkedTicketId: number;
-}) {
+export default function HelpDesk() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
   const activeFilter = searchParams?.get("filter") ?? "";
+  /** Deep link to one ticket, e.g. from the Live Support detail panel. */
+  const linkedTicketId = searchParams?.get("ticket") ?? "";
 
   const dispatch = useAppDispatch();
   const { data: session } = useSession();
@@ -1979,7 +1975,7 @@ export default function HelpDesk({
   const [ticketRows, setTicketRows] = useState<SupportTicket[]>([]);
   const [page, setPage] = useState(1);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [activeTicketId, setActiveTicketId] = useState<number | null>(null);
+  const [activeTicketId, setActiveTicketId] = useState<string | null>(null);
   // Below `lg` there is room for one of the list and the conversation, not
   // both. This only decides which one shows there; it never touches the
   // open ticket, so the first ticket still opens on load and every
@@ -1989,7 +1985,7 @@ export default function HelpDesk({
   // narrow screens never open a ticket on their own — see the first-ticket
   // default in the list fetch — so an id in the URL means the user chose it.
   const [portraitView, setPortraitView] = useState<"list" | "conversation">(
-    Number.isInteger(linkedTicketId) && linkedTicketId > 0
+    linkedTicketId
       ? "conversation"
       : "list",
   );
@@ -2024,7 +2020,7 @@ export default function HelpDesk({
   >([]);
   const [activeSupportTicket, setActiveSupportTicket] =
     useState<SupportTicket | null>(null);
-  const currentActiveSupportTicketIdRef = useRef<number | null>(null);
+  const currentActiveSupportTicketIdRef = useRef<string | null>(null);
   // What the list was last filtered by, to tell a filter change from a plain
   // refetch (another page, a new sort, a different store).
   const lastFilterKeyRef = useRef<string | null>(null);
@@ -2050,7 +2046,7 @@ export default function HelpDesk({
 
   // The open ticket's history: the Activity tab, and the status lines in the
   // conversation. Only shown once it is this ticket's.
-  const [activityTicketId, setActivityTicketId] = useState<number | null>(null);
+  const [activityTicketId, setActivityTicketId] = useState<string | null>(null);
   const {
     SupportTicketActivityFetchData,
     SupportTicketActivityFetchIsLoading,
@@ -2072,7 +2068,7 @@ export default function HelpDesk({
 
   const [reply, setReply] = useState("");
   const [attachmentSelection, setAttachmentSelection] = useState<{
-    ticketId: number | null;
+    ticketId: string | null;
     files: File[];
   }>({ ticketId: null, files: [] });
   const attachments =
@@ -2161,10 +2157,9 @@ export default function HelpDesk({
   // Open a deep-linked ticket once. The detail request keys on the id
   // alone, so the ticket does not have to be on the loaded page — which is
   // the point, since the link may arrive from another screen entirely.
-  const [seededTicketId, setSeededTicketId] = useState<number | null>(null);
+  const [seededTicketId, setSeededTicketId] = useState<string | null>(null);
   if (
-    Number.isInteger(linkedTicketId) &&
-    linkedTicketId > 0 &&
+    linkedTicketId &&
     seededTicketId !== linkedTicketId
   ) {
     setSeededTicketId(linkedTicketId);
@@ -2302,7 +2297,7 @@ export default function HelpDesk({
   );
 
   const appendSocketMessage = useCallback(
-    (ticketId: number, incomingMessage: SupportTicketMessage) => {
+    (ticketId: string, incomingMessage: SupportTicketMessage) => {
       if (currentActiveSupportTicketIdRef.current !== ticketId) {
         return;
       }
@@ -2761,17 +2756,12 @@ export default function HelpDesk({
   // link and the back button all land on the same ticket. `replace`, not
   // `push`: clicking down a queue should not bury the previous page under
   // twenty history entries.
-  const activeTicketUrlId = ticketRows.find(
-    (row) => row.id === activeTicketId,
-  )?.url_id;
   useEffect(() => {
     if (!pathname) return;
-    // The address carries the ticket's encrypted id, so wait for its row.
-    if (activeTicketId && !activeTicketUrlId) return;
 
     const params = new URLSearchParams(searchParams?.toString() ?? "");
     const current = params.get("ticket");
-    const next = activeTicketUrlId ?? null;
+    const next = activeTicketId ? String(activeTicketId) : null;
     if (current === next) return;
 
     if (next) params.set("ticket", next);
@@ -2781,7 +2771,7 @@ export default function HelpDesk({
     router.replace(query ? `${pathname}?${query}` : pathname, {
       scroll: false,
     });
-  }, [activeTicketId, activeTicketUrlId, pathname, router, searchParams]);
+  }, [activeTicketId, pathname, router, searchParams]);
 
   useEffect(() => {
     currentActiveSupportTicketIdRef.current = activeTicketId || null;
@@ -2835,7 +2825,7 @@ export default function HelpDesk({
   // Loaded with the ticket, not on opening the tab: its count heads the tab
   // and its status changes are drawn between the messages.
   const loadActivity = useCallback(
-    (ticketId: number) => {
+    (ticketId: string) => {
       if (!storeCode) return undefined;
       const request = dispatch(
         SupportTicketActivityFetch({ storeCode, ticketId }),
@@ -2908,7 +2898,7 @@ export default function HelpDesk({
     (state) => state.GetSupportTicketsReducer.SupportTicketCustomerLinkState,
   );
 
-  const handleLinkCustomer = async (customerId: number) => {
+  const handleLinkCustomer = async (customerId: string) => {
     if (!storeCode || !activeTicketId) return;
     const result = await dispatch(
       SupportTicketCustomerLink({
@@ -2927,7 +2917,7 @@ export default function HelpDesk({
     }
   };
 
-  const handleSelectTicket = (ticketId: number) => {
+  const handleSelectTicket = (ticketId: string) => {
     const nextTicket = ticketRows.find((ticket) => ticket.id === ticketId);
     if (!nextTicket) return;
     setActiveTicketId(ticketId);
@@ -3160,7 +3150,7 @@ export default function HelpDesk({
    * one, the next row opens, rather than waiting for a refetch.
    */
   const applyTicketRowUpdate = (
-    ticketId: number,
+    ticketId: string,
     patch: Partial<SupportTicket>,
   ) => {
     setTicketRows((current) => {
@@ -3541,7 +3531,7 @@ export default function HelpDesk({
     status: SupportTicketStatus,
     // Passed by callers that act on a ticket that may no longer be the
     // active one by the time they get here.
-    targetTicketId?: number,
+    targetTicketId?: string,
   ) => {
     const ticketId = targetTicketId ?? currentActiveSupportTicketIdRef.current;
     if (!storeCode || !ticketId) return;
@@ -3773,7 +3763,7 @@ export default function HelpDesk({
   };
 
   /** Opens another of the customer's tickets, from the Customer tab. */
-  const handleOpenOtherTicket = (ticketId: number) => {
+  const handleOpenOtherTicket = (ticketId: string) => {
     setIsDetailsOpen(false);
     setPortraitView("conversation");
     setReply("");

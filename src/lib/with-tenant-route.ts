@@ -12,6 +12,7 @@ import {
 } from "@/lib/access-rules";
 import type { Permission } from "@/lib/tenant-types";
 import { isSessionActive } from "@/lib/session-verify";
+import { decodeQuery, encodeResponse, InvalidToken } from "@/lib/public-ids";
 
 /**
  * Wrap a Pages-Router API handler so it runs inside its session's tenant scope.
@@ -68,6 +69,17 @@ export function withTenantRoute(
         .status(403)
         .json(createAPIResponse(false, "No tenant for this session.", null));
     }
+
+    // Record ids travel as tokens (lib/public-ids): the handler gets the real
+    // ids, and what it sends back carries tokens again.
+    try {
+      req.query = decodeQuery(req.query);
+    } catch (err) {
+      if (!(err instanceof InvalidToken)) throw err;
+      return res.status(404).json(createAPIResponse(false, "Not found.", null));
+    }
+    const json = res.json.bind(res);
+    res.json = (body) => json(encodeResponse(req.url ?? "", body));
 
     // Central backstop: any error escaping the handler (or the tenant
     // transaction) is logged server-side and returned as a generic 500 — never

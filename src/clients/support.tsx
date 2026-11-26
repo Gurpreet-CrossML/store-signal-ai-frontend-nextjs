@@ -1048,16 +1048,11 @@ const useNotificationSound = (soundUrl: string = "/notification_sound.mp3") => {
   return play;
 };
 
-/** chat_thread.id is a uuid; anything else cannot be a thread. */
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** A thread's id reaches the dashboard as a token (lib/public-ids);
+ *  anything else cannot be a thread. */
+const THREAD_ID_PATTERN = /^thr_[A-Za-z0-9_-]+$/;
 
-export default function Support({
-  chatParam,
-}: {
-  /** The open chat (?chat=), decrypted by the page on the server. */
-  chatParam: string | null;
-}) {
+export default function Support() {
   const dispatch = useAppDispatch();
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
@@ -1110,6 +1105,7 @@ export default function Support({
   const searchParams = useSearchParams();
   // The open chat lives in the URL (?chat=<id>) so conversations can be
   // shared with teammates and deep-linked directly.
+  const chatParam = searchParams?.get("chat") ?? null;
 
   // Local, mutable copy of the thread list. Seeded from Redux (is_read
   // defaults to true), then patched in place by the dashboard socket (new
@@ -1402,13 +1398,13 @@ export default function Support({
   const selectedThreadStillExists =
     desiredThreadId !== null &&
     filterScopedThreads.some((thread) => thread.id === desiredThreadId);
-  // chat_thread.id is a uuid column, so anything else — a stale ?chat=
-  // value, a ticket number pasted into the URL — makes every thread-scoped
-  // query fail in Postgres and come back as a 500. Refusing it here turns
-  // seven failing requests into none, and the screen falls back to "no
-  // conversation selected" rather than a pane of broken cards.
+  // A thread's id is a thread token, so anything else — a stale ?chat=
+  // value, a ticket number pasted into the URL — would make every
+  // thread-scoped request fail. Refusing it here turns seven failing
+  // requests into none, and the screen falls back to "no conversation
+  // selected" rather than a pane of broken cards.
   const activeThreadId =
-    selectedThreadStillExists && UUID_PATTERN.test(desiredThreadId)
+    selectedThreadStillExists && THREAD_ID_PATTERN.test(desiredThreadId)
       ? desiredThreadId
       : null;
 
@@ -1437,9 +1433,6 @@ export default function Support({
     }
   };
 
-  const activeThreadUrlId = localThreads.find(
-    (thread) => thread.id === activeThreadId,
-  )?.url_id;
   useEffect(() => {
     const params = new URLSearchParams(searchParams?.toString() ?? "");
     const safePathname = pathname ?? "/";
@@ -1466,17 +1459,14 @@ export default function Support({
     }
 
     if (chatParam === activeThreadId && filterParamMatches) return;
-    // The address carries the chat's encrypted id, so wait for its row.
-    if (!activeThreadUrlId) return;
 
-    params.set("chat", activeThreadUrlId);
+    params.set("chat", activeThreadId);
     const query = params.toString();
     router.replace(query ? `${safePathname}?${query}` : safePathname, {
       scroll: false,
     });
   }, [
     activeThreadId,
-    activeThreadUrlId,
     chatParam,
     pathname,
     activeReadFilter,
@@ -2025,15 +2015,12 @@ export default function Support({
       setAttachments([]);
       setAppliedChatParam(threadId);
       const params = new URLSearchParams(searchParams?.toString() ?? "");
-      const threadUrlId = localThreads.find(
-        (thread) => thread.id === threadId,
-      )?.url_id;
-      if (threadUrlId) params.set("chat", threadUrlId);
+      params.set("chat", threadId);
       router.replace(`${pathname}?${params.toString()}`, {
         scroll: false,
       });
     },
-    [router, pathname, searchParams, localThreads],
+    [router, pathname, searchParams],
   );
 
   // Closing is the customer's call: this only asks their widget for feedback.
@@ -2101,7 +2088,6 @@ export default function Support({
         if (existingIndex === -1) {
           const newThread: ThreadWithReadState = {
             id: data.thread_id,
-            url_id: data.thread_url_id,
             last_message: data.message,
             last_message_at: data.created_at,
             cart_total: 0,
@@ -3063,7 +3049,7 @@ export default function Support({
                             "Guest"}
                         </CardTitle>
                         <CrmLinkButton
-                          customerUrlId={selectedThread?.customer?.url_id}
+                          customerId={selectedThread?.customer?.id}
                           onLinkCustomer={
                             activeThreadId
                               ? () => setIsLinkCustomerOpen(true)
@@ -3302,7 +3288,7 @@ export default function Support({
             <CustomerDetailsPanel
               open={isDetailsOpen}
               onOpenChange={setIsDetailsOpen}
-              currentThreadUrlId={selectedThread?.url_id}
+              currentThreadId={activeThreadId}
               customerData={selectedThread?.customer || null}
               userMetadata={FetchUserMetadataData}
               userMetadataLoading={FetchUserMetadataIsLoading}

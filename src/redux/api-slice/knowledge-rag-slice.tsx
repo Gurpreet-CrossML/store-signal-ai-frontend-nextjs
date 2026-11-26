@@ -73,8 +73,6 @@ export type SyncFrequency = "daily" | "weekly" | "manual";
 
 export type KnowledgeItem = {
   id: string;
-  /** `id` encrypted by the backend, for page URLs. */
-  urlId: string;
   type: KnowledgeType;
   source: KnowledgeSource;
   title: string;
@@ -241,8 +239,7 @@ export type KnowledgeItemListResponse = {
 // `file_size` are. `product` is the product's name string (or null), not its
 // id — the id isn't exposed on read either.
 type ApiKnowledgeItem = {
-  id: number;
-  url_id: string;
+  id: string;
   type: KnowledgeType;
   source: KnowledgeSource;
   title: string;
@@ -274,7 +271,6 @@ type ApiKnowledgeItem = {
 function mapApiKnowledgeItem(api: ApiKnowledgeItem): KnowledgeItem {
   return {
     id: String(api.id),
-    urlId: api.url_id,
     type: api.type,
     source: api.source,
     title: api.title,
@@ -801,7 +797,7 @@ export const FetchKnowledgeItem = createAsyncThunk(
   async ({ id, storeCode }: { id: string; storeCode: string }, thunkAPI) => {
     try {
       const response = await axiosInstance.get(
-        `${ENDPOINTS.knowledgeItemDetail(Number(id))}?store_code=${storeCode}`,
+        `${ENDPOINTS.knowledgeItemDetail(id)}?store_code=${storeCode}`,
         { useBackend: true },
       );
       return mapApiKnowledgeItem(response.data?.data as ApiKnowledgeItem);
@@ -834,7 +830,7 @@ export const UpdateKnowledgeItem = createAsyncThunk(
     try {
       const payload = buildKnowledgeItemPayload(patch);
       const response = await axiosInstance.patch(
-        `${ENDPOINTS.knowledgeItemDetail(Number(id))}?store_code=${storeCode}`,
+        `${ENDPOINTS.knowledgeItemDetail(id)}?store_code=${storeCode}`,
         payload,
         payload instanceof FormData
           ? { headers: { "Content-Type": "multipart/form-data" } }
@@ -862,7 +858,7 @@ export const DeleteKnowledgeItem = createAsyncThunk(
   async ({ id, storeCode }: { id: string; storeCode: string }, thunkAPI) => {
     try {
       const response = await axiosInstance.delete(
-        `${ENDPOINTS.knowledgeItemDetail(Number(id))}?store_code=${storeCode}`,
+        `${ENDPOINTS.knowledgeItemDetail(id)}?store_code=${storeCode}`,
       );
       toast.success(
         response?.data?.message || "Knowledge deleted successfully!",
@@ -893,7 +889,7 @@ export const DeleteKnowledgeItems = createAsyncThunk(
     for (const id of ids) {
       try {
         await axiosInstance.delete(
-          `${ENDPOINTS.knowledgeItemDetail(Number(id))}?store_code=${storeCode}`,
+          `${ENDPOINTS.knowledgeItemDetail(id)}?store_code=${storeCode}`,
         );
         deletedIds.push(id);
       } catch {
@@ -934,7 +930,7 @@ export const PublishKnowledgeItems = createAsyncThunk(
     for (const [index, id] of ids.entries()) {
       try {
         await axiosInstance.post(
-          `${ENDPOINTS.knowledgeItemPublish(Number(id))}?store_code=${storeCode}`,
+          `${ENDPOINTS.knowledgeItemPublish(id)}?store_code=${storeCode}`,
         );
         publishedIds.push(id);
       } catch (error) {

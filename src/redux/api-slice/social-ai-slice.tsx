@@ -201,9 +201,7 @@ export type CommentTopic = {
  * they fill in on the next list fetch.
  */
 export type SocialLinkedCustomer = {
-  id: number;
-  /** `id` encrypted by the backend, for page URLs. */
-  url_id: string;
+  id: string;
   /** The shopper's id on the commerce platform. */
   customer_id?: string;
   name: string;
@@ -424,9 +422,7 @@ export type WhatsAppTemplateParts = {
 export type WhatsAppTemplate = {
   // The template's LOCAL id — every route that acts on one is keyed by
   // this rather than by Meta's id.
-  id: number;
-  /** `id` encrypted by the backend, for page URLs. */
-  url_id: string;
+  id: string;
   meta_template_id: string | null;
   name: string;
   // Readable name for the dashboard; blank when none was set.
@@ -643,7 +639,7 @@ export const fetchLocalWhatsAppTemplate = createAsyncThunk(
       storeCode,
       accountId,
       templateId,
-    }: { storeCode: string; accountId: string; templateId: number },
+    }: { storeCode: string; accountId: string; templateId: string },
     thunkAPI,
   ) => {
     try {
@@ -673,7 +669,7 @@ export const updateWhatsAppTemplate = createAsyncThunk(
     }: {
       storeCode: string;
       accountId: string;
-      templateId: number;
+      templateId: string;
       payload: Partial<WhatsAppTemplateWritePayload>;
     },
     thunkAPI,
@@ -712,7 +708,7 @@ export const updateWhatsAppTemplateActive = createAsyncThunk(
     }: {
       storeCode: string;
       accountId: string;
-      templateId: number;
+      templateId: string;
       isActive: boolean;
     },
     thunkAPI,
@@ -741,7 +737,7 @@ export const deleteWhatsAppTemplate = createAsyncThunk(
       storeCode,
       accountId,
       templateId,
-    }: { storeCode: string; accountId: string; templateId: number },
+    }: { storeCode: string; accountId: string; templateId: string },
     thunkAPI,
   ) => {
     try {

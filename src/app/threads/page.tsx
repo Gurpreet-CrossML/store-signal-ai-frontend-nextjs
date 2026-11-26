@@ -1,7 +1,6 @@
 import { Suspense } from "react";
 
 import Threads from "@/clients/threads";
-import { decryptUrlId } from "@/lib/url-id";
 
 /**
  * Rendered per request. What this screen shows is decided by the
@@ -15,17 +14,10 @@ export const metadata = {
   title: "Threads",
 };
 
-export default async function Page({
-  searchParams,
-}: {
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
-}) {
-  const { before_thread_id } = await searchParams;
+export default function Page() {
   return (
     <Suspense fallback={null}>
-      <Threads
-        beforeThreadId={decryptUrlId("Thread", before_thread_id) ?? undefined}
-      />
+      <Threads />
     </Suspense>
   );
 }

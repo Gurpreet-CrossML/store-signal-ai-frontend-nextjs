@@ -98,7 +98,7 @@ export type TicketCustomer =
   // Identity only. The callers that seed this — a live chat, a social DM —
   // hold a name and an email, not a directory record, and requiring the
   // full record would make them fetch one just to open a dialog.
-  | { kind: "record"; id: number; name: string; email: string }
+  | { kind: "record"; id: string; name: string; email: string }
   | { kind: "email"; email: string }
   | null;
 
@@ -366,7 +366,7 @@ export function CreateTicketDialog({
           ? { tags: values.tagNames.map((name) => ({ name })) }
           : {}),
         ...(values.orderId !== NO_ORDER
-          ? { order: Number(values.orderId) }
+          ? { order: values.orderId }
           : {}),
       };
 
