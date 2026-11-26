@@ -74,8 +74,8 @@ export const EMPTY_ORDER_FILTERS: OrderFilterSelection = {
 
 export function countActiveOrderFilters(filters: OrderFilterSelection) {
   return (
-    Number(filters.financialStatuses.length > 0) +
-    Number(filters.fulfillmentStatuses.length > 0) +
+    filters.financialStatuses.length +
+    filters.fulfillmentStatuses.length +
     Number(Boolean(filters.totalMin || filters.totalMax)) +
     Number(Boolean(filters.createdFrom || filters.createdTo)) +
     Number(filters.money !== "any") +
