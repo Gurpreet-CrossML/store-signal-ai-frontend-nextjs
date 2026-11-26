@@ -45,9 +45,6 @@ export default function Customers() {
       ...(debouncedSearch ? { search: debouncedSearch } : {}),
       ...(filters.hasOrders === "true" ? { orders_count_min: 1 } : {}),
       ...(filters.hasOrders === "false" ? { orders_count_max: 0 } : {}),
-      ...(filters.emailVerified
-        ? { is_email_verified: filters.emailVerified === "true" }
-        : {}),
       // The picker yields whole days; the range has to cover all of its last
       // one or "up to today" would stop at midnight.
       ...(filters.registeredFrom
@@ -61,7 +58,6 @@ export default function Customers() {
     [
       debouncedSearch,
       filters.hasOrders,
-      filters.emailVerified,
       filters.registeredFrom,
       filters.registeredTo,
       filters.ordering,

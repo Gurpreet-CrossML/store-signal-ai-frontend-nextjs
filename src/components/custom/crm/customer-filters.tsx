@@ -7,6 +7,7 @@ import { FilterSelect } from "@/components/custom/thread-filteration";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ACTIVE_FILTER_STYLE } from "@/lib/config";
+import { cn } from "@/lib/utils";
 import type { CustomerOrdering } from "@/redux/api-slice/customer-slice";
 
 /** The list screen's filters; "" means the filter is off. */
@@ -15,7 +16,6 @@ export type CustomerFilterState = {
   registeredFrom: string;
   registeredTo: string;
   hasOrders: "" | "true" | "false";
-  emailVerified: "" | "true" | "false";
   ordering: CustomerOrdering;
 };
 
@@ -24,7 +24,6 @@ export const DEFAULT_CUSTOMER_FILTERS: CustomerFilterState = {
   registeredFrom: "",
   registeredTo: "",
   hasOrders: "",
-  emailVerified: "",
   ordering: "-total_spent",
 };
 
@@ -42,8 +41,7 @@ export function hasCustomerFilters(filters: CustomerFilterState) {
     filters.search ||
     filters.registeredFrom ||
     filters.registeredTo ||
-    filters.hasOrders ||
-    filters.emailVerified,
+    filters.hasOrders,
   );
 }
 
@@ -68,7 +66,7 @@ export function CustomerFilterBar({
           }
           placeholder="Search name, email, phone or customer ID…"
           aria-label="Search customers"
-          className="pl-8"
+          className={cn("pl-8", filters.search && ACTIVE_FILTER_STYLE)}
         />
       </div>
 
@@ -99,26 +97,14 @@ export function CustomerFilterBar({
       />
 
       <FilterSelect
-        ariaLabel="Filter by email verification"
-        value={filters.emailVerified}
-        activeClassName={ACTIVE_FILTER_STYLE}
-        onChange={(emailVerified) =>
-          onChange({
-            ...filters,
-            emailVerified:
-              emailVerified as CustomerFilterState["emailVerified"],
-          })
-        }
-        options={[
-          { value: "", label: "All Emails" },
-          { value: "true", label: "Verified Email" },
-          { value: "false", label: "Unverified Email" },
-        ]}
-      />
-
-      <FilterSelect
         ariaLabel="Sort customers"
         value={filters.ordering}
+        // Always has a value, so highlighted only once moved off the default.
+        activeClassName={
+          filters.ordering !== DEFAULT_CUSTOMER_FILTERS.ordering
+            ? ACTIVE_FILTER_STYLE
+            : undefined
+        }
         onChange={(ordering) =>
           onChange({ ...filters, ordering: ordering as CustomerOrdering })
         }

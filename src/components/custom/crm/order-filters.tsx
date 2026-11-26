@@ -7,6 +7,7 @@ import { FilterSelect } from "@/components/custom/thread-filteration";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ACTIVE_FILTER_STYLE } from "@/lib/config";
+import { cn } from "@/lib/utils";
 import type { OrderOrdering } from "@/redux/api-slice/order-slice";
 
 /**
@@ -100,7 +101,7 @@ export function OrderFilterBar({
           }
           placeholder="Search order number, email, phone or tracking…"
           aria-label="Search orders"
-          className="pl-8"
+          className={cn("pl-8", filters.search && ACTIVE_FILTER_STYLE)}
         />
       </div>
 
@@ -153,6 +154,12 @@ export function OrderFilterBar({
       <FilterSelect
         ariaLabel="Sort orders"
         value={filters.ordering}
+        // Always has a value, so highlighted only once moved off the default.
+        activeClassName={
+          filters.ordering !== DEFAULT_ORDER_FILTERS.ordering
+            ? ACTIVE_FILTER_STYLE
+            : undefined
+        }
         onChange={(ordering) =>
           onChange({ ...filters, ordering: ordering as OrderOrdering })
         }
