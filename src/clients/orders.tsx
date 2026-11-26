@@ -12,7 +12,7 @@ import {
   EMPTY_ORDER_FILTERS,
   FINANCIAL_STATUSES,
   FULFILLMENT_STATUSES,
-  OrderFilterPopover,
+  OrderFilterBar,
   countActiveOrderFilters,
   type OrderFilterSelection,
 } from "@/components/custom/crm/order-filters";
@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useDebounce } from "@/hooks/use-debounce";
 import { endOfDay, startOfDay } from "@/lib/helpers";
 import {
   FetchOrders,
@@ -118,13 +119,12 @@ export default function Orders() {
       : "-created_at";
   });
 
-  const [draftFilters, setDraftFilters] = useState<OrderFilterSelection>(() =>
+  // Filters apply as they change; the request uses the debounced copy so
+  // half-typed bounds don't fire a query on every keystroke.
+  const [filters, setFilters] = useState<OrderFilterSelection>(() =>
     filtersFromParams(searchParams),
   );
-  const [appliedFilters, setAppliedFilters] = useState<OrderFilterSelection>(
-    () => filtersFromParams(searchParams),
-  );
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const appliedFilters = useDebounce(filters);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -228,15 +228,15 @@ export default function Orders() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="relative w-full max-w-sm">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative min-w-64 flex-1">
           <IconSearch className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={searchInput}
             onChange={(event) => setSearchInput(event.target.value)}
             placeholder="Search order number, email, phone or tracking…"
             aria-label="Search orders"
-            className="pl-9"
+            className={cn("pl-9", searchInput && ACTIVE_FILTER_STYLE)}
           />
           {searchInput ? (
             <button
@@ -250,52 +250,41 @@ export default function Orders() {
           ) : null}
         </div>
 
-        <div className="flex items-center gap-2">
-          <Select
-            value={ordering}
-            onValueChange={(value) => {
-              setOrdering(value as OrderOrdering);
-              setPage(1);
-            }}
+        <Select
+          value={ordering}
+          onValueChange={(value) => {
+            setOrdering(value as OrderOrdering);
+            setPage(1);
+          }}
+        >
+          <SelectTrigger
+            // A sort order is always applied, including the default.
+            className={cn("w-44", ACTIVE_FILTER_STYLE)}
+            aria-label="Sort orders"
           >
-            <SelectTrigger
-              // A sort order is always applied, including the default.
-              className={cn("w-44", ACTIVE_FILTER_STYLE)}
-              aria-label="Sort orders"
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {SORT_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {SORT_OPTIONS.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-          <OrderFilterPopover
-            open={isFilterOpen}
-            onOpenChange={(open) => {
-              setIsFilterOpen(open);
-              if (open) setDraftFilters(appliedFilters);
-            }}
-            filters={draftFilters}
-            onFiltersChange={setDraftFilters}
-            activeCount={activeFilterCount}
-            onApply={() => {
-              setAppliedFilters(draftFilters);
-              setPage(1);
-              setIsFilterOpen(false);
-            }}
-            onClear={() => {
-              setDraftFilters(EMPTY_ORDER_FILTERS);
-              setAppliedFilters(EMPTY_ORDER_FILTERS);
-              setPage(1);
-              setIsFilterOpen(false);
-            }}
-          />
-        </div>
+        <OrderFilterBar
+          filters={filters}
+          onChange={(next) => {
+            setFilters(next);
+            setPage(1);
+          }}
+          activeCount={countActiveOrderFilters(filters)}
+          onClear={() => {
+            setFilters(EMPTY_ORDER_FILTERS);
+            setPage(1);
+          }}
+        />
       </div>
 
       <DataTable
