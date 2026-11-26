@@ -668,16 +668,35 @@ type ApiDiscoveredPage = {
   knowledge_category_ids?: number[];
 };
 
-/** The most specific message in a failed scan response: the `url` field error
- * (e.g. "can't be scanned" / "couldn't reach this website"), else the
- * envelope's `message`. */
+/** The first readable message in a field error, whatever shape the backend
+ * sent it in: a plain string, a list of them, or an object of them (the
+ * errors of a list of pages come back keyed by position). */
+function firstErrorText(value: unknown): string | undefined {
+  if (typeof value === "string") return value.trim() || undefined;
+  const parts = Array.isArray(value)
+    ? value
+    : value && typeof value === "object"
+      ? Object.values(value)
+      : [];
+  for (const part of parts) {
+    const text = firstErrorText(part);
+    if (text) return text;
+  }
+  return undefined;
+}
+
+/** The most specific message in a failed scan response: the error of the
+ * website field (e.g. "can't be scanned"), else of the pages list, else any
+ * other error in `data`, else the envelope's `message`. */
 function discoveryErrorMessage(payload: unknown): string | undefined {
   const body = payload as
-    | { message?: string; data?: { url?: unknown } }
+    | { message?: string; data?: Record<string, unknown> }
     | undefined;
-  const urlError = body?.data?.url;
+  const data = body?.data;
   return (
-    (Array.isArray(urlError) ? String(urlError[0]) : undefined) ||
+    firstErrorText(data?.url) ||
+    firstErrorText(data?.urls) ||
+    firstErrorText(data) ||
     body?.message ||
     undefined
   );

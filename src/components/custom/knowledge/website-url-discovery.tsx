@@ -416,7 +416,10 @@ export function WebsiteUrlDiscovery({
             ))}
           </ul>
           <p className="mt-1">
-            Check the address. The page must be public and be a web page.
+            Check the address. The page must be public, open without signing in,
+            and be a web page. Login, sign-up, account and checkout pages
+            can&apos;t be added. For a PDF, image or other file, upload it as a
+            document instead.
           </p>
         </div>
       )}
