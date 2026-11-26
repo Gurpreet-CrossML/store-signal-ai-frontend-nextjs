@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -439,9 +439,13 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
     (state) => state.GetStoresReducer.selectedStore,
   );
 
-  const { FetchThreadDetailsData } = useAppSelector(
-    (state) => state.GetThreadReducer.FetchThreadDetailsState,
-  );
+  const {
+    FetchThreadDetailsData,
+    FetchThreadDetailsIsLoading,
+    FetchThreadDetailsIsError,
+  } = useAppSelector((state) => state.GetThreadReducer.FetchThreadDetailsState);
+  // Whether the thread request was in flight at the last render.
+  const wasLoadingRef = useRef(false);
   const { FetchConversationSummaryData } = useAppSelector(
     (state) => state.GetThreadReducer.FetchConversationSummaryState,
   );
@@ -487,10 +491,8 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
     const loadData = async () => {
       const action = await dispatch(FetchThreadDetails(threadId));
 
-      // Rejected: the API answers 404 for an unknown, malformed or other
-      // store's thread. Nothing to show, so go back to the list.
+      // Rejected: the redirect effect below sends the user back to /threads.
       if (FetchThreadDetails.rejected.match(action)) {
-        router.replace("/threads");
         return;
       }
 
@@ -520,7 +522,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
     };
 
     loadData();
-  }, [dispatch, router, storeCode, threadId]);
+  }, [dispatch, storeCode, threadId]);
 
   const handleGenerateInsights = async () => {
     if (!threadId) return;
@@ -579,6 +581,17 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
     }
   }, [details?.is_active, router, threadId]);
 
+  // The thread could not be loaded: the API answers 404 for an unknown,
+  // malformed or other store's thread. Nothing to show, so back to the list.
+  // Only after this page's own request: the error flag outlives the request
+  // that set it, and would otherwise bounce the next thread opened.
+  useEffect(() => {
+    if (wasLoadingRef.current && !details && FetchThreadDetailsIsError) {
+      router.replace("/threads");
+    }
+    wasLoadingRef.current = FetchThreadDetailsIsLoading;
+  }, [details, FetchThreadDetailsIsError, FetchThreadDetailsIsLoading, router]);
+
   // Breadcrumb title: the thread's own name, else what the customer first asked.
   const threadTitle =
     details?.name ||
@@ -607,7 +620,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
   }
 
   // Until this thread's details arrive. If the request is rejected, the
-  // loader above sends the user to /threads.
+  // redirect effect above sends the user to /threads.
   if (detailsLoading) {
     return <LoadingState className="min-h-64" />;
   }
