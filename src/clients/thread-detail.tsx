@@ -12,12 +12,12 @@ import {
   IconCheck,
   IconChevronLeft,
   IconClockHour4,
-  IconFlag,
   IconHash,
   IconListCheck,
   IconLoader2,
   IconMessage2,
   IconMessages,
+  IconPlus,
   IconSparkles,
   IconTargetArrow,
   IconThumbUp,
@@ -989,8 +989,10 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
             {/* <Button variant="outline">Flag for review</Button> */}
             {existingThreadTicket ? (
               <Button asChild>
-                <Link href={`/helpdesk?ticket=${existingThreadTicket.id}`}>
-                  Open Ticket #{existingThreadTicket.ticket_id}
+                <Link
+                  href={`/helpdesk?search=${encodeURIComponent(details?.customer_email ?? customerName)}`}
+                >
+                  View All Tickets
                 </Link>
               </Button>
             ) : (
@@ -998,6 +1000,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
                 disabled={!storeCode || !canCreateTicket}
                 onClick={() => setIsCreateTicketOpen(true)}
               >
+                <IconPlus data-icon="inline-start" />
                 Create Ticket
               </Button>
             )}
@@ -1072,13 +1075,12 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
         </Tabs>
       </main>
       <div className="fixed inset-x-0 bottom-0 z-20 flex gap-3 border-t bg-background p-3 lg:hidden">
-        <Button variant="outline" size="icon" aria-label="Flag for review">
-          <IconFlag />
-        </Button>
         {existingThreadTicket ? (
           <Button className="flex-1" asChild>
-            <Link href={`/helpdesk?ticket=${existingThreadTicket.id}`}>
-              Open Ticket #{existingThreadTicket.ticket_id}
+            <Link
+              href={`/helpdesk?search=${encodeURIComponent(details?.customer_email ?? customerName)}`}
+            >
+              View All Tickets
             </Link>
           </Button>
         ) : (
@@ -1087,6 +1089,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
             disabled={!storeCode || !canCreateTicket}
             onClick={() => setIsCreateTicketOpen(true)}
           >
+            <IconPlus data-icon="inline-start" />
             Create Ticket
           </Button>
         )}
