@@ -273,7 +273,40 @@ function WorkflowQuestions({
             isRefreshing && "opacity-60",
           )}
         >
-          <Table>
+          {/* Narrow panel (phone or tablet drawer): a card per question. */}
+          <ul className="divide-y @3xl/tabs:hidden">
+            {questions.map((item, index) => (
+              <li key={item.id} className="flex flex-col gap-2 p-3">
+                <div className="flex items-start gap-2">
+                  <span className="mt-0.5 w-6 shrink-0 text-sm text-muted-foreground tabular-nums">
+                    {(page - 1) * pageSize + index + 1}.
+                  </span>
+                  <p className="min-w-0 flex-1 text-sm leading-snug font-medium break-words">
+                    {item.question}
+                  </p>
+                  <AskQuestionButton
+                    question={item.question}
+                    onAsk={onAsk}
+                    disabled={isAsking}
+                  />
+                </div>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pl-8 text-xs">
+                  <span className="text-muted-foreground">
+                    {formatDateTime(item.askedAt)}
+                  </span>
+                  <Link
+                    href={getThreadHref(item.threadId, item.threadIsActive)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-primary hover:underline"
+                  >
+                    View Chat
+                  </Link>
+                </div>
+              </li>
+            ))}
+          </ul>
+          <Table containerClassName="hidden @3xl/tabs:block">
             <TableHeader>
               <TableRow className="hover:bg-transparent">
                 <TableHead className="w-12">#</TableHead>
