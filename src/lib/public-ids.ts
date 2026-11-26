@@ -34,11 +34,20 @@ import {
 const NAMES: Record<string, [string, boolean]> = {
   customer: ["chat.Customer", false],
   chat_handler_user: ["auth.User", false],
-  assignee: ["auth.User", false],
   store: ["store.Store", false],
   thread: ["chat.Thread", false],
   thread_id: ["chat.Thread", false],
   before_thread_id: ["chat.Thread", false],
+  // A handover's anchor message (thread details' handler_events).
+  after_message_id: ["chat.ChatHistory", false],
+  // Thread details' handovers; the live socket's `assignment.id` is the same
+  // record's token, which the support screen matches against.
+  handler_events: ["chat.ThreadAssignment", true],
+  // Catalogue products inside a chat message's json_content. Only our own
+  // products (uuid keys) are ids: the shop's numbers there are left as is.
+  products: ["products.Product", true],
+  related_products: ["products.Product", true],
+  product_id: ["products.Product", false],
   tags: ["support.TicketTag", true],
   preset: ["core.TonePreset", false],
   word_replacements: ["chat.WordReplacement", true],
@@ -61,10 +70,21 @@ const keys = () => {
   };
 };
 
-/** Whether a value has the shape of a primary key: an integer or a uuid. */
-const isId = (value: unknown) =>
-  (typeof value === "number" && Number.isInteger(value)) ||
-  (typeof value === "string" && UUID_RE.test(value));
+/**
+ * Models whose primary key is a uuid; every other model's is an integer
+ * (the backend's `pk_kind`). Keep in step with the models.
+ */
+const UUID_KEYS = new Set(["chat.Thread", "products.Product"]);
+
+/**
+ * Whether a value has the shape of that model's primary key (the backend's
+ * `is_id`): so a shop's product number under `product_id`, a name or a count
+ * is never taken for one of our ids.
+ */
+const isIdOf = (label: string, value: unknown) =>
+  UUID_KEYS.has(label)
+    ? typeof value === "string" && UUID_RE.test(value)
+    : typeof value === "number" && Number.isInteger(value);
 
 /**
  * The token for a record id. The IV is an HMAC of the plaintext, so one id
@@ -72,7 +92,7 @@ const isId = (value: unknown) =>
  * a name, a count) is returned as is.
  */
 export function encode<T>(label: string, value: T): T | string {
-  if (!isId(value)) return value;
+  if (!isIdOf(label, value)) return value;
   const key = keys();
   const plaintext = Buffer.from(`${label}:${String(value)}`);
   const iv = createHmac("sha256", key.iv)
@@ -143,13 +163,18 @@ const expectedLabel = (name: string) => NAMES[name]?.[0];
 
 /**
  * A query value or path parameter (or a comma-separated list of them) with
- * each token replaced by its id, checked to be of the model `name` holds.
+ * each token replaced by its id, checked to be of the model `name` holds. A
+ * real id where a token belongs is refused like a bad token: only for models
+ * with uuid keys (a thread), since a number there may be other data.
  */
 function decodeText(value: string, name: string): string {
   const expected = expectedLabel(name);
   return value
     .split(",")
     .map((part) => {
+      if (expected && UUID_KEYS.has(expected) && UUID_RE.test(part)) {
+        throw new InvalidToken(part);
+      }
       if (!TOKEN_RE.test(part)) return part;
       const decoded = decode(part);
       if (!decoded || (expected && decoded.label !== expected)) {
@@ -270,10 +295,7 @@ const ROUTES: [RegExp, { record?: string; hints?: KeyHints }][] = [
     /^\/api\/integrations\/?$/,
     {
       record: "core.Integration",
-      hints: {
-        category: "core.IntegrationCategory",
-        attributes: "core.IntegrationAttribute",
-      },
+      hints: { category: "core.IntegrationCategory" },
     },
   ],
 ];
