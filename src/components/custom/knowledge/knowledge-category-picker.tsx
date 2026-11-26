@@ -66,8 +66,8 @@ export function KnowledgeCategoryPicker({
   placeholder = "Choose categories",
 }: {
   options: KnowledgeCategoryOption[];
-  value: number[];
-  onChange: (next: number[]) => void;
+  value: string[];
+  onChange: (next: string[]) => void;
   isLoading?: boolean;
   disabled?: boolean;
   placeholder?: string;
@@ -77,7 +77,7 @@ export function KnowledgeCategoryPicker({
   const offered = useMemo(
     () =>
       options.filter(
-        (option) => option.isActive || value.includes(Number(option.id)),
+        (option) => option.isActive || value.includes(String(option.id)),
       ),
     [options, value],
   );
@@ -89,7 +89,7 @@ export function KnowledgeCategoryPicker({
         label: option.name,
       }))}
       value={value.map(String)}
-      onChange={(next) => onChange(next.map(Number))}
+      onChange={(next) => onChange(next)}
       placeholder={placeholder}
       emptyMessage="No categories found."
       isLoading={isLoading}

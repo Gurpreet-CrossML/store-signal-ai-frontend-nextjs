@@ -77,8 +77,8 @@ export const ENDPOINTS = {
   // Active support agents and store managers: who chats and tickets go to.
   fetchAssignableStaff: () => "/tenancy/staff/?assignable=true",
   createStaff: () => "/tenancy/staff/",
-  updateStaff: (id: number) => `/tenancy/staff/${id}/`,
-  resetStaffPassword: (id: number) => `/tenancy/staff/${id}/reset-password/`,
+  updateStaff: (id: string) => `/tenancy/staff/${id}/`,
+  resetStaffPassword: (id: string) => `/tenancy/staff/${id}/reset-password/`,
 
   // Store Management
   fetchStoresList: () => "/store/list",
@@ -163,9 +163,9 @@ export const ENDPOINTS = {
   // Geography (Django Cities Light). Countries is intentionally limited to
   // India by the backend; states and cities are dependent lists.
   fetchCountries: () => "/core/location/countries/",
-  fetchStates: (countryId: number) =>
+  fetchStates: (countryId: string) =>
     `/core/location/countries/${countryId}/states/`,
-  fetchCities: (stateId: number) => `/core/location/states/${stateId}/cities/`,
+  fetchCities: (stateId: string) => `/core/location/states/${stateId}/cities/`,
 
   // Thread-level Analytics (local GETs — no trailing slash).
   fetchThreads: () => "/analytics/threads",
@@ -197,7 +197,7 @@ export const ENDPOINTS = {
     `/analytics/threads/${threadId}/order-data`,
 
   // Chatbot Customization (Django via useBackend — keep trailing slash).
-  widgetCustomization: (storeId: number) =>
+  widgetCustomization: (storeId: string) =>
     `/store/widget-customization/${storeId}/`,
 
   // Brand Voice. GET uses the local tenant-scoped API route; writes are routed
@@ -253,7 +253,7 @@ export const ENDPOINTS = {
   // here once it's confirmed.
   connectStoreIntegration: () => `/store/integrations/`,
   // Detail route — disconnect targets a StoreIntegration by its own object id.
-  storeIntegrationDetail: (id: number) => `/store/integrations/${id}/`,
+  storeIntegrationDetail: (id: string) => `/store/integrations/${id}/`,
 
   // Brand Voice reads use the local DB-backed chat routes; writes go straight to
   // Django's upsert endpoints.
@@ -339,12 +339,12 @@ export const ENDPOINTS = {
       `/support/tickets/${ticket_id}/draft-messages/agent/`,
       "django",
     ),
-  supportTicketTagAssign: (ticket_id: string, tag_id: number) =>
+  supportTicketTagAssign: (ticket_id: string, tag_id: string) =>
     createAPIUrl(
       `/support/tickets/${ticket_id}/tags/${tag_id}/assign/`,
       "django",
     ),
-  supportTicketTagRemove: (ticket_id: string, tag_id: number) =>
+  supportTicketTagRemove: (ticket_id: string, tag_id: string) =>
     createAPIUrl(
       `/support/tickets/${ticket_id}/tags/${tag_id}/remove/`,
       "django",
@@ -358,13 +358,13 @@ export const ENDPOINTS = {
   ticketTagCreate: () => createAPIUrl("/support/ticket-tags/", "django"),
   ticketTagSimilar: () =>
     createAPIUrl("/support/ticket-tags/similar/", "django"),
-  ticketTagUpdate: (tag_id: number) =>
+  ticketTagUpdate: (tag_id: string) =>
     createAPIUrl(`/support/ticket-tags/${tag_id}/`, "django"),
-  ticketTagDelete: (tag_id: number) =>
+  ticketTagDelete: (tag_id: string) =>
     createAPIUrl(`/support/ticket-tags/${tag_id}/delete/`, "django"),
   slaPolicies: () => createAPIUrl("/support/sla-policies/", "django"),
   // PATCH to update, DELETE to remove.
-  slaPolicyDetail: (policy_id: number) =>
+  slaPolicyDetail: (policy_id: string) =>
     createAPIUrl(`/support/sla-policies/${policy_id}/`, "django"),
   // GET the store's email connection, POST to connect, DELETE to disconnect.
   emailChannel: () => createAPIUrl("/support/email-channel/", "django"),
@@ -386,7 +386,7 @@ export const ENDPOINTS = {
   supportTicketCopilot: (ticket_id: string) =>
     createAPIUrl(`/support/tickets/${ticket_id}/copilot/`, "django"),
   // PATCH — rate an answer good or bad.
-  supportTicketCopilotFeedback: (ticket_id: string, message_id: number) =>
+  supportTicketCopilotFeedback: (ticket_id: string, message_id: string) =>
     createAPIUrl(
       `/support/tickets/${ticket_id}/copilot/messages/${message_id}/feedback/`,
       "django",
@@ -403,7 +403,7 @@ export const ENDPOINTS = {
     createAPIUrl("/support/notifications/counts/", "django"),
   notificationsMarkAllRead: () =>
     createAPIUrl("/support/notifications/mark/read/", "django"),
-  notificationMarkRead: (notification_id: number) =>
+  notificationMarkRead: (notification_id: string) =>
     createAPIUrl(
       `/support/notifications/${notification_id}/mark/read/`,
       "django",
@@ -438,57 +438,57 @@ export const ENDPOINTS = {
     userId,
   }: {
     accountId: string;
-    userId: number;
+    userId: string;
   }) => `/social/meta/pages/${accountId}/users/${userId}/messages/`,
   // One route, the method is the verb: POST likes, DELETE unlikes — the
   // same shape as hide/unhide.
-  likeComment: ({ postId, commentId }: { postId: string; commentId: number }) =>
+  likeComment: ({ postId, commentId }: { postId: string; commentId: string }) =>
     `/social/meta/posts/${postId}/comments/${commentId}/like/`,
-  hideComment: ({ postId, commentId }: { postId: string; commentId: number }) =>
+  hideComment: ({ postId, commentId }: { postId: string; commentId: string }) =>
     `/social/meta/posts/${postId}/comments/${commentId}/hide/`,
   deleteComment: ({
     postId,
     commentId,
   }: {
     postId: string;
-    commentId: number;
+    commentId: string;
   }) => `/social/meta/posts/${postId}/comments/${commentId}/delete/`,
   replyComment: ({
     postId,
     commentId,
   }: {
     postId: string;
-    commentId: number;
+    commentId: string;
   }) => `/social/meta/posts/${postId}/comments/${commentId}/reply/`,
   replyMessage: ({
     userId,
     messageId,
   }: {
-    userId: number;
-    messageId: number;
+    userId: string;
+    messageId: string;
   }) => `/social/meta/users/${userId}/messages/${messageId}/reply/`,
   reactMessage: ({
     userId,
     messageId,
   }: {
-    userId: number;
-    messageId: number;
+    userId: string;
+    messageId: string;
   }) => `/social/meta/users/${userId}/messages/${messageId}/react/`,
   // POST — raise a help desk ticket for a DM contact. Addressed by the
   // SocialUser rather than a chat thread: a Messenger conversation has no
   // Thread behind it, which is why the ticket's own thread stays null.
-  metaCreateSupportTicket: (userId: number) =>
+  metaCreateSupportTicket: (userId: string) =>
     `/social/meta/users/${userId}/create-support-ticket/`,
   // The social counterpart of threadSupportTicketDraft. Contacts are
   // page-scoped, so the same shopper on Facebook and on Instagram drafts
   // from two separate conversations.
-  metaSupportTicketDraft: (userId: number) =>
+  metaSupportTicketDraft: (userId: string) =>
     `/social/meta/users/${userId}/support-ticket/draft/`,
   // POST — attach a customer to a DM contact ({ customer: <pk> }), the
   // social counterpart of threadCustomerLink. Creating a ticket already
   // links one server-side; this is the direct path when no ticket is
   // wanted.
-  socialUserCustomerLink: (userId: number) =>
+  socialUserCustomerLink: (userId: string) =>
     `/social/meta/users/${userId}/update/customer/`,
   // Comment automation rules, per connected account — GET returns the whole
   // settings config (vocabularies + this account's effective rules).
@@ -513,15 +513,15 @@ export const ENDPOINTS = {
   // In-context draft reads: one contact's pending comment draft(s) on a
   // post, or their pending drafted DM on a page. Both default to
   // status=pending and return the standard paginated envelope.
-  userCommentDraft: ({ postId, userId }: { postId: string; userId: number }) =>
+  userCommentDraft: ({ postId, userId }: { postId: string; userId: string }) =>
     `/social/meta/posts/${postId}/users/${userId}/comment-draft/`,
-  userMessageDraft: ({ pageId, userId }: { pageId: string; userId: number }) =>
+  userMessageDraft: ({ pageId, userId }: { pageId: string; userId: string }) =>
     `/social/meta/pages/${pageId}/users/${userId}/message-draft/`,
-  commentDraft: ({ draftId }: { draftId: number }) =>
+  commentDraft: ({ draftId }: { draftId: string }) =>
     `/social/comment-drafts/${draftId}/`,
-  approveCommentDraft: ({ draftId }: { draftId: number }) =>
+  approveCommentDraft: ({ draftId }: { draftId: string }) =>
     `/social/comment-drafts/${draftId}/approve/`,
-  discardCommentDraft: ({ draftId }: { draftId: number }) =>
+  discardCommentDraft: ({ draftId }: { draftId: string }) =>
     `/social/comment-drafts/${draftId}/discard/`,
 
   // WhatsApp templates (Django via useBackend — keep trailing slash).
@@ -543,7 +543,7 @@ export const ENDPOINTS = {
     catalogueId,
   }: {
     accountId: string;
-    catalogueId: number;
+    catalogueId: string;
   }) => `/campaign/accounts/${accountId}/templates/${catalogueId}/import/`,
   // Email templates (Django via useBackend — keep trailing slash).
   fetchEmailTemplates: () => `/campaign/email-templates/`,
@@ -558,7 +558,7 @@ export const ENDPOINTS = {
   fetchSegmentCategories: () => `/campaign/segment-categories/`,
   fetchSegments: () => `/campaign/segments/`,
   createSegment: () => `/campaign/segments/`,
-  previewSegment: (categoryId: number) =>
+  previewSegment: (categoryId: string) =>
     `/campaign/segments/preview/${categoryId}/`,
   segmentDetail: ({ segmentId }: { segmentId: string }) =>
     `/campaign/segments/${segmentId}/`,

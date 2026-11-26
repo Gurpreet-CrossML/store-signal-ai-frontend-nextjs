@@ -168,7 +168,7 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
   // What is being edited, while editing; `null` otherwise.
   const [editing, setEditing] = useState(false);
   const [scope, setScope] = useState<KnowledgeScope | null>(null);
-  const [knowledgeCategories, setKnowledgeCategories] = useState<number[]>([]);
+  const [knowledgeCategories, setKnowledgeCategories] = useState<string[]>([]);
   const { options: categoryOptions, isLoading: categoriesLoading } =
     useKnowledgeCategoryOptions();
   const [question, setQuestion] = useState("");

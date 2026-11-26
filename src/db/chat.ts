@@ -44,7 +44,8 @@ export type NeverSayRulesRow = {
 };
 
 export type NeverSayRulesPresetRecord = {
-  id: number;
+  /** A number in the database; an encrypted token once it reaches the browser. */
+  id: number | string;
   do_not_say_phrases: string[];
   forbidden_claims: string[];
   required_legal_phrases: RequiredLegalPhrase[];
@@ -53,7 +54,8 @@ export type NeverSayRulesPresetRecord = {
 // Tone & Style Types
 
 export type ToneStyleRecord = {
-  preset: number;
+  /** A number in the database; an encrypted token once it reaches the browser. */
+  preset: number | string;
   warmth: number;
   formality: number;
   energy: number;
@@ -74,7 +76,8 @@ export type ToneStylePayload = Omit<
 >;
 
 export type TonePresetRecord = {
-  id: number;
+  /** A number in the database; an encrypted token once it reaches the browser. */
+  id: number | string;
   name: string;
   description: string;
   icon: string | null;
@@ -90,7 +93,8 @@ export type TonePresetRecord = {
 // Vocabulary Types
 
 export type WordReplacementRecord = {
-  id: number;
+  /** A number in the database; an encrypted token once it reaches the browser. */
+  id: number | string;
   say_word: string;
   replace_word: string;
 };
@@ -112,7 +116,8 @@ export type WordReplacementPair = {
 };
 
 export type VocabularyPresetRecord = {
-  id: number;
+  /** A number in the database; an encrypted token once it reaches the browser. */
+  id: number | string;
   preferred_phrases: string[];
   banned_words: string[];
   signature_phrases: string[];

@@ -23,7 +23,7 @@ declare module "next-auth" {
     is_staff?: boolean;
     role?: StaffRole | null;
     permissions?: PermissionMap;
-    user_id?: number | null;
+    user_id?: string | null;
     managed_roles?: StaffRole[];
     queue_only?: boolean;
     accessible_stores?: AccessibleStore[];
@@ -43,7 +43,7 @@ declare module "next-auth" {
       is_staff?: boolean;
       role?: StaffRole | null;
       permissions?: PermissionMap;
-      user_id?: number | null;
+      user_id?: string | null;
       managed_roles?: StaffRole[];
       queue_only?: boolean;
       accessible_stores?: AccessibleStore[];
@@ -70,7 +70,7 @@ declare module "next-auth/jwt" {
     is_staff?: boolean;
     role?: StaffRole | null;
     permissions?: PermissionMap;
-    user_id?: number | null;
+    user_id?: string | null;
     managed_roles?: StaffRole[];
     queue_only?: boolean;
     accessible_stores?: AccessibleStore[];

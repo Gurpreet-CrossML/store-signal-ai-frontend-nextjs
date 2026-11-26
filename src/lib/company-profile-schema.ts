@@ -14,7 +14,8 @@ export const PHONE_MIN_DIGITS = 7;
 export const PHONE_MAX_DIGITS = 15;
 export const STREET_MAX_LENGTH = 255;
 
-const locationId = z.number().int().positive().nullable();
+// A country, state or city id: an encrypted token, as the API sends it.
+const locationId = z.string().min(1).nullable();
 
 export const companyProfileSchema = z
   .object({

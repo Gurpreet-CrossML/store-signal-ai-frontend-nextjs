@@ -469,7 +469,10 @@ const STATUS_TRANSITIONS: Record<SupportTicketStatus, SupportTicketStatus[]> = {
 };
 
 /** Negative so an optimistic message can never collide with a server id. */
-const createTempMessageId = () => -Date.now();
+// A message being sent has a temporary id until the server answers with its
+// real one (a token, "id_…"), so the two can never be mixed up.
+const createTempMessageId = () => `temp_${Date.now()}`;
+const isTempMessageId = (id: string) => id.startsWith("temp_");
 
 /** Copy for the confirmation shown before each status change. */
 const STATUS_CONFIRMATIONS = {
@@ -1193,7 +1196,7 @@ function ConversationPanel({
 
   /** Who wrote an agent message or note. */
   const authorOf = (message: SupportTicketMessage) => {
-    if (message.id < 0) return currentUser.name || "You";
+    if (isTempMessageId(message.id)) return currentUser.name || "You";
     const member = staff.find((candidate) => candidate.id === message.agent);
     return member
       ? `${member.first_name} ${member.last_name}`.trim() || member.email
@@ -1201,7 +1204,7 @@ function ConversationPanel({
   };
   // Your own messages carry the accent colour; a teammate's are blue.
   const isMine = (message: SupportTicketMessage) =>
-    message.id < 0 ||
+    isTempMessageId(message.id) ||
     (Boolean(currentUser.email) &&
       staff
         .find((candidate) => candidate.id === message.agent)
@@ -1559,11 +1562,11 @@ function ConversationPanel({
                 new Date(previous.message.created_at).toDateString() !==
                   new Date(message.created_at).toDateString();
               const time =
-                message.id < 0
+                isTempMessageId(message.id)
                   ? "Sending…"
                   : messageTime(message.created_at, newDay);
               const clock =
-                message.id < 0
+                isTempMessageId(message.id)
                   ? "Sending…"
                   : formatTicketTime(message.created_at);
               const isNote = message.message_type === "internal";
@@ -2038,7 +2041,7 @@ export default function HelpDesk() {
     : null;
   // Taking a tag off changes the ticket's SLA, so it waits for a yes too.
   const [pendingTagRemoval, setPendingTagRemoval] = useState<{
-    id: number;
+    id: string;
     name: string;
   } | null>(null);
 
@@ -3026,7 +3029,7 @@ export default function HelpDesk() {
     }
   };
 
-  const handleAddTag = async (tagId: number) => {
+  const handleAddTag = async (tagId: string) => {
     if (!storeCode || !currentActiveSupportTicketIdRef.current) return;
 
     try {
@@ -3085,7 +3088,7 @@ export default function HelpDesk() {
     }
   };
 
-  const handleRemoveTag = async (tagId: number) => {
+  const handleRemoveTag = async (tagId: string) => {
     if (!storeCode || !currentActiveSupportTicketIdRef.current) return;
 
     try {
@@ -3186,7 +3189,7 @@ export default function HelpDesk() {
     );
   };
 
-  const handleStaffAssign = async (staffId: number | null) => {
+  const handleStaffAssign = async (staffId: string | null) => {
     const ticketId = currentActiveSupportTicketIdRef.current;
     if (!storeCode || !ticketId) return;
 

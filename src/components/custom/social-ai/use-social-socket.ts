@@ -14,7 +14,7 @@ import type {
 
 /** A new DM — the payload adds a flat contact id and the owning account. */
 export type SocialDmEvent = SocialDm & {
-  social_user_id: number | null;
+  social_user_id: string | null;
   account_external_id: string;
 };
 
@@ -29,7 +29,7 @@ export type SocialCommentEvent = SocialComment & {
 
 /** AI tagging finished for a comment that already arrived. */
 export type SocialCommentTaggedEvent = {
-  message_id: number;
+  message_id: string;
   post_external_id: string | null;
   account_external_id: string;
   analysis: SocialCommentAnalysis;
@@ -37,7 +37,7 @@ export type SocialCommentTaggedEvent = {
 
 /** A comment's AI reply landed (or was regenerated on a re-tag). */
 export type SocialCommentAiResponseEvent = {
-  message_id: number;
+  message_id: string;
   post_external_id: string | null;
   account_external_id: string;
   ai_response: SocialCommentAiResponse;

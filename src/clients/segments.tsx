@@ -62,7 +62,7 @@ import {
 } from "@/redux/api-slice/campaign-slice";
 
 function getColumns(
-  categoryById: Map<number, SegmentCategory>,
+  categoryById: Map<string, SegmentCategory>,
   onToggleActive: (segment: Segment, checked: boolean) => void,
   toggling: string | null,
   onEdit: (segment: Segment) => void,

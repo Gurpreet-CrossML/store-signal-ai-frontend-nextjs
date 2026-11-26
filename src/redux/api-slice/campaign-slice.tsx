@@ -16,7 +16,7 @@ export type EmailTemplateDetailRow = {
 // shared with WhatsApp/SMS templates now, instead of Email's own names.
 export type EmailTemplate = {
   id: string;
-  store: number;
+  store: string;
   name: string;
   subject: string;
   preheader: string;
@@ -162,7 +162,7 @@ export const deleteEmailTemplate = createAsyncThunk(
 
 // core.SegmentCategory — shared by every tenant, so no store_code on the URL.
 export type SegmentCategory = {
-  id: number;
+  id: string;
   name: string;
   slug: string;
 };
@@ -173,9 +173,9 @@ export const SEGMENT_CATEGORY_ABANDONED_CART_SLUG = "abandoned-cart";
 
 export type Segment = {
   id: string;
-  store: number;
+  store: string;
   name: string;
-  category: number;
+  category: string;
   time_period: number;
   min_price: string;
   is_active: boolean;
@@ -185,7 +185,7 @@ export type Segment = {
 
 export type SegmentWritePayload = {
   name: string;
-  category: number;
+  category: string;
   time_period: number;
   min_price?: number | string;
   is_active?: boolean;
@@ -269,7 +269,7 @@ export const previewSegmentCount = createAsyncThunk(
       page_size = 25,
     }: {
       storeCode: string;
-      category: number;
+      category: string;
       time_period: number;
       min_price?: number | string;
       page?: number;
@@ -446,7 +446,7 @@ export const updateSegmentStatus = createAsyncThunk(
 export const CAMPAIGN_TIME_ZONE = "Asia/Kolkata";
 
 export type CampaignSequenceStep = {
-  id?: number;
+  id?: string;
   whatsapp_template: string | null;
   email_template: string | null;
   start_time: string;
@@ -458,7 +458,7 @@ export type CampaignSequenceStep = {
 
 export type Campaign = {
   id: string;
-  store: number;
+  store: string;
   name: string;
   status: "draft" | "published";
   is_active: boolean;
@@ -480,7 +480,7 @@ export type CampaignScheduleResult = {
   campaign: string;
   scheduled: {
     step_order: number;
-    sequence_step_id: number;
+    sequence_step_id: string;
     schedule_name: string;
     cron: string;
   }[];
@@ -490,7 +490,7 @@ export type CampaignScheduleResult = {
 // The steps endpoint's response: which campaign the steps belong to, plus
 // the steps in ``step_order``.
 export type CampaignSequenceSteps = {
-  campaign_id: number;
+  campaign_id: string;
   name: string;
   status: "draft" | "published";
   is_active: boolean;

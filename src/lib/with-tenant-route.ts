@@ -12,7 +12,12 @@ import {
 } from "@/lib/access-rules";
 import type { Permission } from "@/lib/tenant-types";
 import { isSessionActive } from "@/lib/session-verify";
-import { decodeQuery, encodeResponse, InvalidToken } from "@/lib/public-ids";
+import {
+  decodeQuery,
+  encodeResponse,
+  InvalidToken,
+  toRawId,
+} from "@/lib/public-ids";
 
 /**
  * Wrap a Pages-Router API handler so it runs inside its session's tenant scope.
@@ -87,7 +92,12 @@ export function withTenantRoute(
     try {
       return await runWithTenant(
         companyCode,
-        buildAccess(session.user),
+        // The session holds the user's id as a token (it came from Django);
+        // the queue filter compares it with database rows, so use the id.
+        buildAccess({
+          ...session.user,
+          user_id: toRawId(session.user?.user_id ?? null) as number | null,
+        }),
         async () => {
           await handler(req, res);
         },

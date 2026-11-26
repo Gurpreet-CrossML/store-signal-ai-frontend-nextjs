@@ -267,7 +267,7 @@ export function DisconnectConfirmDialog({
 }: {
   children: React.ReactNode;
   integration: Integration;
-  storeIntegrationId: number;
+  storeIntegrationId: string;
   storeCode: string;
 }) {
   const dispatch = useAppDispatch();
@@ -340,7 +340,7 @@ export function IntegrationCard({
   integration: Integration;
   storeCode: string;
   // The StoreIntegration object id when connected; undefined when not.
-  storeIntegrationId?: number;
+  storeIntegrationId?: string;
 }) {
   const isConnected = storeIntegrationId != null;
   const toggle = (

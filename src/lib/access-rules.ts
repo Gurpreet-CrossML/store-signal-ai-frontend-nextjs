@@ -40,7 +40,8 @@ export type SessionIdentity = {
   company_code?: string | null;
   accessible_stores?: AccessibleStore[];
   permissions?: PermissionMap;
-  user_id?: number | null;
+  /** A token in the browser; the real id once the server has decoded it. */
+  user_id?: number | string | null;
   managed_roles?: StaffRole[];
   queue_only?: boolean;
 };
@@ -91,7 +92,12 @@ export function buildAccess(identity: SessionIdentity): RequestAccess {
     isStaff: Boolean(identity.is_staff),
     storeCodes: unrestricted ? null : stores.map((s) => s.code),
     // Django decides who is queue-only; with no id they get only the queue.
-    queueUserId: identity.queue_only ? (identity.user_id ?? -1) : null,
+    // Only a decoded (numeric) id can match rows; anything else gets nothing.
+    queueUserId: identity.queue_only
+      ? typeof identity.user_id === "number"
+        ? identity.user_id
+        : -1
+      : null,
   };
 }
 

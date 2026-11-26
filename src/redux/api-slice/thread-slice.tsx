@@ -36,7 +36,7 @@ type ThreadFilters = {
  * takes either without a conversion.
  */
 export type ThreadTagData = {
-  id?: number;
+  id?: string;
   name: string;
   color: string;
   description: string;
@@ -46,7 +46,7 @@ export type ThreadTagData = {
 export type ThreadTagOption = Required<ThreadTagData> & { count: number };
 
 export type FeedbackEntry = {
-  id: number;
+  id: string;
   rating: string;
   feedback_message: string | null;
   created_at: string;
@@ -77,7 +77,7 @@ export type Customer = {
 };
 
 export type ThreadHandlerUser = {
-  id: number;
+  id: string;
   name: string;
   email: string;
 };
@@ -219,7 +219,7 @@ export type HandlerEvent = {
   from_agent_email?: string | null;
   to_agent_email?: string | null;
   assigned_by_email?: string | null;
-  after_message_id?: number | null;
+  after_message_id?: string | null;
   created_at: string;
 };
 
@@ -291,7 +291,7 @@ export type ThreadVerdict = {
 export type ThreadDetails = {
   id: string;
   name: string | null;
-  store: number;
+  store: string;
   customer_name: string | null;
   customer_email: string | null;
   /** Identity, plus the phone and past-thread count the side panel shows. */

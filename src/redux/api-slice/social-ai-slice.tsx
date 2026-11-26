@@ -91,7 +91,7 @@ export type SocialPostMediaEntry = {
 };
 
 export type SocialPost = {
-  id: number;
+  id: string;
   account_name: string;
   external_id: string;
   channel_type: string;
@@ -112,7 +112,7 @@ export type SocialPostsResponse = {
 };
 
 export type SocialUser = {
-  id: number;
+  id: string;
   external_id: string;
   name: string;
   username: string;
@@ -143,7 +143,7 @@ export type SocialCommentAnalysis = {
  * send it by hand.
  */
 export type SocialCommentAiResponse = {
-  id: number;
+  id: string;
   response_text: string;
   is_auto_sent: boolean;
   model_used: string;
@@ -152,15 +152,15 @@ export type SocialCommentAiResponse = {
 };
 
 export type SocialComment = {
-  id: number;
-  post: number;
+  id: string;
+  post: string;
   external_message_id: string;
   content: string;
   like_count: number;
   social_user: SocialUser | null;
   // "user" for customer comments; "agent"/"ai" when the page itself replied.
   sender_type: string;
-  parent_message: number | null;
+  parent_message: string | null;
   reply_count: number;
   is_hidden: boolean;
   owner_liked: boolean;
@@ -215,7 +215,7 @@ export type SocialLinkedCustomer = {
 // A DM contact of one connected account — one row per conversation in the
 // inbox list (from the users-list API, most recent conversation first).
 export type SocialConversationUser = {
-  id: number;
+  id: string;
   external_id: string;
   name: string;
   username: string;
@@ -238,7 +238,7 @@ export type SocialUsersResponse = {
 };
 
 export type SocialDmReplyTo = {
-  id: number;
+  id: string;
   content: string;
   sender_name: string | null;
 };
@@ -246,7 +246,7 @@ export type SocialDmReplyTo = {
 // One piece of media on a DM, in send order. An attachment-only message
 // has empty `content` and one or more of these.
 export type SocialDmAttachment = {
-  id: number;
+  id: string;
   // "image" | "video" | "audio" | "file" | "sticker" | "share" | "other"
   attachment_type: string;
   position: number;
@@ -259,7 +259,7 @@ export type SocialDmAttachment = {
 };
 
 export type SocialDm = {
-  id: number;
+  id: string;
   external_message_id: string;
   content: string;
   sender_type: string;
@@ -309,7 +309,7 @@ export type CommentTopicRule = {
 /** One GET renders the whole settings screen: vocabularies + one account's effective rules. */
 export type CommentSettingsConfig = {
   account: {
-    id: number;
+    id: string;
     name: string;
     channel_type: string;
     allow_ai_auto_respond: boolean;
@@ -332,7 +332,7 @@ export type CommentDraftStatus = "pending" | "approved" | "discarded";
  * discarded draft never regenerates, so there is no "regenerate" affordance.
  */
 export type CommentDraft = {
-  id: number;
+  id: string;
   /**
    * The comment being answered. On the queue serializer it also carries
    * the post's external Graph id, so the card can deep-link to the thread
@@ -343,7 +343,7 @@ export type CommentDraft = {
    * The connected account the comment arrived on — its channel_type is
    * what routes the View Post link to the Facebook or Instagram feed.
    */
-  account?: { id: number; name: string; channel_type: string } | null;
+  account?: { id: string; name: string; channel_type: string } | null;
   /**
    * Client-side enrichment: the account's external Graph id from a draft
    * broadcast, kept so the View Post link can resolve the channel when the
@@ -481,7 +481,7 @@ export type WhatsAppTemplateWritePayload = {
 // WhatsAppTemplate flips `is_imported` back to false, exactly as if it had
 // never been imported (see list_library_templates's docstring).
 export type WhatsAppTemplateLibraryItem = {
-  id: number;
+  id: string;
   name: string;
   display_name: string;
   description: string;
@@ -793,7 +793,7 @@ export const importWhatsAppTemplateFromLibrary = createAsyncThunk(
       storeCode,
       accountId,
       libraryId,
-    }: { storeCode: string; accountId: string; libraryId: number },
+    }: { storeCode: string; accountId: string; libraryId: string },
     thunkAPI,
   ) => {
     try {
@@ -1018,7 +1018,7 @@ export const fetchPostComments = createAsyncThunk(
       postId: string;
       page?: number;
       pageSize?: number;
-      parentId?: number;
+      parentId?: string;
       // AI-tag filters, all resolved by the backend.
       topics?: string[];
       intent?: string;
@@ -1148,7 +1148,7 @@ export const fetchSocialDms = createAsyncThunk(
       // The connected account's external Graph id (ConnectedAccount.external_id).
       accountId: string;
       // The conversation contact's DB id (SocialConversationUser.id).
-      userId: number;
+      userId: string;
       page?: number;
       pageSize?: number;
     },
@@ -1183,7 +1183,7 @@ export const likeMetaComment = createAsyncThunk(
       storeCode,
       postId,
       commentId,
-    }: { storeCode: string; postId: string; commentId: number },
+    }: { storeCode: string; postId: string; commentId: string },
     thunkAPI,
   ) => {
     try {
@@ -1210,7 +1210,7 @@ export const unlikeMetaComment = createAsyncThunk(
       storeCode,
       postId,
       commentId,
-    }: { storeCode: string; postId: string; commentId: number },
+    }: { storeCode: string; postId: string; commentId: string },
     thunkAPI,
   ) => {
     try {
@@ -1241,7 +1241,7 @@ export const hideMetaComment = createAsyncThunk(
     }: {
       storeCode: string;
       postId: string;
-      commentId: number;
+      commentId: string;
       is_hidden: boolean;
     },
     thunkAPI,
@@ -1270,7 +1270,7 @@ export const deleteMetaComment = createAsyncThunk(
       storeCode,
       postId,
       commentId,
-    }: { storeCode: string; postId: string; commentId: number },
+    }: { storeCode: string; postId: string; commentId: string },
     thunkAPI,
   ) => {
     try {
@@ -1301,8 +1301,8 @@ export const replyToMetaMessage = createAsyncThunk(
       attachments,
     }: {
       storeCode: string;
-      userId: number;
-      messageId: number;
+      userId: string;
+      messageId: string;
       message: string;
       isExplicitReply?: boolean;
       attachments?: File[];
@@ -1355,8 +1355,8 @@ export const reactToMetaMessage = createAsyncThunk(
       reaction,
     }: {
       storeCode: string;
-      userId: number;
-      messageId: number;
+      userId: string;
+      messageId: string;
       reaction: string;
     },
     thunkAPI,
@@ -1389,7 +1389,7 @@ export const replyToMetaComment = createAsyncThunk(
     }: {
       storeCode: string;
       postId: string;
-      commentId: number;
+      commentId: string;
       message: string;
     },
     thunkAPI,
@@ -1420,7 +1420,7 @@ export const replyToMetaComment = createAsyncThunk(
 export const FetchSocialTicketDraft = createAsyncThunk(
   "FetchSocialTicketDraft",
   async (
-    { storeCode, userId }: { storeCode: string; userId: number },
+    { storeCode, userId }: { storeCode: string; userId: string },
     thunkAPI,
   ) => {
     try {
@@ -1460,7 +1460,7 @@ export const CreateSocialSupportTicket = createAsyncThunk(
       payload,
     }: {
       storeCode: string;
-      userId: number;
+      userId: string;
       payload: CreateSupportTicketPayload;
     },
     thunkAPI,
@@ -1501,7 +1501,7 @@ export const SocialUserCustomerLink = createAsyncThunk(
       storeCode,
       userId,
       customer,
-    }: { storeCode: string; userId: number; customer: SocialLinkedCustomer },
+    }: { storeCode: string; userId: string; customer: SocialLinkedCustomer },
     thunkAPI,
   ) => {
     try {
@@ -1726,7 +1726,7 @@ export const fetchUserCommentDraft = createAsyncThunk(
       storeCode,
       postId,
       userId,
-    }: { storeCode: string; postId: string; userId: number },
+    }: { storeCode: string; postId: string; userId: string },
     thunkAPI,
   ) => {
     try {
@@ -1752,7 +1752,7 @@ export const fetchUserMessageDraft = createAsyncThunk(
       storeCode,
       pageId,
       userId,
-    }: { storeCode: string; pageId: string; userId: number },
+    }: { storeCode: string; pageId: string; userId: string },
     thunkAPI,
   ) => {
     try {
@@ -1784,7 +1784,7 @@ export const updateCommentDraft = createAsyncThunk(
       silent,
     }: {
       storeCode: string;
-      draftId: number;
+      draftId: string;
       patch: {
         response_text?: string;
         dm_text?: string;
@@ -1824,7 +1824,7 @@ export const updateCommentDraft = createAsyncThunk(
 export const approveCommentDraft = createAsyncThunk(
   "approveCommentDraft",
   async (
-    { storeCode, draftId }: { storeCode: string; draftId: number },
+    { storeCode, draftId }: { storeCode: string; draftId: string },
     thunkAPI,
   ) => {
     try {
@@ -1854,7 +1854,7 @@ export const approveCommentDraft = createAsyncThunk(
 export const discardCommentDraft = createAsyncThunk(
   "discardCommentDraft",
   async (
-    { storeCode, draftId }: { storeCode: string; draftId: number },
+    { storeCode, draftId }: { storeCode: string; draftId: string },
     thunkAPI,
   ) => {
     try {
@@ -2044,7 +2044,7 @@ const SocialAISlice = createSlice({
     /** Flip a DM contact's pending-draft flag from a draft broadcast. */
     socialUserDmDraftFlagSet(
       state,
-      action: PayloadAction<{ userId: number; value: boolean }>,
+      action: PayloadAction<{ userId: string; value: boolean }>,
     ) {
       const users = state.FetchSocialUsersState.FetchSocialUsersData;
       const row = users?.results?.find(
@@ -2070,7 +2070,7 @@ const SocialAISlice = createSlice({
     socialConversationTouched(
       state,
       action: PayloadAction<{
-        userId: number;
+        userId: string;
         lastMessage: string;
         lastMessageAt: string | null;
       }>,

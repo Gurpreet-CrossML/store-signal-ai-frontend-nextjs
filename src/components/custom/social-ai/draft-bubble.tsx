@@ -409,9 +409,9 @@ export function CommentDraftSlot({
   storeCode: string;
   /** The post's external Graph id. */
   postId: string;
-  commentId: number;
+  commentId: string;
   /** The commenter's SocialUser id. */
-  userId: number;
+  userId: string;
   /** A draft the broadcast already delivered — skips the fetch entirely. */
   initialDraft?: CommentDraft | null;
   onResolved: (outcome: DraftOutcome) => void;
@@ -497,7 +497,7 @@ export function MessageDraftSlot({
   /** The connected account's external Graph id. */
   pageId: string;
   /** The conversation contact's SocialUser id. */
-  userId: number;
+  userId: string;
   onResolved: (outcome: DraftOutcome) => void;
 }) {
   const dispatch = useAppDispatch();

@@ -16,7 +16,7 @@ import type { ProductData } from "@/redux/api-slice/thread-slice";
 
 /** A sample customer question, the same for every store. */
 export type TestQuestion = {
-  id: number;
+  id: string;
   question: string;
 };
 
@@ -31,7 +31,7 @@ export type UnansweredWorkflow = {
 
 /** A customer question the AI couldn't answer. */
 export type UnansweredQuestion = {
-  id: number;
+  id: string;
   question: string;
   /** Code of the workflow that couldn't answer it. */
   workflow: string | null;
@@ -42,7 +42,7 @@ export type UnansweredQuestion = {
 };
 
 type ApiUnansweredQuestion = {
-  id: number;
+  id: string;
   question: string;
   workflow: string | null;
   thread_id: string;

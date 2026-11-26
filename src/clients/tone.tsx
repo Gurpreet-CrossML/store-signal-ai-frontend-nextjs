@@ -22,7 +22,8 @@ import { type ToneStylePayload } from "@/db/chat";
 
 // Validation schema for the form using Zod
 const validationSchema = z.object({
-  preset: z.number().int(),
+  // The preset's id: an encrypted token, as the API sends it.
+  preset: z.string().min(1),
   warmth: z.coerce.number().min(0).max(100),
   formality: z.coerce.number().min(0).max(100),
   energy: z.coerce.number().min(0).max(100),
@@ -156,7 +157,7 @@ export default function BrandVoiceToneStyleEditor() {
   };
 
   // Handle preset selection and apply its values
-  const handlePresetSelect = (presetId: number) => {
+  const handlePresetSelect = (presetId: string) => {
     const tonePreset = FetchTonePresetsData.find(
       (preset) => preset.id === presetId,
     );

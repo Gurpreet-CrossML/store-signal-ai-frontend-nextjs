@@ -9,7 +9,7 @@ import { axiosInstance } from "../axios-config";
 
 /** A billing/shipping address belonging to a customer. */
 export type CustomerAddress = {
-  id: number;
+  id: string;
   external_id: string;
   first_name: string;
   last_name: string;

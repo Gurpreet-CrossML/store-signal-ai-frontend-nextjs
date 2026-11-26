@@ -1050,7 +1050,7 @@ const useNotificationSound = (soundUrl: string = "/notification_sound.mp3") => {
 
 /** A thread's id reaches the dashboard as a token (lib/public-ids);
  *  anything else cannot be a thread. */
-const THREAD_ID_PATTERN = /^thr_[A-Za-z0-9_-]+$/;
+const THREAD_ID_PATTERN = /^id_[A-Za-z0-9_-]+$/;
 
 export default function Support() {
   const dispatch = useAppDispatch();

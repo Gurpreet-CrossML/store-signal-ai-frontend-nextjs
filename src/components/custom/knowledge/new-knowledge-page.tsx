@@ -85,7 +85,7 @@ import {
 
 type FaqRow = { localId: string; question: string; answer: string };
 /** A chosen document with the knowledge categories it is filed under. */
-type DocumentRow = { localId: string; file: File; categories: number[] };
+type DocumentRow = { localId: string; file: File; categories: string[] };
 
 /** Server errors for the last submit, by the id of the row each belongs to. */
 type ServerErrors = Record<string, Record<string, unknown>>;
@@ -156,12 +156,12 @@ export function NewKnowledgePage() {
   const [selectedPageUrls, setSelectedPageUrls] = useState<string[]>([]);
   // The categories of each page ticked from a scan, by its address.
   const [pageCategories, setPageCategories] = useState<
-    Record<string, number[]>
+    Record<string, string[]>
   >({});
   const [documents, setDocuments] = useState<DocumentRow[]>([]);
   const [faqRows, setFaqRows] = useState<FaqRow[]>([emptyFaqRow()]);
   // One set of categories for every question added together.
-  const [faqCategories, setFaqCategories] = useState<number[]>([]);
+  const [faqCategories, setFaqCategories] = useState<string[]>([]);
 
   const [showErrors, setShowErrors] = useState(false);
   const [banner, setBanner] = useState<string | null>(null);
@@ -279,7 +279,7 @@ export function NewKnowledgePage() {
 
     if (source === "url") {
       // Each page carries its own categories, which replace the request's.
-      const withCategories = (categories: number[]) =>
+      const withCategories = (categories: string[]) =>
         categories.length > 0 ? { knowledge_categories: categories } : {};
       items = selectedPageUrls.map((url) => {
         const title = scannedTitle(url);
@@ -622,8 +622,8 @@ function WebsiteContent({
   selectedPageUrls: string[];
   onSelectedPageUrlsChange: (next: string[]) => void;
   /** The categories of each ticked page, by its address. */
-  pageCategories: Record<string, number[]>;
-  onPageCategoriesChange: (next: Record<string, number[]>) => void;
+  pageCategories: Record<string, string[]>;
+  onPageCategoriesChange: (next: Record<string, string[]>) => void;
   categoryOptions: KnowledgeCategoryOption[];
   categoriesLoading: boolean;
   /** Most pages that can be ticked from a site scan. */
@@ -910,8 +910,8 @@ function FaqContent({
   rows: FaqRow[];
   onRowsChange: (next: FaqRow[]) => void;
   /** The categories every question added here is filed under. */
-  categories: number[];
-  onCategoriesChange: (next: number[]) => void;
+  categories: string[];
+  onCategoriesChange: (next: string[]) => void;
   categoryOptions: KnowledgeCategoryOption[];
   categoriesLoading: boolean;
   showErrors: boolean;

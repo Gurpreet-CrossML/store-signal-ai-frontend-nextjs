@@ -24,8 +24,8 @@ import {
 
 type BrandVoiceTonePresetSelectorProps = {
   presets: readonly TonePresetRecord[];
-  activePreset: number;
-  onSelect: (presetId: number) => void;
+  activePreset: number | string;
+  onSelect: (presetId: string) => void;
   /** Grid overrides; the default columns assume a full-width page. */
   className?: string;
 };
@@ -56,7 +56,7 @@ export default function BrandVoiceTonePresetSelector({
             selection also missed the presets arriving from the API. */}
         <RadioGroup
           value={activePreset.toString()}
-          onValueChange={(value) => onSelect(parseInt(value, 10))}
+          onValueChange={(value) => onSelect(value)}
           className={cn(
             "grid grid-cols-1 gap-3 sm:grid-cols-4 2xl:grid-cols-6",
             className,

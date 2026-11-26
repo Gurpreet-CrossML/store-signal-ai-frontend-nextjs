@@ -1,13 +1,13 @@
 /** Local UI shapes for the customization screen (mapped to the widget API on save). */
 
 export type ActionButton = {
-  id?: number;
+  id?: string;
   name: string;
   message: string;
 };
 
 export type QuickLinkItem = {
-  id?: number;
+  id?: string;
   label: string;
   url: string;
   priority: number;

@@ -188,7 +188,7 @@ export type PolicySuggestion = {
 
 /** One change to the workflow, for the Activity tab. */
 export type PolicyActivity = {
-  id: number;
+  id: string;
   kind:
     | "status_changed"
     | "policy_added"
@@ -298,7 +298,7 @@ function takePage<T>(
   list: PagedList<T>,
   arg: PageArg,
   data: Page<T>,
-  key: (item: T) => number,
+  key: (item: T) => number | string,
 ): PagedList<T> {
   const owner = `${arg.storeCode}:${arg.workflow}`;
   if (arg.page > 1 && owner !== list.owner) return list;

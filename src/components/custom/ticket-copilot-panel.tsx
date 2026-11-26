@@ -126,7 +126,7 @@ export function TicketCopilotPanel({
     dispatch(CopilotActionRun({ storeCode, ticketId, action }));
 
   const handleRate = (
-    messageId: number,
+    messageId: string,
     feedback: CopilotFeedback,
     feedbackMessage = "",
   ) =>
@@ -267,7 +267,7 @@ function AnswerCard({
 }: {
   message: CopilotMessage;
   onRate: (
-    messageId: number,
+    messageId: string,
     feedback: CopilotFeedback,
     feedbackMessage?: string,
   ) => void;
@@ -527,7 +527,7 @@ function FeedbackRow({
 }: {
   message: CopilotMessage;
   onRate: (
-    messageId: number,
+    messageId: string,
     feedback: CopilotFeedback,
     feedbackMessage?: string,
   ) => void;

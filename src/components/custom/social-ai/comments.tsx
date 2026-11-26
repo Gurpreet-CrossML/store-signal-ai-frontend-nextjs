@@ -138,8 +138,8 @@ function CommentItem({
   // The post's external Graph id — the URL scope for comment actions.
   postId: string;
   nested?: boolean;
-  onDeleted: (commentId: number) => void;
-  onHiddenChange: (commentId: number, isHidden: boolean) => void;
+  onDeleted: (commentId: string) => void;
+  onHiddenChange: (commentId: string, isHidden: boolean) => void;
   // True when an ancestor comment is deleted — the provider deletes the
   // whole thread with it, and the backend marks the replies in one bulk
   // update that isn't broadcast, so they're shown deleted from here.
@@ -598,7 +598,7 @@ function CommentsList({
 }: {
   // The post's external Graph id (SocialPost.external_id).
   postId: string;
-  parentId?: number;
+  parentId?: string;
   // AI-tag filters. These have no backend equivalent, so they narrow the
   // comments already fetched rather than re-querying.
   filters?: CommentFilters;
@@ -782,7 +782,7 @@ function CommentsList({
     loading,
   });
 
-  const handleCommentDeleted = (commentId: number) => {
+  const handleCommentDeleted = (commentId: string) => {
     setComments((prev) =>
       prev.map((comment) =>
         comment.id === commentId ? { ...comment, is_deleted: true } : comment,
@@ -790,7 +790,7 @@ function CommentsList({
     );
   };
 
-  const handleCommentHiddenChange = (commentId: number, isHidden: boolean) => {
+  const handleCommentHiddenChange = (commentId: string, isHidden: boolean) => {
     setComments((prev) =>
       prev.map((comment) =>
         comment.id === commentId

@@ -68,7 +68,7 @@ export type CopilotMetadata = {
 };
 
 export type CopilotMessage = {
-  id: number;
+  id: string;
   sender: CopilotSender;
   action: CopilotAction;
   message: string;

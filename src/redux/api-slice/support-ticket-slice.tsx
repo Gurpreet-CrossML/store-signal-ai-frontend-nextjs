@@ -95,7 +95,7 @@ export type SupportTicketCustomer = {
   first_name: string;
   last_name: string;
   email: string;
-  store: number | null;
+  store: string | null;
   customer_id: string;
   /** When the shopper's account was created on the platform. */
   registered_at?: string | null;
@@ -139,7 +139,7 @@ export type SlaTarget = {
 /** The SLA applied to a ticket, and the tag that triggered it. */
 export type SupportTicketSla = {
   tag: {
-    id: number;
+    id: string;
     name: string;
     color: string;
   };
@@ -149,7 +149,7 @@ export type SupportTicketSla = {
 };
 
 export type SupportTicketTagData = {
-  id?: number;
+  id?: string;
   name: string;
   color: string;
   description: string;
@@ -193,13 +193,13 @@ export type SupportTicketTranslateResponse = {
 };
 
 type SupportTicketAssignee = {
-  id: number;
+  id: string;
   name: string;
   email: string;
 };
 
 type SupportTicketMessageAttachments = {
-  id: number;
+  id: string;
   file: string;
   file_url: string;
   content_type: string;
@@ -207,10 +207,10 @@ type SupportTicketMessageAttachments = {
 };
 
 export type SupportTicketMessage = {
-  id: number;
+  id: string;
   message: string;
   message_type: SupportTicketMessageType;
-  agent: number;
+  agent: string;
   sender_type: SupportTicketMessageSenderType;
   message_direction: SupportTicketMessageDirection;
   platform: SupportTicketPlatfrom;
@@ -230,9 +230,9 @@ export type SupportTicketMessage = {
 };
 
 export type SupportTicketDraftMessage = {
-  id: number;
+  id: string;
   ticket: string;
-  agent: number;
+  agent: string;
   message: string;
   draft_type: SupportTicketDraftType;
 };
@@ -315,7 +315,7 @@ export type SupportTicketFilterCountItem = {
 
 /** One of the store's active tags, with how many tickets carry it. */
 export type SupportTicketFilterCountTag = {
-  id: number;
+  id: string;
   name: string;
   color: string;
   count: number;
@@ -345,7 +345,7 @@ export type SupportTicketsResponse = {
 };
 
 type SupportTicketStaffAssignData = {
-  internal_assignee: number | null;
+  internal_assignee: string | null;
 };
 
 export const FetchSupportTickets = createAsyncThunk<
@@ -750,7 +750,7 @@ export const SupportTicketTagAssign = createAsyncThunk(
       storeCode,
       ticketId,
       tagId,
-    }: { storeCode: string; ticketId: string; tagId: number },
+    }: { storeCode: string; ticketId: string; tagId: string },
     thunkAPI,
   ) => {
     try {
@@ -782,7 +782,7 @@ export const SupportTicketTagRemove = createAsyncThunk(
       storeCode,
       ticketId,
       tagId,
-    }: { storeCode: string; ticketId: string; tagId: number },
+    }: { storeCode: string; ticketId: string; tagId: string },
     thunkAPI,
   ) => {
     try {
@@ -917,7 +917,7 @@ export async function fetchSimilarTicketTags({
   storeCode: string;
   name: string;
   /** The tag being renamed, which must not match itself. */
-  excludeId?: number;
+  excludeId?: string;
   signal?: AbortSignal;
 }): Promise<SupportTicketTagData[]> {
   try {
@@ -939,7 +939,7 @@ export async function fetchSimilarTicketTags({
 export const TicketTagDelete = createAsyncThunk(
   "TicketTagDelete",
   async (
-    { storeCode, tagId }: { storeCode: string; tagId: number },
+    { storeCode, tagId }: { storeCode: string; tagId: string },
     thunkAPI,
   ) => {
     try {
@@ -999,7 +999,7 @@ export const TicketTagUpdate = createAsyncThunk(
       storeCode,
       tagId,
       payload,
-    }: { storeCode: string; tagId: number; payload: SupportTicketTagData },
+    }: { storeCode: string; tagId: string; payload: SupportTicketTagData },
     thunkAPI,
   ) => {
     try {
@@ -1320,7 +1320,7 @@ export const CopilotMessageRate = createAsyncThunk<
   {
     storeCode: string;
     ticketId: string;
-    messageId: number;
+    messageId: string;
     feedback: CopilotFeedback;
     feedbackMessage?: string;
   }

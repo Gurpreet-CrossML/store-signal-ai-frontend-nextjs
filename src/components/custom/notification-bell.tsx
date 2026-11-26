@@ -239,7 +239,7 @@ export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<NotificationTab>("unread");
   // Ids pushed live this session; only these rows animate in.
-  const [liveIds, setLiveIds] = useState<ReadonlySet<number>>(new Set());
+  const [liveIds, setLiveIds] = useState<ReadonlySet<string>>(new Set());
 
   const counts = useAppSelector(
     (state) =>
