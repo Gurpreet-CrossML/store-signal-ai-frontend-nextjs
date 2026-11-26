@@ -199,9 +199,7 @@ export default function CampaignCreate({
     if (campaignId) {
       try {
         const [c, stepsResponse] = await Promise.all([
-          dispatch(
-            fetchCampaignDetail({ storeCode, campaignId }),
-          ).unwrap(),
+          dispatch(fetchCampaignDetail({ storeCode, campaignId })).unwrap(),
           dispatch(
             fetchCampaignSequenceSteps({
               storeCode,
@@ -376,8 +374,7 @@ export default function CampaignCreate({
       segment: segmentId,
       continuous_entry: continuousEntry,
       sequence_steps: steps.map((s, index) => ({
-        whatsapp_template:
-          s.channel === "whatsapp" ? s.templateId : null,
+        whatsapp_template: s.channel === "whatsapp" ? s.templateId : null,
         email_template: s.channel === "email" ? s.templateId : null,
         // First step's start_time is overridden by the backend to the
         // campaign's own start_time; sending it just to satisfy the required

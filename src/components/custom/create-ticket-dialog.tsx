@@ -365,9 +365,7 @@ export function CreateTicketDialog({
         ...(values.tagNames.length
           ? { tags: values.tagNames.map((name) => ({ name })) }
           : {}),
-        ...(values.orderId !== NO_ORDER
-          ? { order: values.orderId }
-          : {}),
+        ...(values.orderId !== NO_ORDER ? { order: values.orderId } : {}),
       };
 
       const result = await onSubmit(payload);

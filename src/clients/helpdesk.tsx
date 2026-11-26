@@ -1985,9 +1985,7 @@ export default function HelpDesk() {
   // narrow screens never open a ticket on their own — see the first-ticket
   // default in the list fetch — so an id in the URL means the user chose it.
   const [portraitView, setPortraitView] = useState<"list" | "conversation">(
-    linkedTicketId
-      ? "conversation"
-      : "list",
+    linkedTicketId ? "conversation" : "list",
   );
   // In the store rather than here: the left panel counts the tickets of this
   // tab only.
@@ -2158,10 +2156,7 @@ export default function HelpDesk() {
   // alone, so the ticket does not have to be on the loaded page — which is
   // the point, since the link may arrive from another screen entirely.
   const [seededTicketId, setSeededTicketId] = useState<string | null>(null);
-  if (
-    linkedTicketId &&
-    seededTicketId !== linkedTicketId
-  ) {
+  if (linkedTicketId && seededTicketId !== linkedTicketId) {
     setSeededTicketId(linkedTicketId);
     setActiveTicketId(linkedTicketId);
   }
