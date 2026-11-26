@@ -1,14 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { IconSearch, IconX } from "@tabler/icons-react";
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table";
+import type { ReadonlyURLSearchParams } from "next/navigation";
 
 import { DataTable } from "@/components/custom/data-table";
 import { getOrderColumns } from "@/components/custom/crm/orders-columns";
 import {
   EMPTY_ORDER_FILTERS,
+  FINANCIAL_STATUSES,
+  FULFILLMENT_STATUSES,
   OrderFilterPopover,
   countActiveOrderFilters,
   type OrderFilterSelection,
@@ -47,9 +50,40 @@ function numeric(value: string) {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
+// The applied filters live in the URL (same names the API takes), so they can
+// be seen, shared and survive a refresh.
+function filtersFromParams(
+  params: ReadonlyURLSearchParams | null,
+): OrderFilterSelection {
+  if (!params) return EMPTY_ORDER_FILTERS;
+  const known = (list: readonly { value: string }[], key: string) =>
+    params.getAll(key).filter((v) => list.some((o) => o.value === v));
+  return {
+    financialStatuses: known(FINANCIAL_STATUSES, "financial_status"),
+    fulfillmentStatuses: known(FULFILLMENT_STATUSES, "fulfillment_status"),
+    totalMin: params.get("total_min") ?? "",
+    totalMax: params.get("total_max") ?? "",
+    createdFrom: params.get("created_from") ?? "",
+    createdTo: params.get("created_to") ?? "",
+    money:
+      params.get("has_outstanding") === "true"
+        ? "outstanding"
+        : params.get("has_refund") === "true"
+          ? "refunded"
+          : "any",
+    cancelled:
+      params.get("cancelled") === "true"
+        ? "yes"
+        : params.get("cancelled") === "false"
+          ? "no"
+          : "any",
+  };
+}
+
 export default function Orders() {
   const dispatch = useAppDispatch();
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
 
   // Set when arriving from a customer's page, so the list opens scoped to
@@ -76,12 +110,19 @@ export default function Orders() {
   const [debouncedSearch, setDebouncedSearch] = useState(
     () => searchParams?.get("search")?.trim() ?? "",
   );
-  const [ordering, setOrdering] = useState<OrderOrdering>("-created_at");
+  const [ordering, setOrdering] = useState<OrderOrdering>(() => {
+    const value = searchParams?.get("ordering");
+    return SORT_OPTIONS.some((o) => o.value === value)
+      ? (value as OrderOrdering)
+      : "-created_at";
+  });
 
-  const [draftFilters, setDraftFilters] =
-    useState<OrderFilterSelection>(EMPTY_ORDER_FILTERS);
-  const [appliedFilters, setAppliedFilters] =
-    useState<OrderFilterSelection>(EMPTY_ORDER_FILTERS);
+  const [draftFilters, setDraftFilters] = useState<OrderFilterSelection>(() =>
+    filtersFromParams(searchParams),
+  );
+  const [appliedFilters, setAppliedFilters] = useState<OrderFilterSelection>(
+    () => filtersFromParams(searchParams),
+  );
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   useEffect(() => {
@@ -124,6 +165,39 @@ export default function Orders() {
     [appliedFilters, customerId, debouncedSearch, ordering],
   );
 
+  // Mirror the search, sort and applied filters into the URL.
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (customerId) params.set("customer", String(customerId));
+    if (debouncedSearch) params.set("search", debouncedSearch);
+    if (ordering !== "-created_at") params.set("ordering", ordering);
+    for (const [key, value] of Object.entries(requestFilters)) {
+      if (["search", "customer", "ordering"].includes(key)) continue;
+      if (value === undefined) continue;
+      if (Array.isArray(value)) value.forEach((v) => params.append(key, v));
+      else params.set(key, String(value));
+    }
+
+    // The request carries whole-day timestamps; the URL keeps the picked day.
+    if (appliedFilters.createdFrom)
+      params.set("created_from", appliedFilters.createdFrom);
+    if (appliedFilters.createdTo)
+      params.set("created_to", appliedFilters.createdTo);
+    const query = params.toString();
+    if (query === (searchParams?.toString() ?? "")) return;
+    router.replace(query ? `${pathname}?${query}` : pathname, {
+      scroll: false,
+    });
+  }, [
+    appliedFilters,
+    customerId,
+    debouncedSearch,
+    ordering,
+    pathname,
+    requestFilters,
+    router,
+    searchParams,
+  ]);
   useEffect(() => {
     if (!storeCode) return;
     dispatch(
