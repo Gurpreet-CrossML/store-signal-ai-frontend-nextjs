@@ -26,6 +26,14 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useIsBelowLg } from "@/hooks/use-narrow-viewport";
 import { KNOWLEDGE_UNANSWERED_PAGE_SIZE } from "@/lib/config";
@@ -258,37 +266,90 @@ function WorkflowQuestions({
           </EmptyHeader>
         </Empty>
       ) : (
-        <ul
+        <div
           aria-busy={isRefreshing}
           className={cn(
-            "divide-y rounded-lg border transition-opacity",
+            "rounded-lg border transition-opacity",
             isRefreshing && "opacity-60",
           )}
         >
-          {questions.map((item) => (
-            <li key={item.id} className="flex flex-col gap-2 px-3 py-3">
-              <div className="flex items-start justify-between gap-3">
-                <p className="min-w-0 text-sm font-medium">{item.question}</p>
-                <AskQuestionButton
-                  question={item.question}
-                  onAsk={onAsk}
-                  disabled={isAsking}
-                />
-              </div>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground">
-                <span>{formatDateTime(item.askedAt)}</span>
-                <Link
-                  href={getThreadHref(item.threadId, item.threadIsActive)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-medium text-primary hover:underline"
-                >
-                  View Chat
-                </Link>
-              </div>
-            </li>
-          ))}
-        </ul>
+          {/* Narrow panel (phone or tablet drawer): a card per question. */}
+          <ul className="divide-y @3xl/tabs:hidden">
+            {questions.map((item, index) => (
+              <li key={item.id} className="flex flex-col gap-2 p-3">
+                <div className="flex items-start gap-2">
+                  <span className="mt-0.5 w-6 shrink-0 text-sm text-muted-foreground tabular-nums">
+                    {(page - 1) * pageSize + index + 1}.
+                  </span>
+                  <p className="min-w-0 flex-1 text-sm leading-snug font-medium break-words">
+                    {item.question}
+                  </p>
+                  <AskQuestionButton
+                    question={item.question}
+                    onAsk={onAsk}
+                    disabled={isAsking}
+                  />
+                </div>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pl-8 text-xs">
+                  <span className="text-muted-foreground">
+                    {formatDateTime(item.askedAt)}
+                  </span>
+                  <Link
+                    href={getThreadHref(item.threadId, item.threadIsActive)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-primary hover:underline"
+                  >
+                    View Chat
+                  </Link>
+                </div>
+              </li>
+            ))}
+          </ul>
+          <Table containerClassName="hidden @3xl/tabs:block">
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="w-12">#</TableHead>
+                <TableHead>Question</TableHead>
+                <TableHead>Asked</TableHead>
+                <TableHead>Chat</TableHead>
+                <TableHead className="w-24 text-right">Action</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {questions.map((item, index) => (
+                <TableRow key={item.id}>
+                  <TableCell className="text-muted-foreground tabular-nums">
+                    {(page - 1) * pageSize + index + 1}
+                  </TableCell>
+                  <TableCell className="font-medium whitespace-normal">
+                    {item.question}
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {formatDateTime(item.askedAt)}
+                  </TableCell>
+                  <TableCell className="text-xs">
+                    <Link
+                      href={getThreadHref(item.threadId, item.threadIsActive)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium text-primary hover:underline"
+                    >
+                      View Chat
+                    </Link>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <AskQuestionButton
+                      question={item.question}
+                      onAsk={onAsk}
+                      disabled={isAsking}
+                    />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       )}
 
       <QuestionsDataTablePagination
