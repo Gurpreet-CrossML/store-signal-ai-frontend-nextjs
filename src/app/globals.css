@@ -241,6 +241,28 @@ div#markdown-message-bubble a {
   text-decoration: revert;
 }
 
+/* A table in an AI reply (copied from the store's knowledge): bordered
+   cells, and a wide one scrolls sideways inside the bubble. */
+div#markdown-message-bubble table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  margin: 0.5rem 0;
+  font-size: 0.875rem;
+}
+div#markdown-message-bubble th,
+div#markdown-message-bubble td {
+  border: 1px solid var(--border);
+  padding: 0.25rem 0.5rem;
+  text-align: start;
+  white-space: nowrap;
+}
+div#markdown-message-bubble th {
+  background: var(--muted);
+  font-weight: 600;
+}
+
 /* ---------------------------------------------------------------------------
    Rich text editor (Tiptap)
 
