@@ -590,6 +590,7 @@ export default function Tags() {
       >
         <DialogContent
           className="sm:max-w-[400px]"
+          showCloseButton={false}
           onInteractOutside={(event) => event.preventDefault()}
           onEscapeKeyDown={(event) => event.preventDefault()}
         >
@@ -767,6 +768,13 @@ export default function Tags() {
                 </div>
 
                 <DialogFooter>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setDialogOpen(false)}
+                  >
+                    Cancel
+                  </Button>
                   <Button
                     type="submit"
                     disabled={
