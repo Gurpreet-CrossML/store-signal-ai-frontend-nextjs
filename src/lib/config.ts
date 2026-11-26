@@ -222,7 +222,7 @@ export const ENDPOINTS = {
   // the store's AI did on each, and the questions the AI couldn't answer. Django.
   fetchTestQuestions: () => `/knowledge/test-questions/`,
   // PATCH a good/bad rating on the AI's latest answer to a test question.
-  testQuestionFeedback: (id: number) =>
+  testQuestionFeedback: (id: string) =>
     `/knowledge/test-questions/${id}/feedback/`,
   fetchUnansweredQuestions: () => `/chat/unanswered-questions/`,
   // The workflows that left customer questions unanswered, with how many each left.

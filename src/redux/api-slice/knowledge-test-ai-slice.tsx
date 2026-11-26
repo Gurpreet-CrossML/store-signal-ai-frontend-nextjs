@@ -35,7 +35,7 @@ export type TestQuestion = {
 };
 
 type ApiTestQuestion = {
-  id: number;
+  id: string;
   question: string;
   category: TestQuestion["category"];
   status: TestQuestionStatus | null;
@@ -105,7 +105,7 @@ export type TestMessage = {
    * to rate it with. Null when the question was typed, not one of the test
    * questions.
    */
-  testQuestionId: number | null;
+  testQuestionId: string | null;
   /** AI messages only: the rating the user gave this answer. */
   feedback: TestFeedback | null;
 };
@@ -116,7 +116,7 @@ type ApiTestAnswer = {
   citations: TestMessage["citations"];
   products: ProductData[];
   confidence: number | null;
-  test_question_id: number | null;
+  test_question_id: string | null;
 };
 
 export type UnansweredQuestionList = {
@@ -361,7 +361,7 @@ export const SetTestAnswerFeedback = createAsyncThunk(
       storeCode: string;
       /** The chat message the rating is shown on. */
       messageId: string;
-      testQuestionId: number;
+      testQuestionId: string;
       feedback: TestFeedback | null;
       /** The rating before this one, to go back to if saving fails. */
       previous: TestFeedback | null;
@@ -394,7 +394,7 @@ function setAnswerFeedback(
       FetchTestQuestionsData: TestQuestionList | null;
     };
   },
-  target: { messageId: string; testQuestionId: number },
+  target: { messageId: string; testQuestionId: string },
   feedback: TestFeedback | null,
 ) {
   const message = state.TestChatState.TestChatItems.find(
