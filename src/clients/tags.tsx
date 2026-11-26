@@ -216,7 +216,7 @@ export default function Tags() {
     return value && TAG_TYPE_FILTERS.includes(value) ? value : ALL_TYPES;
   });
 
-  const hasActiveFilters = !!searchInput || typeFilter !== ALL_TYPES;
+  const hasActiveFilters = typeFilter !== ALL_TYPES;
   const clearFilters = () => {
     // Set the debounced value too, so the list updates now instead of after
     // the search box's pause.
@@ -516,8 +516,8 @@ export default function Tags() {
             <SearchInput
               value={searchInput}
               onChange={setSearchInput}
-              placeholder="Search tags…"
-              label="Search tags"
+              placeholder="Search by tag name…"
+              label="Search tags by name"
               className="w-full max-w-xs"
             />
             <Select
@@ -588,7 +588,11 @@ export default function Tags() {
           }
         }}
       >
-        <DialogContent className="sm:max-w-[400px]">
+        <DialogContent
+          className="sm:max-w-[400px]"
+          onInteractOutside={(event) => event.preventDefault()}
+          onEscapeKeyDown={(event) => event.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle>{editingTag ? "Edit Tag" : "Add Tag"}</DialogTitle>
           </DialogHeader>
@@ -763,13 +767,6 @@ export default function Tags() {
                 </div>
 
                 <DialogFooter>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setDialogOpen(false)}
-                  >
-                    Cancel
-                  </Button>
                   <Button
                     type="submit"
                     disabled={
