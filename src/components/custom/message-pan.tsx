@@ -5,10 +5,16 @@ import {
   CartItem,
   ClarifyingQuestion,
   HandlerEvent,
+  PickerPick,
   ThreadMessage,
 } from "@/redux/api-slice/thread-slice";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import ReactMarkdown from "react-markdown";
+import { gfmTable } from "micromark-extension-gfm-table";
+import { gfmTableFromMarkdown } from "mdast-util-gfm-table";
+import type { Processor } from "unified";
+// Types only: registers the extension lists on unified's Data (as remark-gfm does).
+import type {} from "remark-parse";
 import { formatDateTime } from "@/lib/helpers";
 import { CreditLabel } from "@/components/custom/credit-label";
 import { MessageAppear } from "@/components/custom/message-appear";
@@ -38,6 +44,14 @@ import { InfoIcon } from "@/components/custom/info-icon";
 import { cn } from "@/lib/utils";
 import { Spinner } from "../ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
+
+// Markdown tables only. Full remark-gfm would also turn bare emails and URLs
+// in old messages into links, which the dashboard never showed before.
+function remarkTables(this: Processor) {
+  const data = this.data();
+  (data.micromarkExtensions ??= []).push(gfmTable());
+  (data.fromMarkdownExtensions ??= []).push(gfmTableFromMarkdown());
+}
 
 /** "You" when `email` is the signed-in user, otherwise their name. */
 function whoIs(
@@ -205,6 +219,99 @@ function SuggestedReplies({
   );
 }
 
+/**
+ * What the customer picked on each question card: the picks stored on their
+ * next message (the backend keeps them as picker_answer).
+ *
+ * Args:
+ *   messages: The chat's messages, in order.
+ *
+ * Returns:
+ *   The picks, by the id of the assistant message that showed the card.
+ */
+function pickerAnswers(messages: ThreadMessage[]) {
+  const answers = new Map<ThreadMessage["id"], PickerPick[]>();
+  messages.forEach((message, index) => {
+    if (
+      message.role !== "assistant" ||
+      !message.json_content?.questions?.length
+    )
+      return;
+    const reply = messages.slice(index + 1).find((m) => m.role === "user");
+    const picks = reply?.json_content?.picker_answer;
+    if (picks?.length) answers.set(message.id, picks);
+  });
+  return answers;
+}
+
+/**
+ * The question card the shopper saw, drawn like the widget's, with what they
+ * picked ticked and, for a return's item picker, each item's reason.
+ *
+ * Args:
+ *   questions: The card's questions.
+ *   answer: What the customer picked, when they used the card.
+ */
+function QuestionCardView({
+  questions,
+  answer,
+}: {
+  questions: ClarifyingQuestion[];
+  answer?: PickerPick[];
+}) {
+  const picked = new Map((answer ?? []).map((pick) => [pick.item, pick]));
+  return (
+    <div className="mt-2 flex w-full max-w-sm flex-col gap-4 rounded-xl border border-border bg-background p-3">
+      {questions.map((question, idx) => (
+        <div key={idx}>
+          <span className="text-xs text-muted-foreground">
+            {idx + 1} of {questions.length}
+          </span>
+          <p className="mb-2.5 mt-1 text-sm font-semibold text-foreground">
+            {question.question}
+          </p>
+          <div className="flex flex-col gap-1.5">
+            {question.options.map((option) => {
+              const pick = idx === 0 ? picked.get(option) : undefined;
+              return (
+                <div
+                  key={option}
+                  className={cn(
+                    "flex items-start gap-2.5 rounded-[10px] border px-3 py-2 text-[13px] text-foreground",
+                    pick
+                      ? "border-primary bg-primary/10"
+                      : "border-border bg-secondary",
+                  )}
+                >
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "mt-0.5 size-4 shrink-0 border-[1.5px]",
+                      question.multi_select ? "rounded" : "rounded-full",
+                      pick
+                        ? "border-primary bg-primary shadow-[inset_0_0_0_3px_var(--background)]"
+                        : "border-muted-foreground",
+                    )}
+                  />
+                  <span className="flex min-w-0 flex-col gap-0.5">
+                    <span>{option}</span>
+                    {pick?.label && (
+                      <span className="text-xs text-muted-foreground [overflow-wrap:anywhere]">
+                        Reason: {pick.label}
+                        {pick.note ? ` – ${pick.note}` : ""}
+                      </span>
+                    )}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function MessagePan({
   messages,
   handlerEvents,
@@ -224,6 +331,8 @@ export function MessagePan({
   replyWithAILoadingId?: string | number | null;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  // What the customer picked on each question card (picker_answer).
+  const answers = pickerAnswers(messages);
   const { data: session } = useSession();
   const me = session?.user?.email;
   const [showAllMessages, setShowAllMessages] = useState(false);
@@ -509,7 +618,9 @@ export function MessagePan({
                       which pushed the whole pane into sideways scrolling. */}
                   <div className="flex min-w-0 flex-1 flex-col">
                     <div className="mb-1 flex flex-wrap items-center gap-x-2 justify-start">
-                      <span className="text-sm font-semibold text-foreground capitalize">
+                      <span
+                        className={`text-sm font-semibold text-foreground ${senderLabel.includes("@") ? "" : "capitalize"}`}
+                      >
                         {senderLabel}
                       </span>
                       {!isCustomer && isStoreSignalAI ? (
@@ -544,7 +655,7 @@ export function MessagePan({
                             ) {
                               return (
                                 <>
-                                  <ReactMarkdown>
+                                  <ReactMarkdown remarkPlugins={[remarkTables]}>
                                     {message.message}
                                   </ReactMarkdown>
                                   <div className="mt-3">
@@ -558,7 +669,9 @@ export function MessagePan({
 
                             // Strategy 2: plain markdown fallback
                             return (
-                              <ReactMarkdown>{message.message}</ReactMarkdown>
+                              <ReactMarkdown remarkPlugins={[remarkTables]}>
+                                {message.message}
+                              </ReactMarkdown>
                             );
                           })()
                         ) : (
@@ -700,43 +813,14 @@ export function MessagePan({
                       )}
 
                     {/* The question card the shopper saw, drawn like the widget's,
-                    so agents can read their compiled answer ("Show "Watches"")
-                    in context. */}
+                    with what they picked (and each item's reason) ticked. */}
                     {message.role === "assistant" &&
                       message.json_content?.questions &&
                       message.json_content.questions.length > 0 && (
-                        <div className="mt-2 flex w-full max-w-sm flex-col gap-4 rounded-xl border border-border bg-background p-3">
-                          {message.json_content.questions.map(
-                            (
-                              question: ClarifyingQuestion,
-                              idx: number,
-                              all: ClarifyingQuestion[],
-                            ) => (
-                              <div key={idx}>
-                                <span className="text-xs text-muted-foreground">
-                                  {idx + 1} of {all.length}
-                                </span>
-                                <p className="mb-2.5 mt-1 text-sm font-semibold text-foreground">
-                                  {question.question}
-                                </p>
-                                <div className="flex flex-col gap-1.5">
-                                  {question.options.map((option) => (
-                                    <div
-                                      key={option}
-                                      className="flex items-center gap-2.5 rounded-[10px] border border-border bg-secondary px-3 py-2 text-[13px] text-foreground"
-                                    >
-                                      <span
-                                        aria-hidden="true"
-                                        className={`size-4 shrink-0 border-[1.5px] border-muted-foreground ${question.multi_select ? "rounded" : "rounded-full"}`}
-                                      />
-                                      <span>{option}</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            ),
-                          )}
-                        </div>
+                        <QuestionCardView
+                          questions={message.json_content.questions}
+                          answer={answers.get(message.id)}
+                        />
                       )}
 
                     {message.role === "assistant" && (
@@ -844,6 +928,8 @@ export function LiveMessagePan({
   replyWithAILoadingId?: string | number | null;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  // What the customer picked on each question card (picker_answer).
+  const answers = pickerAnswers(messages);
   const { data: session } = useSession();
   const me = session?.user?.email;
 
@@ -1063,7 +1149,9 @@ export function LiveMessagePan({
                     <div
                       className={`flex w-full flex-wrap items-center gap-x-2 mb-1 ${isCustomer ? "justify-start" : "justify-end"}`}
                     >
-                      <span className="text-xs font-medium text-foreground capitalize">
+                      <span
+                        className={`text-xs font-medium text-foreground ${senderLabel.includes("@") ? "" : "capitalize"}`}
+                      >
                         {senderLabel}
                       </span>
                       <span className="text-xs text-muted-foreground">
@@ -1094,7 +1182,7 @@ export function LiveMessagePan({
                             ) {
                               return (
                                 <>
-                                  <ReactMarkdown>
+                                  <ReactMarkdown remarkPlugins={[remarkTables]}>
                                     {message.message}
                                   </ReactMarkdown>
                                   <div className="mt-3">
@@ -1108,7 +1196,9 @@ export function LiveMessagePan({
 
                             // Strategy 2: plain markdown fallback
                             return (
-                              <ReactMarkdown>{message.message}</ReactMarkdown>
+                              <ReactMarkdown remarkPlugins={[remarkTables]}>
+                                {message.message}
+                              </ReactMarkdown>
                             );
                           })()
                         ) : (
@@ -1250,43 +1340,14 @@ export function LiveMessagePan({
                       )}
 
                     {/* The question card the shopper saw, drawn like the widget's,
-                    so agents can read their compiled answer ("Show "Watches"")
-                    in context. */}
+                    with what they picked (and each item's reason) ticked. */}
                     {message.role === "assistant" &&
                       message.json_content?.questions &&
                       message.json_content.questions.length > 0 && (
-                        <div className="mt-2 flex w-full max-w-sm flex-col gap-4 rounded-xl border border-border bg-background p-3">
-                          {message.json_content.questions.map(
-                            (
-                              question: ClarifyingQuestion,
-                              idx: number,
-                              all: ClarifyingQuestion[],
-                            ) => (
-                              <div key={idx}>
-                                <span className="text-xs text-muted-foreground">
-                                  {idx + 1} of {all.length}
-                                </span>
-                                <p className="mb-2.5 mt-1 text-sm font-semibold text-foreground">
-                                  {question.question}
-                                </p>
-                                <div className="flex flex-col gap-1.5">
-                                  {question.options.map((option) => (
-                                    <div
-                                      key={option}
-                                      className="flex items-center gap-2.5 rounded-[10px] border border-border bg-secondary px-3 py-2 text-[13px] text-foreground"
-                                    >
-                                      <span
-                                        aria-hidden="true"
-                                        className={`size-4 shrink-0 border-[1.5px] border-muted-foreground ${question.multi_select ? "rounded" : "rounded-full"}`}
-                                      />
-                                      <span>{option}</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            ),
-                          )}
-                        </div>
+                        <QuestionCardView
+                          questions={message.json_content.questions}
+                          answer={answers.get(message.id)}
+                        />
                       )}
 
                     {message.role === "assistant" && (

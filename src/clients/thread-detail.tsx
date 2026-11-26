@@ -577,8 +577,15 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
     threadMessages.find((message) => message.message_type === "user_message")
       ?.message ||
     "Conversation";
+  const customerEmail = details?.customer_email?.trim().toLowerCase();
+  const storedCustomerName = details?.customer_name?.trim();
+  // Older threads can have the email copied into customer_name. Display that
+  // identity as a normalised email, while retaining a genuine customer name.
   const customerName =
-    details?.customer_name || details?.customer_email || "Guest";
+    storedCustomerName &&
+    storedCustomerName.toLowerCase() !== customerEmail?.toLowerCase()
+      ? storedCustomerName
+      : customerEmail || storedCustomerName || "Guest";
   // No profile, name or email: an anonymous visitor, so the Customer card has
   // nothing to show and is hidden. Waits for the thread so it never flashes.
   const isGuest =
@@ -827,7 +834,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
                 <p className="font-semibold">{customerName}</p>
               )}
               <CustomerContact
-                email={details?.customer_email}
+                email={customerEmail}
                 phone={details?.customer?.phone}
                 orders={FetchOrderData}
               />

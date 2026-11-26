@@ -1,9 +1,12 @@
 "use client";
 
+import Link from "next/link";
+import type { ReactNode } from "react";
 import {
   IconArticle,
   IconBolt,
   IconCheck,
+  IconCircleCheck,
   IconFileText,
   IconGlobe,
   IconMessageQuestion,
@@ -12,6 +15,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { Typography } from "@/components/ui/typography";
 import { cn } from "@/lib/utils";
 
 /** What can be added. Articles open the editor; the rest continue here. */
@@ -297,3 +301,40 @@ export const SOURCE_META: Record<
     tone: "bg-orange-50 text-orange-600 dark:bg-orange-950/40",
   },
 };
+
+/**
+ * The last step after something was added: what was added, an optional notice
+ * (e.g. some items didn't fit the storage), and the way on to Knowledge or to
+ * add more. Shared by every kind of knowledge, articles included.
+ */
+export function KnowledgeAddedScreen({
+  title,
+  description,
+  notice,
+  onAddMore,
+}: {
+  title: string;
+  description: string;
+  /** Shown between the title and the description, if there is one. */
+  notice?: ReactNode;
+  onAddMore: () => void;
+}) {
+  return (
+    <div className="mx-auto flex max-w-lg flex-1 flex-col items-center justify-center gap-3 py-10 text-center">
+      <IconCircleCheck className="size-12 text-emerald-500" />
+      <Typography variant="h4" as="h2">
+        {title}
+      </Typography>
+      {notice}
+      <Typography variant="muted">{description}</Typography>
+      <div className="mt-2 flex flex-wrap justify-center gap-2">
+        <Button asChild>
+          <Link href="/knowledge">View In Knowledge</Link>
+        </Button>
+        <Button type="button" variant="outline" onClick={onAddMore}>
+          Add More
+        </Button>
+      </div>
+    </div>
+  );
+}
