@@ -235,18 +235,33 @@ const ROUTES: [RegExp, { record?: string; hints?: KeyHints }][] = [
     /^\/api\/analytics\/threads\/[^/]+\/?$/,
     { record: "chat.Thread", hints: { messages: "chat.ChatHistory" } },
   ],
-  [/^\/api\/analytics\/threads\/[^/]+\/order-data\/?$/, { record: "chat.CustomerOrder" }],
-  [/^\/api\/analytics\/threads\/[^/]+\/user-metadata\/?$/, { record: "analytics.UserMetadata" }],
-  [/^\/api\/analytics\/threads\/[^/]+\/ai-insights\/?$/, { record: "analytics.AiInsights" }],
+  [
+    /^\/api\/analytics\/threads\/[^/]+\/order-data\/?$/,
+    { record: "chat.CustomerOrder" },
+  ],
+  [
+    /^\/api\/analytics\/threads\/[^/]+\/user-metadata\/?$/,
+    { record: "analytics.UserMetadata" },
+  ],
+  [
+    /^\/api\/analytics\/threads\/[^/]+\/ai-insights\/?$/,
+    { record: "analytics.AiInsights" },
+  ],
   [
     /^\/api\/analytics\/threads\/[^/]+\/feedback-sequence\/?$/,
     { hints: { feedback: "chat.ChatbotFeedback" } },
   ],
-  [/^\/api\/support\/threads\/[^/]+\/tickets\/?$/, { record: "support.SupportTicket" }],
+  [
+    /^\/api\/support\/threads\/[^/]+\/tickets\/?$/,
+    { record: "support.SupportTicket" },
+  ],
   [/^\/api\/store\/list\/?$/, { record: "store.Store" }],
   [/^\/api\/chat\/tone-presets\/?$/, { record: "core.TonePreset" }],
   [/^\/api\/chat\/vocabulary-presets\/?$/, { record: "core.VocabularyPreset" }],
-  [/^\/api\/chat\/never-say-rules-presets\/?$/, { record: "core.NeverSayRulesPreset" }],
+  [
+    /^\/api\/chat\/never-say-rules-presets\/?$/,
+    { record: "core.NeverSayRulesPreset" },
+  ],
   [/^\/api\/chat\/vocabulary\/?$/, { record: "chat.Vocabulary" }],
   [/^\/api\/chat\/tone-style\/?$/, { record: "chat.ToneStyle" }],
   [/^\/api\/chat\/persona-identity\/?$/, { record: "chat.PersonaIdentity" }],
@@ -282,7 +297,13 @@ export function encodeResponse(path: string, body: Json): Json {
   ) {
     // A page: {count, …, results: […]}.
     const page = walk(data, null, 1, hints) as Record<string, Json>;
-    page.results = walk((data as { results: Json }).results, null, 1, hints, record);
+    page.results = walk(
+      (data as { results: Json }).results,
+      null,
+      1,
+      hints,
+      record,
+    );
     encoded = page;
   } else {
     encoded = walk(data, null, 1, hints, record);

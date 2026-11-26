@@ -1561,14 +1561,12 @@ function ConversationPanel({
                 previous.kind !== "message" ||
                 new Date(previous.message.created_at).toDateString() !==
                   new Date(message.created_at).toDateString();
-              const time =
-                isTempMessageId(message.id)
-                  ? "Sending…"
-                  : messageTime(message.created_at, newDay);
-              const clock =
-                isTempMessageId(message.id)
-                  ? "Sending…"
-                  : formatTicketTime(message.created_at);
+              const time = isTempMessageId(message.id)
+                ? "Sending…"
+                : messageTime(message.created_at, newDay);
+              const clock = isTempMessageId(message.id)
+                ? "Sending…"
+                : formatTicketTime(message.created_at);
               const isNote = message.message_type === "internal";
               const isAgent = !isNote && message.sender_type === "agent";
               const isSystem = message.sender_type === "system";
