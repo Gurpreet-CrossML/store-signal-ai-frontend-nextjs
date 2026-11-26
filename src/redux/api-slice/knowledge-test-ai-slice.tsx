@@ -14,10 +14,34 @@ import type { ProductData } from "@/redux/api-slice/thread-slice";
 // The Test AI page: the sample questions a store owner can try, and the
 // customer questions the AI couldn't answer.
 
-/** A sample customer question, the same for every store. */
+/** Whether the store's AI could answer a test question when it was last asked. */
+export type TestQuestionStatus = "answered" | "unanswered";
+
+/** A thumbs up (good) or down (bad) on an answer. */
+export type TestFeedback = "good" | "bad";
+
+/** A sample customer question as it stands for the selected store. */
 export type TestQuestion = {
+  /** The store's own row for the question (not the shared question's id). */
   id: number;
   question: string;
+  category: { id: number; name: string; slug: string } | null;
+  /** Null until the question has been asked. */
+  status: TestQuestionStatus | null;
+  /** How confident the latest answer was, 0 to 1; null when it has none. */
+  confidence: number | null;
+  lastAskedAt: string | null;
+  feedback: TestFeedback | null;
+};
+
+type ApiTestQuestion = {
+  id: number;
+  question: string;
+  category: TestQuestion["category"];
+  status: TestQuestionStatus | null;
+  confidence: number | null;
+  last_asked_at: string | null;
+  feedback: TestFeedback | null;
 };
 
 /** A workflow that left customer questions unanswered. */
@@ -70,6 +94,20 @@ export type TestMessage = {
   }[];
   /** AI messages only: the catalogue products the answer was based on, as the chat shows them. */
   products: ProductData[];
+  /**
+   * AI messages only: how closely the best knowledge passage used matches the
+   * question, 0 to 1. Null when no passage was used (nothing found, or an
+   * answer from products only) and on the user's own messages.
+   */
+  confidence: number | null;
+  /**
+   * AI messages only: the store's test question this answer was recorded on,
+   * to rate it with. Null when the question was typed, not one of the test
+   * questions.
+   */
+  testQuestionId: number | null;
+  /** AI messages only: the rating the user gave this answer. */
+  feedback: TestFeedback | null;
 };
 
 /** What the answer endpoint returns for one question. */
@@ -77,6 +115,8 @@ type ApiTestAnswer = {
   answer: string;
   citations: TestMessage["citations"];
   products: ProductData[];
+  confidence: number | null;
+  test_question_id: number | null;
 };
 
 export type UnansweredQuestionList = {
@@ -97,25 +137,52 @@ export const FetchTestQuestions = createAsyncThunk(
   "FetchTestQuestions",
   async (
     {
+      storeCode,
       page = 1,
       pageSize,
       search = "",
-    }: { page?: number; pageSize: number; search?: string },
+      status = "",
+      category = "",
+    }: {
+      storeCode: string;
+      page?: number;
+      pageSize: number;
+      search?: string;
+      /** "answered", "unanswered" or "not_asked"; all when empty. */
+      status?: string;
+      /** A category's slug; all when empty. */
+      category?: string;
+    },
     thunkAPI,
   ) => {
     try {
       const params = new URLSearchParams({
+        store_code: storeCode,
         page: String(page),
         page_size: String(pageSize),
       });
       if (search.trim()) params.set("search", search.trim());
+      if (status) params.set("status", status);
+      if (category) params.set("category", category);
       const response = await axiosInstance.get(
         `${ENDPOINTS.fetchTestQuestions()}?${params.toString()}`,
         { useBackend: true },
       );
-      return toPaginatedList<TestQuestion>(
-        response.data?.data,
-      ) as TestQuestionList;
+      const paginated = toPaginatedList<ApiTestQuestion>(response.data?.data);
+      return {
+        ...paginated,
+        results: paginated.results.map(
+          (item): TestQuestion => ({
+            id: item.id,
+            question: item.question,
+            category: item.category,
+            status: item.status,
+            confidence: item.confidence,
+            lastAskedAt: item.last_asked_at,
+            feedback: item.feedback,
+          }),
+        ),
+      } as TestQuestionList;
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
@@ -254,6 +321,9 @@ export const AskTestQuestion = createAsyncThunk(
           message: question,
           citations: [],
           products: [],
+          confidence: null,
+          testQuestionId: null,
+          feedback: null,
         },
         {
           id: crypto.randomUUID(),
@@ -261,6 +331,9 @@ export const AskTestQuestion = createAsyncThunk(
           message: answer.answer,
           citations: answer.citations ?? [],
           products: answer.products ?? [],
+          confidence: answer.confidence ?? null,
+          testQuestionId: answer.test_question_id ?? null,
+          feedback: null,
         },
       ] satisfies TestMessage[];
     } catch (error) {
@@ -272,6 +345,68 @@ export const AskTestQuestion = createAsyncThunk(
     }
   },
 );
+
+/**
+ * Rates the AI's answer to a test question, or clears the rating (`null`). The
+ * screen shows the rating at once; if saving fails it goes back to `previous`.
+ */
+export const SetTestAnswerFeedback = createAsyncThunk(
+  "SetTestAnswerFeedback",
+  async (
+    {
+      storeCode,
+      testQuestionId,
+      feedback,
+    }: {
+      storeCode: string;
+      /** The chat message the rating is shown on. */
+      messageId: string;
+      testQuestionId: number;
+      feedback: TestFeedback | null;
+      /** The rating before this one, to go back to if saving fails. */
+      previous: TestFeedback | null;
+    },
+    thunkAPI,
+  ) => {
+    try {
+      const params = new URLSearchParams({ store_code: storeCode });
+      await axiosInstance.patch(
+        `${ENDPOINTS.testQuestionFeedback(testQuestionId)}?${params.toString()}`,
+        { feedback },
+        { useBackend: true },
+      );
+      return feedback;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      toast.error("Couldn't save your feedback.", {
+        description: response?.data?.message || "Please try again.",
+      });
+      return thunkAPI.rejectWithValue(response?.data || null);
+    }
+  },
+);
+
+/** Shows a rating on the answer message and on the test question row it belongs to. */
+function setAnswerFeedback(
+  state: {
+    TestChatState: { TestChatItems: TestMessage[] };
+    FetchTestQuestionsState: {
+      FetchTestQuestionsData: TestQuestionList | null;
+    };
+  },
+  target: { messageId: string; testQuestionId: number },
+  feedback: TestFeedback | null,
+) {
+  const message = state.TestChatState.TestChatItems.find(
+    (item) => item.id === target.messageId,
+  );
+  if (message) message.feedback = feedback;
+  const row =
+    state.FetchTestQuestionsState.FetchTestQuestionsData?.results.find(
+      (item) => item.id === target.testQuestionId,
+    );
+  if (row) row.feedback = feedback;
+}
 
 const KnowledgeTestAiSlice = createSlice({
   name: "KnowledgeTestAi",
@@ -338,12 +473,36 @@ const KnowledgeTestAiSlice = createSlice({
       .addCase(AskTestQuestion.fulfilled, (state, action) => {
         state.TestChatState.TestChatItems.push(...action.payload);
         state.TestChatState.TestChatPendingQuestion = null;
+        // A test question's row in the list now shows how this try went.
+        const answer = action.payload[action.payload.length - 1];
+        if (answer.testQuestionId !== null) {
+          const row =
+            state.FetchTestQuestionsState.FetchTestQuestionsData?.results.find(
+              (item) => item.id === answer.testQuestionId,
+            );
+          if (row) {
+            row.status =
+              answer.citations.length > 0 || answer.products.length > 0
+                ? "answered"
+                : "unanswered";
+            row.confidence = answer.confidence;
+            row.lastAskedAt = new Date().toISOString();
+            row.feedback = null;
+          }
+        }
       })
       .addCase(AskTestQuestion.rejected, (state, action) => {
         // The question stays, so the chat can show it with the error and retry.
         state.TestChatState.TestChatError =
           (action.payload as string) ??
           "Couldn't get an answer. Please try again.";
+      })
+      // SetTestAnswerFeedback
+      .addCase(SetTestAnswerFeedback.pending, (state, action) => {
+        setAnswerFeedback(state, action.meta.arg, action.meta.arg.feedback);
+      })
+      .addCase(SetTestAnswerFeedback.rejected, (state, action) => {
+        setAnswerFeedback(state, action.meta.arg, action.meta.arg.previous);
       })
       // FetchUnansweredWorkflows
       .addCase(FetchUnansweredWorkflows.pending, (state) => {
