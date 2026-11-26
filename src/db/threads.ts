@@ -816,6 +816,12 @@ export async function get_thread_details(
   thread_id: string,
   limit: number | null,
 ): Promise<ThreadDetail> {
+  // A malformed id names no thread. Postgres would reject it as a uuid and
+  // fail the request; answer it like any unknown id.
+  if (!isValidUuid(thread_id)) {
+    return {};
+  }
+
   const db = getDb();
   const threadRows = await db
     .select({

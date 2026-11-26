@@ -34,6 +34,13 @@ async function handler(req: NextApiRequest, res: NextApiResponse<APIResponse>) {
 
   const data = await get_thread_details(thread_id as string, limit);
 
+  // Unknown, malformed, or another store's thread.
+  if (!("id" in data)) {
+    return res
+      .status(404)
+      .json(createAPIResponse(false, "Thread not found.", null));
+  }
+
   return res
     .status(200)
     .json(

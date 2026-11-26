@@ -400,61 +400,6 @@ function ResolutionRing({
   );
 }
 
-/**
- * The page's shape while the thread loads. The real layout drawn before its
- * data showed stand-ins ("Guest", "—%", an enabled Create Ticket) that read
- * as a real, empty thread.
- */
-function ThreadDetailSkeleton() {
-  return (
-    <div className="min-h-svh bg-muted/50" aria-busy="true">
-      <header className="border-b bg-background">
-        <div className="flex w-full items-start gap-3 px-5 py-7 lg:px-6 lg:py-4">
-          <div className="min-w-0 flex-1">
-            <Skeleton className="mb-3 hidden h-5 w-48 lg:block" />
-            <div className="flex items-center gap-3">
-              <Skeleton className="size-[70px] shrink-0 rounded-2xl lg:size-14 lg:rounded-xl" />
-              <Skeleton className="h-8 w-48" />
-            </div>
-          </div>
-          <Skeleton className="mt-8 hidden h-9 w-28 lg:block" />
-        </div>
-      </header>
-      <main className="w-full px-4 py-5 lg:px-6 lg:py-6">
-        <div className="hidden rounded-xl border bg-background p-5 lg:block">
-          <Skeleton className="h-4 w-36" />
-          <Skeleton className="mt-4 h-12 w-full" />
-          <Skeleton className="mt-6 h-24 w-full" />
-        </div>
-        <div className="grid gap-5 lg:mt-5 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_400px]">
-          <div className="space-y-5 rounded-2xl border bg-background p-5">
-            <Skeleton className="h-5 w-32" />
-            {["w-2/3", "ml-auto w-1/2", "w-3/5", "ml-auto w-2/5", "w-1/2"].map(
-              (width) => (
-                <Skeleton
-                  key={width}
-                  className={cn("h-14 rounded-xl", width)}
-                />
-              ),
-            )}
-          </div>
-          <div className="hidden space-y-4 lg:block">
-            {["h-28", "h-20", "h-32"].map((height) => (
-              <div
-                key={height}
-                className="rounded-2xl border bg-background p-5"
-              >
-                <Skeleton className="h-5 w-28" />
-                <Skeleton className={cn("mt-4 w-full", height)} />
-              </div>
-            ))}
-          </div>
-        </div>
-      </main>
-    </div>
-  );
-}
-
 /* ------------------------------------------------------------------ */
 /* Page                                                                */
 /* ------------------------------------------------------------------ */
@@ -540,16 +485,16 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
     if (!storeCode || !threadId) return;
 
     const loadData = async () => {
-      const result = await dispatch(FetchThreadDetails(threadId))
-        .unwrap()
-        .catch(() => null);
+      const action = await dispatch(FetchThreadDetails(threadId));
 
-      // No thread came back (unknown id, another store's, or the request
-      // failed): nothing to show, so go back to the list.
-      if (!result?.id) {
+      // Rejected: the API answers 404 for an unknown, malformed or other
+      // store's thread. Nothing to show, so go back to the list.
+      if (FetchThreadDetails.rejected.match(action)) {
         router.replace("/threads");
         return;
       }
+
+      const result = action.payload;
 
       // The layout guard below redirects active conversations before paint.
       if (result.is_active) {
@@ -622,7 +567,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
   const details = isThisThread ? FetchThreadDetailsData : null;
   // The thread's own request is still out — or what is in the store belongs
   // to the thread we came from. Either way this screen has no basics yet,
-  // so it shows the page skeleton rather than the last thread's answer.
+  // so it shows a loader rather than the last thread's answer.
   // Each section then falls back to its own request's flag.
   const detailsLoading = !isThisThread;
 
@@ -661,10 +606,10 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
     return <LoadingState label="Opening Live Chat…" className="min-h-64" />;
   }
 
-  // Until this thread's details arrive. If none come back, the loader above
-  // sends the user to /threads.
+  // Until this thread's details arrive. If the request is rejected, the
+  // loader above sends the user to /threads.
   if (detailsLoading) {
-    return <ThreadDetailSkeleton />;
+    return <LoadingState className="min-h-64" />;
   }
 
   const resolutionRate = Math.min(
