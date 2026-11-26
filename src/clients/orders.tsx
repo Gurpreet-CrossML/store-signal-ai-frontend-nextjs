@@ -84,6 +84,7 @@ export default function Orders() {
   const dispatch = useAppDispatch();
   const router = useRouter();
   const pathname = usePathname();
+  const safePathname = pathname ?? "/crm/orders";
   const searchParams = useSearchParams();
 
   // Set when arriving from a customer's page, so the list opens scoped to
@@ -185,7 +186,7 @@ export default function Orders() {
       params.set("created_to", appliedFilters.createdTo);
     const query = params.toString();
     if (query === (searchParams?.toString() ?? "")) return;
-    router.replace(query ? `${pathname}?${query}` : pathname, {
+    router.replace(query ? `${safePathname}?${query}` : safePathname, {
       scroll: false,
     });
   }, [
@@ -193,7 +194,7 @@ export default function Orders() {
     customerId,
     debouncedSearch,
     ordering,
-    pathname,
+    safePathname,
     requestFilters,
     router,
     searchParams,
