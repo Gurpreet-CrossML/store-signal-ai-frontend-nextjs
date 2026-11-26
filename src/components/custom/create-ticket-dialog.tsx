@@ -501,6 +501,8 @@ export function CreateTicketDialog({
   const ordersLoading =
     SyncCustomerOrdersIsLoading || FetchCustomerOrdersIsLoading;
   const busy = CreateSupportTicketIsLoading;
+  const canSubmit =
+    Boolean(customer) && schema.safeParse(formik.values).success;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -750,10 +752,9 @@ export function CreateTicketDialog({
           </Button>
           <Button
             type="button"
-            // Disabled rather than validated-on-submit: without a customer
-            // there is nobody to raise it for, and the message would have
-            // to point at a field the form cannot highlight.
-            disabled={!customer || busy}
+            // Keep it unavailable until both the customer and required
+            // ticket fields are ready.
+            disabled={!canSubmit || busy}
             onClick={handleCreate}
           >
             {busy ? (
