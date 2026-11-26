@@ -522,7 +522,9 @@ export function MessagePan({
                       which pushed the whole pane into sideways scrolling. */}
                   <div className="flex min-w-0 flex-1 flex-col">
                     <div className="mb-1 flex flex-wrap items-center gap-x-2 justify-start">
-                      <span className="text-sm font-semibold text-foreground capitalize">
+                      <span
+                        className={`text-sm font-semibold text-foreground ${senderLabel.includes("@") ? "" : "capitalize"}`}
+                      >
                         {senderLabel}
                       </span>
                       {!isCustomer && isStoreSignalAI ? (
@@ -1078,7 +1080,9 @@ export function LiveMessagePan({
                     <div
                       className={`flex w-full flex-wrap items-center gap-x-2 mb-1 ${isCustomer ? "justify-start" : "justify-end"}`}
                     >
-                      <span className="text-xs font-medium text-foreground capitalize">
+                      <span
+                        className={`text-xs font-medium text-foreground ${senderLabel.includes("@") ? "" : "capitalize"}`}
+                      >
                         {senderLabel}
                       </span>
                       <span className="text-xs text-muted-foreground">
