@@ -16,7 +16,6 @@ import {
   IconHash,
   IconListCheck,
   IconLoader2,
-  IconMessage2,
   IconMessages,
   IconSparkles,
   IconTargetArrow,
@@ -440,7 +439,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
     (state) => state.GetStoresReducer.selectedStore,
   );
 
-  const { FetchThreadDetailsData, FetchThreadDetailsIsError } = useAppSelector(
+  const { FetchThreadDetailsData } = useAppSelector(
     (state) => state.GetThreadReducer.FetchThreadDetailsState,
   );
   const { FetchConversationSummaryData } = useAppSelector(
@@ -486,7 +485,16 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
     if (!storeCode || !threadId) return;
 
     const loadData = async () => {
-      const result = await dispatch(FetchThreadDetails(threadId)).unwrap();
+      const result = await dispatch(FetchThreadDetails(threadId))
+        .unwrap()
+        .catch(() => null);
+
+      // No thread came back (unknown id, another store's, or the request
+      // failed): nothing to show, so go back to the list.
+      if (!result?.id) {
+        router.replace("/threads");
+        return;
+      }
 
       // The layout guard below redirects active conversations before paint.
       if (result.is_active) {
@@ -512,7 +520,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
     };
 
     loadData();
-  }, [dispatch, storeCode, threadId]);
+  }, [dispatch, router, storeCode, threadId]);
 
   const handleGenerateInsights = async () => {
     if (!threadId) return;
@@ -596,27 +604,6 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
 
   if (details?.is_active) {
     return <LoadingState label="Opening Live Chat…" className="min-h-64" />;
-  }
-
-  // Only a genuine failure replaces the screen. Everything else renders
-  // the shell and fills in section by section.
-  if (!details && FetchThreadDetailsIsError) {
-    return (
-      <Empty>
-        <EmptyHeader>
-          <EmptyMedia>
-            <IconMessage2 />
-          </EmptyMedia>
-          <EmptyTitle>Thread Not Found</EmptyTitle>
-          <EmptyDescription>
-            This conversation may belong to another store, or have been removed.
-          </EmptyDescription>
-        </EmptyHeader>
-        <Button variant="outline" asChild>
-          <Link href="/threads">Back To Threads</Link>
-        </Button>
-      </Empty>
-    );
   }
 
   const resolutionRate = Math.min(
