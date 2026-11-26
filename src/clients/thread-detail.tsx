@@ -443,6 +443,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
     FetchThreadDetailsData,
     FetchThreadDetailsIsLoading,
     FetchThreadDetailsIsError,
+    FetchThreadDetailsIsSuccess,
   } = useAppSelector((state) => state.GetThreadReducer.FetchThreadDetailsState);
   // Whether the thread request was in flight at the last render.
   const wasLoadingRef = useRef(false);
@@ -491,8 +492,9 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
     const loadData = async () => {
       const action = await dispatch(FetchThreadDetails(threadId));
 
-      // Rejected: the redirect effect below sends the user back to /threads.
-      if (FetchThreadDetails.rejected.match(action)) {
+      // Failed, or no thread for this id: the redirect effect below sends the
+      // user back to /threads.
+      if (FetchThreadDetails.rejected.match(action) || !action.payload?.id) {
         return;
       }
 
@@ -581,16 +583,26 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
     }
   }, [details?.is_active, router, threadId]);
 
-  // The thread could not be loaded: the API answers 404 for an unknown,
-  // malformed or other store's thread. Nothing to show, so back to the list.
-  // Only after this page's own request: the error flag outlives the request
-  // that set it, and would otherwise bounce the next thread opened.
+  // This page's thread request finished without a thread: it failed (a
+  // malformed id answers 500) or came back empty (an unknown or other
+  // store's id answers `{}`). Nothing to show, so back to the list.
+  // Only after this page's own request: the slice's flags outlive the
+  // request that set them, and would otherwise bounce the next thread opened.
   useEffect(() => {
-    if (wasLoadingRef.current && !details && FetchThreadDetailsIsError) {
+    const requestFinished =
+      wasLoadingRef.current &&
+      (Boolean(FetchThreadDetailsIsError) || FetchThreadDetailsIsSuccess);
+    if (requestFinished && !details) {
       router.replace("/threads");
     }
     wasLoadingRef.current = FetchThreadDetailsIsLoading;
-  }, [details, FetchThreadDetailsIsError, FetchThreadDetailsIsLoading, router]);
+  }, [
+    details,
+    FetchThreadDetailsIsError,
+    FetchThreadDetailsIsLoading,
+    FetchThreadDetailsIsSuccess,
+    router,
+  ]);
 
   // Breadcrumb title: the thread's own name, else what the customer first asked.
   const threadTitle =
