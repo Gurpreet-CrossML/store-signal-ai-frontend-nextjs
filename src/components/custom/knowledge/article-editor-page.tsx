@@ -35,6 +35,7 @@ import {
   type KnowledgeStatus,
 } from "@/redux/api-slice/knowledge-rag-slice";
 
+import { KnowledgeAddedScreen } from "@/components/custom/knowledge/add-knowledge-parts";
 import { ArticleEditor } from "@/components/custom/knowledge/article-editor";
 import { KnowledgeStatusBadge } from "@/components/custom/knowledge/knowledge-badges";
 import {
@@ -131,6 +132,8 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
   const [titleTouched, setTitleTouched] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
+  // Set once a draft was published: the page then shows the "added" screen.
+  const [justPublished, setJustPublished] = useState(false);
   // On a tablet or phone the settings panel is a drawer, opened from the header.
   const belowLg = useIsBelowLg();
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -159,6 +162,12 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
   const showTitleError =
     titleTooShort && (showErrors || titleTouched || bodyLength > 0);
   const overLimit = titleOver || bodyOver;
+  // A missing or too short title is flagged under the title as soon as there
+  // is text, so Publish stays off until it is fixed. A text that is too short
+  // is not: pressing Publish is what shows that message, so the button must
+  // stay on for it. Scope problems work the same way (Publish opens the
+  // settings that show them).
+  const cannotPublish = titleTooShort;
 
   // --- Loading an existing article -----------------------------------------
   useEffect(() => {
@@ -372,7 +381,15 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
         PublishKnowledgeItems.fulfilled.match(result) &&
         result.payload.publishedIds.length > 0
       ) {
-        router.back();
+        // A new article ends on the "added" screen, like every other kind of
+        // knowledge; publishing changes to a live one goes back to where the
+        // user came from.
+        if (isLive) {
+          router.back();
+        } else {
+          setPublishOpen(false);
+          setJustPublished(true);
+        }
         return;
       }
     }
@@ -380,7 +397,25 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
     setPublishOpen(false);
   };
 
+  // A new article is one of the kinds of knowledge picked on the first step,
+  // so it can go back to that step.
+  const isNewArticle = !articleId;
+  const changeSource = () =>
+    unsavedChanges.current?.confirmLeave(() => router.push("/knowledge/new"));
+
   // --- Rendering ------------------------------------------------------------
+  if (justPublished) {
+    return (
+      <div className="flex min-h-full w-full flex-col p-4">
+        <KnowledgeAddedScreen
+          title="Article Published"
+          description="We're reading it now. It goes live in your assistant as soon as it's ready, and you can follow its progress in Knowledge."
+          onAddMore={() => router.replace("/knowledge/new")}
+        />
+      </div>
+    );
+  }
+
   if (loadState === "loading") {
     return (
       <div className="flex flex-1 items-center justify-center gap-2 p-10 text-sm text-muted-foreground">
@@ -539,6 +574,7 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
               isLocked ||
               !html ||
               overLimit ||
+              cannotPublish ||
               isPublishing ||
               (isLive && !isDirty && !hasUnpublishedChanges)
             }
@@ -563,20 +599,44 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
             </p>
           )}
 
-          <div className="px-4 pt-6 sm:px-8">
-            <input
-              value={title}
-              onChange={(event) => {
-                setTitle(event.target.value);
-              }}
-              disabled={isLocked}
-              placeholder="Article Title"
-              aria-label="Article title"
-              maxLength={KNOWLEDGE_TITLE_MAX_LENGTH}
-              onBlur={() => setTitleTouched(true)}
-              aria-invalid={titleOver || showTitleError}
-              className="w-full bg-transparent text-3xl font-bold tracking-tight outline-none placeholder:text-muted-foreground/60 disabled:opacity-70"
-            />
+          <div className="px-4 pt-3 sm:px-8">
+            {/* The title wraps onto more lines when it is long, so it never
+                runs under Change Source, which sits at the end of its row. */}
+            <div className="flex items-start gap-3">
+              <textarea
+                rows={1}
+                value={title}
+                onChange={(event) => {
+                  // A title is one line of text: no line breaks, typed or pasted.
+                  setTitle(event.target.value.replace(/\s*\n+\s*/g, " "));
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") event.preventDefault();
+                }}
+                disabled={isLocked}
+                placeholder="Article Title"
+                aria-label="Article title"
+                maxLength={KNOWLEDGE_TITLE_MAX_LENGTH}
+                onBlur={() => setTitleTouched(true)}
+                aria-invalid={titleOver || showTitleError}
+                className="field-sizing-content min-w-0 flex-1 resize-none bg-transparent text-3xl font-bold tracking-tight break-words outline-none placeholder:text-muted-foreground/60 disabled:opacity-70"
+              />
+              {/* Only a new article has a source step to go back to. */}
+              {isNewArticle && (
+                <Button
+                  type="button"
+                  variant="link"
+                  size="sm"
+                  className="mt-2 h-auto shrink-0 p-0"
+                  disabled={
+                    saveState === "saving" || isSavingToLeave || isPublishing
+                  }
+                  onClick={changeSource}
+                >
+                  Change Source
+                </Button>
+              )}
+            </div>
             {showTitleError && (
               <p role="alert" className="mt-1 text-xs text-destructive">
                 {titleLength

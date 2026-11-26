@@ -218,9 +218,12 @@ export const ENDPOINTS = {
   fetchKnowledgeStats: () => `/knowledge/knowledge-items/stats/`,
   // The knowledge categories with how many items are filed under each. Django.
   fetchKnowledgeCategories: () => `/knowledge/knowledge-items/categories/`,
-  // The sample customer questions a store owner can try on their AI (the same
-  // list for every store), and the questions the AI couldn't answer. Django.
+  // The sample customer questions a store owner can try on their AI, with how
+  // the store's AI did on each, and the questions the AI couldn't answer. Django.
   fetchTestQuestions: () => `/knowledge/test-questions/`,
+  // PATCH a good/bad rating on the AI's latest answer to a test question.
+  testQuestionFeedback: (id: number) =>
+    `/knowledge/test-questions/${id}/feedback/`,
   fetchUnansweredQuestions: () => `/chat/unanswered-questions/`,
   // The workflows that left customer questions unanswered, with how many each left.
   fetchUnansweredWorkflows: () => `/chat/unanswered-questions/workflows/`,
@@ -939,8 +942,9 @@ export const KNOWLEDGE_ALL_ROUTE = "all";
 export const KNOWLEDGE_APPROVAL_WAITING_PARAM = "approval_waiting";
 export const KNOWLEDGE_APPROVAL_WAITING_HREF = `/knowledge/categories/${KNOWLEDGE_ALL_ROUTE}?${KNOWLEDGE_APPROVAL_WAITING_PARAM}=true`;
 
-// The Test AI page, opened by the Test AI button on the Knowledge screen: the
-// AI test chat on the left and, on the right, a panel with these two tabs.
+// The Test AI page, opened by the Test AI button on the Knowledge screen: a
+// panel with these two tabs on the left (70%) and the AI test chat on the
+// right (30%).
 export const KNOWLEDGE_TEST_AI_HREF = "/knowledge/test-ai";
 export const KNOWLEDGE_TEST_AI_TABS = {
   questions: "questions",
@@ -962,6 +966,9 @@ export const KNOWLEDGE_TEST_ANSWER_CREDITS = 1;
 export const KNOWLEDGE_TEST_CHAT_NOTICE =
   "This chat isn't saved. It will be cleared when you switch pages or reload.";
 // Who wrote a Test AI chat message.
+// How the store's AI did on a test question, as the backend names it. A
+// question not asked yet has none; "not_asked" picks those in the status filter.
+export const KNOWLEDGE_TEST_STATUS_NOT_ASKED = "not_asked";
 export const KNOWLEDGE_TEST_SENDERS = { user: "user", ai: "ai" } as const;
 export type KnowledgeTestSender =
   (typeof KNOWLEDGE_TEST_SENDERS)[keyof typeof KNOWLEDGE_TEST_SENDERS];

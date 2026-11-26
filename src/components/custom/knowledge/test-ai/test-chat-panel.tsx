@@ -4,10 +4,15 @@ import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import {
+  IconAlertCircle,
   IconAlertTriangle,
+  IconCircleCheck,
   IconCoin,
+  IconGauge,
   IconRefresh,
   IconSparkles,
+  IconThumbDown,
+  IconThumbUp,
 } from "@tabler/icons-react";
 
 import { CustomerAvatar } from "@/components/custom/customer-avatar";
@@ -33,8 +38,12 @@ import {
 } from "@/lib/config";
 import { getKnowledgeItemHref } from "@/lib/helpers";
 import { cn } from "@/lib/utils";
-import type { TestMessage } from "@/redux/api-slice/knowledge-test-ai-slice";
-import { useAppSelector } from "@/redux/hooks";
+import {
+  SetTestAnswerFeedback,
+  type TestFeedback,
+  type TestMessage,
+} from "@/redux/api-slice/knowledge-test-ai-slice";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 
 /** What the user asked, on the right like a sent message, with their profile icon (their initials). */
 function QuestionBubble({ children }: { children: string }) {
@@ -89,9 +98,87 @@ function CreditChip() {
   );
 }
 
+/** How confident the answer is, as a percentage (the backend works it out from how closely the knowledge matched). */
+function ConfidenceChip({ confidence }: { confidence: number }) {
+  return (
+    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+      <IconGauge className="size-3.5" />
+      Confidence: {Math.round(confidence * 100)}%
+    </span>
+  );
+}
+
+/** Whether the AI found an answer in the knowledge. */
+function AnswerStatusChip({ found }: { found: boolean }) {
+  return found ? (
+    <Badge variant="outline" className={BADGE_TONE_STYLES.success}>
+      <IconCircleCheck />
+      Status: Answered
+    </Badge>
+  ) : (
+    <Badge variant="outline" className={BADGE_TONE_STYLES.danger}>
+      <IconAlertCircle />
+      Status: Not found
+    </Badge>
+  );
+}
+
+/**
+ * The thumbs up and down under an answer to a test question. Pressing the
+ * rating already given takes it back.
+ */
+function FeedbackButtons({ item }: { item: TestMessage }) {
+  const dispatch = useAppDispatch();
+  const storeCode = useAppSelector(
+    (state) => state.GetStoresReducer.selectedStore,
+  );
+  if (item.testQuestionId === null || !storeCode) return null;
+  const testQuestionId = item.testQuestionId;
+
+  const rate = (rating: TestFeedback) =>
+    dispatch(
+      SetTestAnswerFeedback({
+        storeCode,
+        messageId: item.id,
+        testQuestionId,
+        feedback: item.feedback === rating ? null : rating,
+        previous: item.feedback,
+      }),
+    );
+
+  return (
+    <span className="ml-auto flex items-center gap-1">
+      {(
+        [
+          { rating: "good", label: "Good answer", Icon: IconThumbUp },
+          { rating: "bad", label: "Bad answer", Icon: IconThumbDown },
+        ] as const
+      ).map(({ rating, label, Icon }) => (
+        <Button
+          key={rating}
+          variant="ghost"
+          size="icon-sm"
+          aria-label={label}
+          aria-pressed={item.feedback === rating}
+          onClick={() => rate(rating)}
+          className={cn(
+            item.feedback === rating
+              ? "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
+              : "text-muted-foreground",
+          )}
+        >
+          <Icon className="size-4" />
+        </Button>
+      ))}
+    </span>
+  );
+}
+
 /** One saved AI answer: its text, the products it used, whether anything was found, the credit it cost and its sources. */
 function AnswerMessage({ item }: { item: TestMessage }) {
   const hasProducts = item.products.length > 0;
+  // The AI answered from the knowledge or the products, or found nothing.
+  const found = item.citations.length > 0 || hasProducts;
   // Several passages can come from one knowledge item: list each item once.
   const sources = [
     ...new Map(
@@ -105,13 +192,13 @@ function AnswerMessage({ item }: { item: TestMessage }) {
       <p className="leading-relaxed whitespace-pre-wrap">{item.message}</p>
       {hasProducts && <ProductCarousel products={item.products} alignStart />}
       <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t pt-2.5">
-        {item.citations.length === 0 && !hasProducts ? (
-          <Badge variant="outline" className={BADGE_TONE_STYLES.warning}>
-            Nothing found
-          </Badge>
-        ) : (
-          <CreditChip />
+        <AnswerStatusChip found={found} />
+        {found && item.confidence !== null && (
+          <ConfidenceChip confidence={item.confidence} />
         )}
+        {found && <CreditChip />}
+        {/* Nothing to rate when the AI found no answer. */}
+        {found && <FeedbackButtons item={item} />}
       </div>
       {(sources.length > 0 || hasProducts) && (
         <p className="mt-1.5 text-xs text-muted-foreground">
