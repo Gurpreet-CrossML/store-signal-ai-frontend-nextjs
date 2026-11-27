@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useFormik } from "formik";
 import {
   IconDeviceFloppy,
-  IconInfoCircle,
   IconLock,
   IconPhotoPlus,
   IconTrash,
@@ -20,8 +19,18 @@ import { LocationSelect } from "@/components/custom/location-select";
 import { UnsavedChangesDialog } from "@/components/custom/unsaved-changes-dialog";
 import { Spinner } from "@/components/ui/spinner";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { companyProfileSchema } from "@/lib/company-profile-schema";
-import { applyServerFieldErrors, formikErrorsFromZod } from "@/lib/form-errors";
+import {
+  companyProfileSchema,
+  LOGO_ACCEPT,
+  LOGO_HINT,
+  logoFileError,
+  PHONE_MAX_DIGITS,
+} from "@/lib/company-profile-schema";
+import {
+  applyServerFieldErrors,
+  formikErrorsFromZod,
+  serverFieldErrors,
+} from "@/lib/form-errors";
 import {
   FetchCompanyProfile,
   FetchCities,
@@ -31,8 +40,8 @@ import {
 } from "@/redux/api-slice/tenancy-slice";
 
 const EDITABLE_FIELDS = [
-  { name: "email", label: "Company Email", type: "email" },
-  { name: "phone", label: "Phone", type: "text" },
+  { name: "email", label: "Company Email", type: "email", inputMode: "email" },
+  { name: "phone", label: "Phone", type: "tel", inputMode: "numeric" },
 ] as const;
 
 export default function CompanyProfileForm({
@@ -67,6 +76,7 @@ export default function CompanyProfileForm({
   // to clear the saved one.
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [removeLogo, setRemoveLogo] = useState(false);
+  const [logoError, setLogoError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -95,17 +105,21 @@ export default function CompanyProfileForm({
   const openFilePicker = () => fileInputRef.current?.click();
 
   const onFilePicked = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] ?? null;
-    if (file) {
-      setLogoFile(file);
-      setRemoveLogo(false);
-    }
+    const file = e.target.files?.[0];
     e.target.value = ""; // allow re-selecting the same file
+    if (!file) return;
+
+    const error = logoFileError(file);
+    setLogoError(error);
+    if (error) return; // keep the previously staged logo
+    setLogoFile(file);
+    setRemoveLogo(false);
   };
 
   const onRemoveLogo = () => {
     setLogoFile(null);
     setRemoveLogo(true);
+    setLogoError(null);
   };
 
   const formik = useFormik({
@@ -134,9 +148,11 @@ export default function CompanyProfileForm({
       if (UpdateCompanyProfile.fulfilled.match(result)) {
         setLogoFile(null);
         setRemoveLogo(false);
+        setLogoError(null);
       }
       if (UpdateCompanyProfile.rejected.match(result)) {
         applyServerFieldErrors(formik, result.payload);
+        setLogoError(serverFieldErrors(result.payload).logo ?? null);
       }
       return UpdateCompanyProfile.fulfilled.match(result);
     },
@@ -176,6 +192,12 @@ export default function CompanyProfileForm({
     formik.setFieldValue("city", Number(city));
   };
 
+  // Digits only, up to the max: typed or pasted, anything else is dropped.
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const digits = e.target.value.replace(/\D/g, "").slice(0, PHONE_MAX_DIGITS);
+    formik.setFieldValue("phone", digits);
+  };
+
   // Loading until a fetch has finished (not just while it is in flight), so the
   // first render, before the effects dispatch, doesn't flash an empty select.
   // A state or city list is only needed once its parent is chosen.
@@ -196,7 +218,10 @@ export default function CompanyProfileForm({
 
   return (
     <div className={cn("flex w-full flex-1 flex-col", className)}>
+      {/* noValidate: the schema validates; the browser's own email check
+          would pop up with different rules. */}
       <form
+        noValidate
         onSubmit={formik.handleSubmit}
         className="flex flex-1 flex-col gap-6"
       >
@@ -223,8 +248,11 @@ export default function CompanyProfileForm({
                   id={f.name}
                   name={f.name}
                   type={f.type}
+                  inputMode={f.inputMode}
                   autoComplete="off"
-                  onChange={formik.handleChange}
+                  onChange={
+                    f.name === "phone" ? handlePhoneChange : formik.handleChange
+                  }
                   onBlur={formik.handleBlur}
                   value={formik.values[f.name]}
                 />
@@ -293,7 +321,7 @@ export default function CompanyProfileForm({
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*"
+            accept={LOGO_ACCEPT}
             className="hidden"
             onChange={onFilePicked}
           />
@@ -321,13 +349,17 @@ export default function CompanyProfileForm({
               <div>
                 <p className="text-sm font-medium">Logo</p>
                 <p className="text-xs text-muted-foreground">
-                  {logoFile
-                    ? `New logo selected: ${logoFile.name}`
-                    : removeLogo && companyProfile?.logo
-                      ? "Logo will be removed when you save."
-                      : "PNG, JPG or SVG. Shown in the app and emails."}
+                  {LOGO_HINT} Shown in the app and emails.
                 </p>
+                {(logoFile || (removeLogo && companyProfile?.logo)) && (
+                  <p className="truncate text-xs text-muted-foreground">
+                    {logoFile
+                      ? `New logo selected: ${logoFile.name}`
+                      : "Logo will be removed when you save."}
+                  </p>
+                )}
               </div>
+              {logoError && <FieldError>{logoError}</FieldError>}
               <div className="flex flex-wrap gap-2">
                 <Button
                   type="button"
