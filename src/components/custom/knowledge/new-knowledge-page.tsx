@@ -1,12 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   IconArrowLeft,
   IconArrowRight,
-  IconCircleCheck,
   IconPencil,
   IconPlus,
   IconTrash,
@@ -21,6 +19,7 @@ import { BADGE_TONE_STYLES } from "@/lib/badge-tones";
 import {
   KNOWLEDGE_FAQ_CAP,
   KNOWLEDGE_FILE_CAP,
+  KNOWLEDGE_FILE_MAX_SIZE_BYTES,
   KNOWLEDGE_SPECIFIC_PAGE_CAP,
   KNOWLEDGE_TITLE_MAX_LENGTH,
   KNOWLEDGE_TITLE_MIN_LENGTH,
@@ -40,6 +39,7 @@ import { cn, randomId } from "@/lib/utils";
 import {
   AddKnowledgeStepper,
   ContentLayout,
+  KnowledgeAddedScreen,
   PrimaryAction,
   ShopifySyncedNote,
   SOURCE_META,
@@ -49,9 +49,10 @@ import {
   type AddStep,
 } from "@/components/custom/knowledge/add-knowledge-parts";
 import {
-  KNOWLEDGE_FILE_MAX_SIZE_BYTES,
-  MultiFileUploadDropzone,
-} from "@/components/custom/knowledge/file-upload-dropzone";
+  countOutcomes,
+  DocumentUploadSummary,
+} from "@/components/custom/knowledge/document-upload-results";
+import { MultiFileUploadDropzone } from "@/components/custom/knowledge/file-upload-dropzone";
 import {
   KnowledgeCategoriesField,
   useKnowledgeCategoryOptions,
@@ -67,7 +68,9 @@ import {
 } from "@/components/custom/knowledge/knowledge-scope";
 import { FAQ_ANSWER_MAX_LENGTH } from "@/components/custom/knowledge/knowledge-meta";
 import { limitAttemptHandlers, limitReachedMessage } from "@/lib/input-limit";
+import { describeRow, type RowStatus } from "@/lib/knowledge-upload";
 import {
+  dropStaleDuplicateErrors,
   FAQ_QUESTION_MAX_LENGTH,
   faqAnswerProblem,
   faqQuestionProblem,
@@ -81,6 +84,8 @@ import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
   CreateKnowledgeItemsBulk,
   FetchKnowledgeStats,
+  ResetDocumentUpload,
+  UploadKnowledgeDocuments,
   type BulkKnowledgeItemContent,
   type DiscoveredPage,
 } from "@/redux/api-slice/knowledge-rag-slice";
@@ -139,9 +144,18 @@ export function NewKnowledgePage() {
   );
   const { options: categoryOptions, isLoading: categoriesLoading } =
     useKnowledgeCategoryOptions();
-  const { CreateKnowledgeItemsBulkIsLoading: isSubmitting } = useAppSelector(
-    (state) => state.GetKnowledgeRagReducer.CreateKnowledgeItemsBulkState,
+  const { CreateKnowledgeItemsBulkIsLoading: isBulkSubmitting } =
+    useAppSelector(
+      (state) => state.GetKnowledgeRagReducer.CreateKnowledgeItemsBulkState,
+    );
+  const {
+    UploadKnowledgeDocumentsIsLoading: isUploading,
+    UploadKnowledgeDocumentsOutcomes: uploadOutcomes,
+    UploadKnowledgeDocumentsActive: uploadActive,
+  } = useAppSelector(
+    (state) => state.GetKnowledgeRagReducer.UploadKnowledgeDocumentsState,
   );
+  const isSubmitting = isBulkSubmitting || isUploading;
 
   // `?source=` (from the empty Knowledge screen) opens straight on that kind.
   const initialSource = (["url", "file", "faq", "article"] as const).find(
@@ -177,7 +191,34 @@ export function NewKnowledgePage() {
     label: string;
     /** How many were sent, so the ones declined for storage can be counted. */
     sent: number;
+    /** Documents the knowledge base already had, so they weren't added again. */
+    skipped?: number;
   } | null>(null);
+  // Why the last document upload stopped early, if it did.
+  const [uploadStopMessage, setUploadStopMessage] = useState<string | null>(
+    null,
+  );
+
+  // The document upload being sent, so it can be called off on leaving.
+  const uploadRequest = useRef<{ abort: () => void } | null>(null);
+
+  // The last upload's results belong to the page that made it: start clean,
+  // and leave nothing behind for the next visit to show.
+  useEffect(() => {
+    dispatch(ResetDocumentUpload());
+    return () => {
+      uploadRequest.current?.abort();
+      dispatch(ResetDocumentUpload());
+    };
+  }, [dispatch]);
+
+  // Leaving mid-upload would lose the files not sent yet, so the browser asks.
+  useEffect(() => {
+    if (!isUploading) return;
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [isUploading]);
 
   useEffect(() => {
     if (storeCode) dispatch(FetchKnowledgeStats({ storeCode }));
@@ -185,12 +226,17 @@ export function NewKnowledgePage() {
 
   const unsavedChanges = useRef<UnsavedChangesDialogHandle>(null);
 
+  // Cancel (and the Knowledge link) always lead to the main Knowledge screen,
+  // never to whatever page came before this one.
   const goToLibrary = () =>
+    unsavedChanges.current?.confirmLeave(() => router.push("/knowledge"));
+
+  // Going back to the sources drops what was entered, so it asks first. If
+  // the prompt's Save Changes added it, the "added" screen stays.
+  const backToSources = () =>
     unsavedChanges.current?.confirmLeave(() => {
-      // The library keeps its filters in its URL, so stepping back in
-      // history restores the same view; a direct visit has nothing behind it.
-      if (window.history.length > 1) router.back();
-      else router.push("/knowledge");
+      resetContent();
+      setStep((current) => (current === "done" ? current : "source"));
     });
 
   // --- What is ready to add -------------------------------------------------
@@ -206,11 +252,30 @@ export function NewKnowledgePage() {
       : source === "file"
         ? documents.length
         : completeFaqs.length;
+  // A document upload has run (or is running) for the files on screen: each
+  // file shows its own result, and nothing more can be added to the list.
+  const uploadStarted =
+    source === "file" &&
+    uploadOutcomes !== null &&
+    uploadOutcomes.length === documents.length;
+  const outcomeCounts = countOutcomes(uploadOutcomes ?? []);
+  const unsentCount = uploadStarted ? outcomeCounts.notSent : 0;
+  const rowStatus: (RowStatus | undefined)[] = documents.map((_, index) => {
+    const outcome = uploadOutcomes?.[index];
+    return outcome
+      ? describeRow(outcome, {
+          uploading: isUploading && uploadActive.includes(index),
+          running: isUploading,
+        })
+      : undefined;
+  });
   // Anything picked or typed in that isn't added yet, half-filled
   // questions included.
   const isDirty =
     step === "content" &&
-    (source === "faq" ? filledFaqs.length : readyCount) > 0;
+    (uploadStarted
+      ? unsentCount > 0
+      : (source === "faq" ? filledFaqs.length : readyCount) > 0);
   const alreadyAdded = discoveredPages.filter(
     (page) => page.alreadyAdded,
   ).length;
@@ -244,6 +309,8 @@ export function NewKnowledgePage() {
     setBanner(null);
     setBannerUrl(null);
     setServerErrors({});
+    setUploadStopMessage(null);
+    dispatch(ResetDocumentUpload());
   };
 
   const handleContinue = () => {
@@ -255,6 +322,64 @@ export function NewKnowledgePage() {
     setStep("content");
   };
 
+  /** Sends the documents not sent yet, in small groups. Each file shows its
+   * own result as it comes in. Resolves true when every one is in Knowledge. */
+  const sendDocuments = async () => {
+    if (!storeCode) return false;
+    setBanner(null);
+
+    const request = dispatch(
+      UploadKnowledgeDocuments({
+        storeCode,
+        ...scopeToPayload(scope),
+        publish: true,
+        documents: documents.map(({ file, categories }) => ({
+          file,
+          categories,
+        })),
+        previous: uploadOutcomes ?? undefined,
+      }),
+    );
+    uploadRequest.current = request;
+    const result = await request;
+    if (!UploadKnowledgeDocuments.fulfilled.match(result)) {
+      setBanner("We couldn't upload your documents. Please try again.");
+      return false;
+    }
+
+    const { outcomes, stoppedMessage } = result.payload;
+    const counts = countOutcomes(outcomes);
+    dispatch(FetchKnowledgeStats({ storeCode }));
+
+    // Everything is in: the same "added" screen the other kinds end on.
+    if (counts.failed === 0 && counts.notSent === 0 && counts.added > 0) {
+      setAdded({
+        count: counts.added,
+        sent: counts.added,
+        skipped: counts.skipped,
+        label: plural(counts.added, "Document"),
+      });
+      setStep("done");
+      setDocuments([]);
+      setUploadStopMessage(null);
+      dispatch(ResetDocumentUpload());
+      return true;
+    }
+    // Otherwise the files stay on screen, each with its own result.
+    setUploadStopMessage(stoppedMessage);
+    return false;
+  };
+
+  /** Drops the last upload's list and starts a fresh one. */
+  const addNewDocuments = () => {
+    setDocuments([]);
+    setUploadStopMessage(null);
+    setServerErrors({});
+    setBanner(null);
+    setShowErrors(false);
+    dispatch(ResetDocumentUpload());
+  };
+
   /** Adds what is ready; resolves true once it was added. */
   const handleSubmit = async () => {
     if (!storeCode || !source || source === "article") return false;
@@ -264,6 +389,8 @@ export function NewKnowledgePage() {
     setBannerUrl(null);
     setServerErrors({});
     if (readyCount === 0 || hasScopeError || hasIncompleteFaq) return false;
+
+    if (source === "file") return sendDocuments();
 
     // Which row of the form each submitted item came from, so a server error
     // for item N can be shown on the right row.
@@ -290,8 +417,6 @@ export function NewKnowledgePage() {
         answer: row.answer.trim(),
       }));
       itemIds = completeFaqs.map((row) => row.localId);
-    } else if (source === "file") {
-      itemIds = documents.map((row) => row.localId);
     }
 
     // Everything but an article goes live as soon as it is added.
@@ -302,12 +427,7 @@ export function NewKnowledgePage() {
         ...scopeToPayload(scope),
         publish: true,
         ...(source === "faq" ? { knowledgeCategoryIds: faqCategories } : {}),
-        ...(source === "file"
-          ? {
-              files: documents.map((row) => row.file),
-              fileKnowledgeCategoryIds: documents.map((row) => row.categories),
-            }
-          : { items }),
+        items,
       }),
     );
 
@@ -318,9 +438,7 @@ export function NewKnowledgePage() {
         label:
           source === "url"
             ? plural(result.payload.length, "Website Page")
-            : source === "file"
-              ? plural(result.payload.length, "Document")
-              : plural(result.payload.length, "Question"),
+            : plural(result.payload.length, "Question"),
       });
       setStep("done");
       dispatch(FetchKnowledgeStats({ storeCode }));
@@ -377,21 +495,41 @@ export function NewKnowledgePage() {
     source === "url"
       ? `Add ${plural(readyCount, "Page")}`
       : source === "file"
-        ? `Add ${plural(readyCount, "Document")}`
+        ? isUploading
+          ? `Adding ${documents.length - unsentCount} of ${documents.length}…`
+          : uploadStarted
+            ? unsentCount > 0
+              ? `Send The ${unsentCount} Remaining`
+              : "Add New Documents"
+            : `Add ${plural(readyCount, "Document")}`
         : `Add ${plural(readyCount, "Question")}`;
-  const footerMessage = isStorageFull
-    ? "Your storage is full. Free up space or upgrade your plan to add more."
-    : source === "url"
-      ? `${plural(readyCount, "Page")} Selected${
-          alreadyAdded > 0 ? ` · ${alreadyAdded} Already In Your Knowledge` : ""
-        }`
-      : source === "file"
-        ? `${plural(documents.length, "File")} Ready`
-        : `${plural(completeFaqs.length, "Question")} Ready${
-            faqRows.length > completeFaqs.length && !hasIncompleteFaq
-              ? " · The Empty One Is Skipped"
-              : ""
-          }`;
+  const uploadMessage = [
+    outcomeCounts.added > 0 && `${outcomeCounts.added} Added`,
+    outcomeCounts.failed > 0 && `${outcomeCounts.failed} Failed`,
+    outcomeCounts.skipped > 0 && `${outcomeCounts.skipped} Skipped`,
+    outcomeCounts.notSent > 0 &&
+      `${outcomeCounts.notSent} ${isUploading ? "To Go" : "Not Sent"}`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const footerMessage =
+    source === "file" && uploadStarted
+      ? uploadMessage
+      : isStorageFull
+        ? "Your storage is full. Free up space or upgrade your plan to add more."
+        : source === "url"
+          ? `${plural(readyCount, "Page")} Selected${
+              alreadyAdded > 0
+                ? ` · ${alreadyAdded} Already In Your Knowledge`
+                : ""
+            }`
+          : source === "file"
+            ? `${plural(documents.length, "File")} Ready`
+            : `${plural(completeFaqs.length, "Question")} Ready${
+                faqRows.length > completeFaqs.length && !hasIncompleteFaq
+                  ? " · The Empty One Is Skipped"
+                  : ""
+              }`;
 
   return (
     <div className="flex min-h-full w-full flex-col gap-5 p-4">
@@ -448,10 +586,8 @@ export function NewKnowledgePage() {
             icon={meta.icon}
             tone={meta.tone}
             changeSourceDisabled={isSubmitting}
-            onChangeSource={() => {
-              resetContent();
-              setStep("source");
-            }}
+            locked={isSubmitting || uploadStarted}
+            onChangeSource={backToSources}
             side={
               <KnowledgeScopePanel
                 value={scope}
@@ -489,6 +625,15 @@ export function NewKnowledgePage() {
               <DocumentsContent
                 documents={documents}
                 onDocumentsChange={setDocuments}
+                rowStatus={rowStatus}
+                summary={
+                  uploadStarted && !isUploading ? (
+                    <DocumentUploadSummary
+                      outcomes={uploadOutcomes ?? []}
+                      stoppedMessage={uploadStopMessage}
+                    />
+                  ) : undefined
+                }
                 categoryOptions={categoryOptions}
                 categoriesLoading={categoriesLoading}
                 serverErrors={serverErrors}
@@ -520,30 +665,40 @@ export function NewKnowledgePage() {
           </ContentLayout>
 
           <StepFooter message={footerMessage}>
-            <Button
-              type="button"
-              variant="ghost"
-              disabled={isSubmitting}
-              onClick={goToLibrary}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={isSubmitting}
-              onClick={() => {
-                resetContent();
-                setStep("source");
-              }}
-            >
-              Back
-            </Button>
+            {/* While documents are going up, only the progress button shows. */}
+            {!(source === "file" && isUploading) && (
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={isSubmitting}
+                onClick={goToLibrary}
+              >
+                {uploadStarted ? "Go To Knowledge" : "Cancel"}
+              </Button>
+            )}
+            {uploadStarted && unsentCount > 0 && !isUploading && (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isSubmitting}
+                onClick={addNewDocuments}
+              >
+                Add New Documents
+              </Button>
+            )}
             <PrimaryAction
               type="button"
               loading={isSubmitting}
-              disabled={readyCount === 0 || isStorageFull}
-              onClick={() => void handleSubmit()}
+              disabled={
+                uploadStarted
+                  ? unsentCount > 0 && isStorageFull
+                  : readyCount === 0 || isStorageFull
+              }
+              onClick={() => {
+                if (!uploadStarted) void handleSubmit();
+                else if (unsentCount > 0) void sendDocuments();
+                else addNewDocuments();
+              }}
             >
               {primaryLabel}
             </PrimaryAction>
@@ -552,35 +707,36 @@ export function NewKnowledgePage() {
       )}
 
       {step === "done" && added && (
-        <div className="mx-auto flex max-w-lg flex-1 flex-col items-center justify-center gap-3 py-10 text-center">
-          <IconCircleCheck className="size-12 text-emerald-500" />
-          <Typography variant="h4" as="h2">
-            {added.label} Added
-          </Typography>
-          {added.sent > added.count && (
-            <p
-              role="status"
-              className={`rounded-lg border px-3 py-2 text-sm ${BADGE_TONE_STYLES.warning}`}
-            >
-              {added.sent - added.count} of {added.sent} weren&apos;t added
-              because they would go over your storage limit. Free up space or
-              upgrade your plan, then add them again.
-            </p>
-          )}
-          <Typography variant="muted">
-            {source === "faq"
+        <KnowledgeAddedScreen
+          title={`${added.label} Added`}
+          description={
+            source === "faq"
               ? "Your assistant can use them straight away."
-              : "We're reading them now. Each one goes live in your assistant as soon as it's ready, and you can follow its progress in Knowledge."}
-          </Typography>
-          <div className="mt-2 flex flex-wrap justify-center gap-2">
-            <Button asChild>
-              <Link href="/knowledge">View In Knowledge</Link>
-            </Button>
-            <Button type="button" variant="outline" onClick={startAgain}>
-              Add More
-            </Button>
-          </div>
-        </div>
+              : "We're reading them now. Each one goes live in your assistant as soon as it's ready, and you can follow its progress in Knowledge."
+          }
+          notice={
+            <>
+              {added.sent > added.count && (
+                <p
+                  role="status"
+                  className={`rounded-lg border px-3 py-2 text-sm ${BADGE_TONE_STYLES.warning}`}
+                >
+                  {added.sent - added.count} of {added.sent} weren&apos;t added
+                  because they would go over your storage limit. Free up space
+                  or upgrade your plan, then add them again.
+                </p>
+              )}
+              {Boolean(added.skipped) && (
+                <p role="status" className="text-sm text-muted-foreground">
+                  {plural(added.skipped ?? 0, "document was", "documents were")}{" "}
+                  already in your knowledge, so{" "}
+                  {added.skipped === 1 ? "it was" : "they were"} skipped.
+                </p>
+              )}
+            </>
+          }
+          onAddMore={startAgain}
+        />
       )}
 
       <UnsavedChangesDialog
@@ -835,6 +991,8 @@ function WebsiteContent({
 function DocumentsContent({
   documents,
   onDocumentsChange,
+  rowStatus,
+  summary,
   categoryOptions,
   categoriesLoading,
   serverErrors,
@@ -842,6 +1000,10 @@ function DocumentsContent({
 }: {
   documents: DocumentRow[];
   onDocumentsChange: (next: DocumentRow[]) => void;
+  /** How each file stands once an upload has run or is running. */
+  rowStatus: (RowStatus | undefined)[];
+  /** A note above the files, e.g. how the last upload went. */
+  summary?: React.ReactNode;
   categoryOptions: KnowledgeCategoryOption[];
   categoriesLoading: boolean;
   serverErrors: ServerErrors;
@@ -849,7 +1011,9 @@ function DocumentsContent({
 }) {
   return (
     <div className="flex flex-col gap-2">
+      {summary}
       <MultiFileUploadDropzone
+        rowStatus={rowStatus}
         files={documents.map((row) => row.file)}
         onFilesSelected={(selected) =>
           onDocumentsChange(
@@ -936,17 +1100,33 @@ function FaqContent({
     });
 
   const update = (localId: string, patch: Partial<FaqRow>) => {
-    onRowsChange(
-      rows.map((row) => (row.localId === localId ? { ...row, ...patch } : row)),
+    const next = rows.map((row) =>
+      row.localId === localId ? { ...row, ...patch } : row,
     );
+    onRowsChange(next);
     // The row changed, so what the server said about it no longer applies.
-    if (serverErrors[localId]) {
-      onServerErrorsChange(
-        Object.fromEntries(
-          Object.entries(serverErrors).filter(([id]) => id !== localId),
-        ),
-      );
+    // Nor does a "same question" error on its twin, if it no longer has one.
+    const others = Object.fromEntries(
+      Object.entries(serverErrors).filter(([id]) => id !== localId),
+    );
+    const remaining = dropStaleDuplicateErrors(next, others);
+    if (serverErrors[localId] || remaining !== others) {
+      onServerErrorsChange(remaining);
     }
+  };
+
+  const remove = (localId: string) => {
+    const next = rows.filter((row) => row.localId !== localId);
+    const kept = next.length > 0 ? next : [emptyFaqRow()];
+    onRowsChange(kept);
+    // The deleted row's errors go with it, and so does a "same question" error
+    // on the row that was its twin.
+    const stillThere = Object.fromEntries(
+      Object.entries(serverErrors).filter(([id]) =>
+        kept.some((row) => row.localId === id),
+      ),
+    );
+    onServerErrorsChange(dropStaleDuplicateErrors(kept, stillThere));
   };
 
   return (
@@ -996,12 +1176,7 @@ function FaqContent({
                 variant="ghost"
                 size="icon-sm"
                 aria-label={`Remove question ${index + 1}`}
-                onClick={() => {
-                  const next = rows.filter(
-                    (entry) => entry.localId !== row.localId,
-                  );
-                  onRowsChange(next.length > 0 ? next : [emptyFaqRow()]);
-                }}
+                onClick={() => remove(row.localId)}
               >
                 <IconTrash className="size-4" />
               </Button>

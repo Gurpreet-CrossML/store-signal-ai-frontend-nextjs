@@ -2,17 +2,17 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { IconSearch, IconX } from "@tabler/icons-react";
-import type { OnChangeFn, PaginationState } from "@tanstack/react-table";
+import { IconArrowsSort, IconSearch, IconX } from "@tabler/icons-react";
+import type { PaginationState } from "@tanstack/react-table";
 
 import { DataTable } from "@/components/custom/data-table";
 import { getCustomerColumns } from "@/components/custom/crm/customers-columns";
 import {
-  CustomerFilterPopover,
-  EMPTY_CUSTOMER_FILTERS,
-  countActiveCustomerFilters,
-  type CustomerFilterSelection,
-} from "@/components/custom/crm/customer-filters";
+  CustomerTabs,
+  type CustomerTab,
+} from "@/components/custom/crm/customer-tabs";
+import { DateRangePicker } from "@/components/custom/date-range-picker";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -21,35 +21,46 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useDebounce } from "@/hooks/use-debounce";
+import { ACTIVE_FILTER_STYLE } from "@/lib/config";
 import { endOfDay, startOfDay } from "@/lib/helpers";
+import { cn } from "@/lib/utils";
 import {
+  FetchCustomerSummary,
   FetchCustomers,
   type CustomerFilters,
   type CustomerOrdering,
 } from "@/redux/api-slice/customer-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { ACTIVE_FILTER_STYLE } from "@/lib/config";
-import { cn } from "@/lib/utils";
-
-const PER_PAGE = 25;
 
 const SORT_OPTIONS: { value: CustomerOrdering; label: string }[] = [
-  { value: "-total_spent", label: "Top Spenders" },
-  { value: "-orders_count", label: "Most Orders" },
+  { value: "-lifetime_value", label: "Lifetime Value" },
+  { value: "-orders_count", label: "Orders" },
+  { value: "-last_order_at", label: "Last Order" },
   { value: "-registered_at", label: "Newest Customers" },
-  { value: "registered_at", label: "Oldest Customers" },
   { value: "first_name", label: "Name (A–Z)" },
 ];
 
-/** "any" means the question isn't being asked, so the param is omitted. */
-function triState(value: "any" | "yes" | "no") {
-  return value === "any" ? undefined : value === "yes";
-}
+/** A picked last order date range, as the picker gives it ("" when open). */
+type DateRange = { from: string; to: string };
 
-function numeric(value: string) {
-  if (!value.trim()) return undefined;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : undefined;
+const NO_RANGE: DateRange = { from: "", to: "" };
+
+/** The request filters for the list's selection. */
+function toRequestFilters(
+  tab: CustomerTab,
+  lastOrder: DateRange,
+  search: string,
+  ordering: CustomerOrdering,
+): CustomerFilters {
+  return {
+    ...(search ? { search } : {}),
+    ...(tab !== "all" ? { group: [tab] } : {}),
+    // The picker gives whole days; the range covers all of its last one.
+    ...(lastOrder.from ? { last_order_from: startOfDay(lastOrder.from) } : {}),
+    ...(lastOrder.to ? { last_order_to: endOfDay(lastOrder.to) } : {}),
+    ordering,
+  };
 }
 
 export default function Customers() {
@@ -62,53 +73,41 @@ export default function Customers() {
   const { FetchCustomersData, FetchCustomersIsLoading } = useAppSelector(
     (state) => state.GetCustomerReducer.FetchCustomersState,
   );
+  const summary = useAppSelector(
+    (state) =>
+      state.GetCustomerReducer.FetchCustomerSummaryState
+        .FetchCustomerSummaryData,
+  );
 
-  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 25,
+  });
   const [searchInput, setSearchInput] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [ordering, setOrdering] = useState<CustomerOrdering>("-total_spent");
+  const [ordering, setOrdering] = useState<CustomerOrdering>("-lifetime_value");
+  const [tab, setTab] = useState<CustomerTab>("all");
+  const [lastOrder, setLastOrder] = useState<DateRange>(NO_RANGE);
+  // Search waits for typing to pause, so a request isn't fired per keystroke.
+  const search = useDebounce(searchInput.trim());
 
-  // Draft is what the popover edits; applied is what the request uses, so
-  // half-typed bounds don't fire a query on every keystroke.
-  const [draftFilters, setDraftFilters] = useState<CustomerFilterSelection>(
-    EMPTY_CUSTOMER_FILTERS,
-  );
-  const [appliedFilters, setAppliedFilters] = useState<CustomerFilterSelection>(
-    EMPTY_CUSTOMER_FILTERS,
-  );
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  // Back to page 1 whenever the store, search, sort, tab or dates change
+  // (render-phase, so the fetch below never asks for a page past the end).
+  const querySignature = JSON.stringify([
+    storeCode,
+    search,
+    ordering,
+    tab,
+    lastOrder,
+  ]);
+  const [prevSignature, setPrevSignature] = useState(querySignature);
+  if (querySignature !== prevSignature) {
+    setPrevSignature(querySignature);
+    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+  }
 
-  // Debounce the search so a request isn't fired per keystroke, and reset to
-  // page 1 in the same tick rather than chaining a second effect off it.
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(searchInput.trim());
-      setPage(1);
-    }, 350);
-    return () => clearTimeout(timer);
-  }, [searchInput]);
-
-  const requestFilters: CustomerFilters = useMemo(
-    () => ({
-      ...(debouncedSearch ? { search: debouncedSearch } : {}),
-      accepts_email_marketing: triState(appliedFilters.emailConsent),
-      accepts_sms_marketing: triState(appliedFilters.smsConsent),
-      is_email_verified: triState(appliedFilters.emailVerified),
-      orders_count_min: numeric(appliedFilters.ordersMin),
-      orders_count_max: numeric(appliedFilters.ordersMax),
-      total_spent_min: numeric(appliedFilters.spentMin),
-      total_spent_max: numeric(appliedFilters.spentMax),
-      // The picker yields whole days; the range has to cover all of its last
-      // one or "up to today" would stop at midnight.
-      ...(appliedFilters.registeredFrom
-        ? { registered_from: startOfDay(appliedFilters.registeredFrom) }
-        : {}),
-      ...(appliedFilters.registeredTo
-        ? { registered_to: endOfDay(appliedFilters.registeredTo) }
-        : {}),
-      ordering,
-    }),
-    [appliedFilters, debouncedSearch, ordering],
+  const requestFilters = useMemo(
+    () => toRequestFilters(tab, lastOrder, search, ordering),
+    [tab, lastOrder, search, ordering],
   );
 
   useEffect(() => {
@@ -116,39 +115,40 @@ export default function Customers() {
     dispatch(
       FetchCustomers({
         storeCode,
-        page,
-        limit: PER_PAGE,
+        page: pagination.pageIndex + 1,
+        limit: pagination.pageSize,
         filters: requestFilters,
       }),
     );
-  }, [dispatch, storeCode, page, requestFilters]);
+  }, [dispatch, storeCode, pagination, requestFilters]);
 
-  const columns = useMemo(() => getCustomerColumns(), []);
-  const activeFilterCount = countActiveCustomerFilters(appliedFilters);
+  // The tab counts are for the whole store, so they only reload with it.
+  useEffect(() => {
+    if (!storeCode) return;
+    dispatch(FetchCustomerSummary({ storeCode }));
+  }, [dispatch, storeCode]);
 
-  // The shared table is zero-indexed; this screen's API is 1-indexed.
-  const pagination: PaginationState = {
-    pageIndex: page - 1,
-    pageSize: PER_PAGE,
-  };
-  const handlePaginationChange: OnChangeFn<PaginationState> = (updater) => {
-    const next = typeof updater === "function" ? updater(pagination) : updater;
-    setPage(next.pageIndex + 1);
-  };
+  const columns = useMemo(
+    () => getCustomerColumns({ currency: summary?.currency ?? "USD", tab }),
+    [summary, tab],
+  );
 
-  const hasQuery = Boolean(debouncedSearch) || activeFilterCount > 0;
+  const hasRange = Boolean(lastOrder.from || lastOrder.to);
+  const hasQuery = Boolean(search) || tab !== "all" || hasRange;
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="relative w-full max-w-sm">
+      <CustomerTabs tab={tab} onChange={setTab} summary={summary} />
+
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative min-w-56 flex-1 sm:max-w-sm">
           <IconSearch className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={searchInput}
             onChange={(event) => setSearchInput(event.target.value)}
-            placeholder="Search name, email, phone or customer ID…"
+            placeholder="Search name or email"
             aria-label="Search customers"
-            className="pl-9"
+            className={cn("h-8 pl-9", searchInput && ACTIVE_FILTER_STYLE)}
           />
           {searchInput ? (
             <button
@@ -162,54 +162,47 @@ export default function Customers() {
           ) : null}
         </div>
 
-        <div className="flex items-center gap-2">
-          <Select
-            value={ordering}
-            onValueChange={(value) => {
-              setOrdering(value as CustomerOrdering);
-              setPage(1);
-            }}
+        <DateRangePicker
+          from={lastOrder.from}
+          to={lastOrder.to}
+          placeholder="Last Order"
+          disabled={{ after: new Date() }}
+          onRangeChange={(from, to) => setLastOrder({ from, to })}
+        />
+        {hasRange ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground"
+            onClick={() => setLastOrder(NO_RANGE)}
           >
-            <SelectTrigger
-              // A sort order is always applied, including the default.
-              className={cn("w-44", ACTIVE_FILTER_STYLE)}
-              aria-label="Sort customers"
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {SORT_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            <IconX />
+            Clear
+          </Button>
+        ) : null}
 
-          <CustomerFilterPopover
-            open={isFilterOpen}
-            onOpenChange={(open) => {
-              setIsFilterOpen(open);
-              // Reopening starts from what is actually applied, not from an
-              // abandoned draft.
-              if (open) setDraftFilters(appliedFilters);
-            }}
-            filters={draftFilters}
-            onFiltersChange={setDraftFilters}
-            activeCount={activeFilterCount}
-            onApply={() => {
-              setAppliedFilters(draftFilters);
-              setPage(1);
-              setIsFilterOpen(false);
-            }}
-            onClear={() => {
-              setDraftFilters(EMPTY_CUSTOMER_FILTERS);
-              setAppliedFilters(EMPTY_CUSTOMER_FILTERS);
-              setPage(1);
-              setIsFilterOpen(false);
-            }}
-          />
-        </div>
+        <Select
+          value={ordering}
+          onValueChange={(value) => setOrdering(value as CustomerOrdering)}
+        >
+          {/* Phones keep the default sort, as in the mobile design. */}
+          <SelectTrigger
+            size="sm"
+            className="w-auto max-sm:hidden"
+            aria-label="Sort customers"
+          >
+            <IconArrowsSort className="text-muted-foreground" />
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {SORT_OPTIONS.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <DataTable
@@ -217,9 +210,10 @@ export default function Customers() {
         data={FetchCustomersData.results}
         totalCount={FetchCustomersData.count}
         pagination={pagination}
-        onPaginationChange={handlePaginationChange}
+        onPaginationChange={setPagination}
         isLoading={FetchCustomersIsLoading}
         noun="customer"
+        headerClassName="bg-muted/50 max-md:hidden"
         onRowClick={(customer) => router.push(`/crm/customers/${customer.id}`)}
         emptyTitle={hasQuery ? "No Matching Customers" : "No Customers Yet"}
         emptyDescription={

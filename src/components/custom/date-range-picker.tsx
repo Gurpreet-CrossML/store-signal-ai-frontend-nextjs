@@ -84,6 +84,7 @@ export function DateRangePicker({
   disabled,
   withTime = false,
   numberOfMonths = 2,
+  placeholder = "Pick A Date Range",
   className,
 }: {
   from: string;
@@ -95,6 +96,8 @@ export function DateRangePicker({
   withTime?: boolean;
   /** Months shown side by side; one fits a narrow screen. */
   numberOfMonths?: 1 | 2;
+  /** The button's text while no range is picked (date-only mode). */
+  placeholder?: string;
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -130,7 +133,7 @@ export function DateRangePicker({
           committed.to,
           DISPLAY_DATE_FORMAT,
         )}`
-      : "Pick A Date Range";
+      : placeholder;
 
   const maxDateTimeValue =
     disabled &&

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -12,12 +12,11 @@ import {
   IconCheck,
   IconChevronLeft,
   IconClockHour4,
-  IconFlag,
   IconHash,
   IconListCheck,
   IconLoader2,
-  IconMessage2,
   IconMessages,
+  IconPlus,
   IconSparkles,
   IconTargetArrow,
   IconThumbUp,
@@ -56,7 +55,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { Badge } from "@/components/ui/badge";
+import { TagBadge } from "@/components/custom/helpdesk/tag-badge";
 import { Button } from "@/components/ui/button";
 import { CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -432,13 +431,22 @@ function formatDayFirst(value?: string | null) {
 export default function ThreadDetail({ threadId }: { threadId: string }) {
   const dispatch = useAppDispatch();
   const router = useRouter();
+  const returnToThreads = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault();
+    router.back();
+  };
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
   );
 
-  const { FetchThreadDetailsData, FetchThreadDetailsIsError } = useAppSelector(
-    (state) => state.GetThreadReducer.FetchThreadDetailsState,
-  );
+  const {
+    FetchThreadDetailsData,
+    FetchThreadDetailsIsLoading,
+    FetchThreadDetailsIsError,
+    FetchThreadDetailsIsSuccess,
+  } = useAppSelector((state) => state.GetThreadReducer.FetchThreadDetailsState);
+  // Whether the thread request was in flight at the last render.
+  const wasLoadingRef = useRef(false);
   const { FetchConversationSummaryData } = useAppSelector(
     (state) => state.GetThreadReducer.FetchConversationSummaryState,
   );
@@ -482,7 +490,21 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
     if (!storeCode || !threadId) return;
 
     const loadData = async () => {
-      const result = await dispatch(FetchThreadDetails(threadId)).unwrap();
+      const action = await dispatch(FetchThreadDetails(threadId));
+
+      // Failed, or no thread for this id: the redirect effect below sends the
+      // user back to /threads.
+      if (FetchThreadDetails.rejected.match(action) || !action.payload?.id) {
+        return;
+      }
+
+      const result = action.payload;
+
+      // The layout guard below redirects active conversations before paint.
+      if (result.is_active) {
+        return;
+      }
+
       setThreadMessages(result.messages ?? []);
 
       dispatch(FetchConversationSummary(threadId));
@@ -549,17 +571,54 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
   const details = isThisThread ? FetchThreadDetailsData : null;
   // The thread's own request is still out — or what is in the store belongs
   // to the thread we came from. Either way this screen has no basics yet,
-  // so every section shows its own loader rather than the last thread's
-  // answer. Each section then falls back to its own request's flag.
+  // so it shows a loader rather than the last thread's answer.
+  // Each section then falls back to its own request's flag.
   const detailsLoading = !isThisThread;
+
+  // The thunk updates Redux before the async loader resumes. Redirect before
+  // the browser paints that active response as a (misleading) closed thread.
+  useLayoutEffect(() => {
+    if (details?.is_active) {
+      router.replace(`/support/?chat=${threadId}`);
+    }
+  }, [details?.is_active, router, threadId]);
+
+  // This page's thread request finished without a thread: it failed (a
+  // malformed id answers 500) or came back empty (an unknown or other
+  // store's id answers `{}`). Nothing to show, so back to the list.
+  // Only after this page's own request: the slice's flags outlive the
+  // request that set them, and would otherwise bounce the next thread opened.
+  useEffect(() => {
+    const requestFinished =
+      wasLoadingRef.current &&
+      (Boolean(FetchThreadDetailsIsError) || FetchThreadDetailsIsSuccess);
+    if (requestFinished && !details) {
+      router.replace("/threads");
+    }
+    wasLoadingRef.current = FetchThreadDetailsIsLoading;
+  }, [
+    details,
+    FetchThreadDetailsIsError,
+    FetchThreadDetailsIsLoading,
+    FetchThreadDetailsIsSuccess,
+    router,
+  ]);
+
   // Breadcrumb title: the thread's own name, else what the customer first asked.
   const threadTitle =
     details?.name ||
     threadMessages.find((message) => message.message_type === "user_message")
       ?.message ||
     "Conversation";
+  const customerEmail = details?.customer_email?.trim().toLowerCase();
+  const storedCustomerName = details?.customer_name?.trim();
+  // Older threads can have the email copied into customer_name. Display that
+  // identity as a normalised email, while retaining a genuine customer name.
   const customerName =
-    details?.customer_name || details?.customer_email || "Guest";
+    storedCustomerName &&
+    storedCustomerName.toLowerCase() !== customerEmail?.toLowerCase()
+      ? storedCustomerName
+      : customerEmail || storedCustomerName || "Guest";
   // No profile, name or email: an anonymous visitor, so the Customer card has
   // nothing to show and is hidden. Waits for the thread so it never flashes.
   const isGuest =
@@ -568,25 +627,14 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
     !details?.customer_name &&
     !details?.customer_email;
 
-  // Only a genuine failure replaces the screen. Everything else renders
-  // the shell and fills in section by section.
-  if (!details && FetchThreadDetailsIsError) {
-    return (
-      <Empty>
-        <EmptyHeader>
-          <EmptyMedia>
-            <IconMessage2 />
-          </EmptyMedia>
-          <EmptyTitle>Thread Not Found</EmptyTitle>
-          <EmptyDescription>
-            This conversation may belong to another store, or have been removed.
-          </EmptyDescription>
-        </EmptyHeader>
-        <Button variant="outline" asChild>
-          <Link href="/threads">Back To Threads</Link>
-        </Button>
-      </Empty>
-    );
+  if (details?.is_active) {
+    return <LoadingState label="Opening Live Chat…" className="min-h-64" />;
+  }
+
+  // Until this thread's details arrive. If the request is rejected, the
+  // redirect effect above sends the user to /threads.
+  if (detailsLoading) {
+    return <LoadingState className="min-h-64" />;
   }
 
   const resolutionRate = Math.min(
@@ -804,7 +852,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
                 <p className="font-semibold">{customerName}</p>
               )}
               <CustomerContact
-                email={details?.customer_email}
+                email={customerEmail}
                 phone={details?.customer?.phone}
                 orders={FetchOrderData}
               />
@@ -829,7 +877,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
           <div className="flex justify-between">
             <span>Cart</span>
             <span className="text-sm font-normal text-muted-foreground">
-              {cartItems.length} Items
+              {cartItems.length} {cartItems.length === 1 ? "Item" : "Items"}
             </span>
           </div>
         }
@@ -865,7 +913,13 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
         {/* Values line up on the left of their column, like Help Desk. */}
         <dl className="grid grid-cols-[auto_1fr] gap-x-5 gap-y-1.5 px-5 py-4 text-sm">
           <dt className="text-muted-foreground">Thread ID</dt>
-          <dd className="truncate font-mono">{threadId}</dd>
+          {/* The id is cut to fit the card; hover shows the full id. */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <dd className="truncate font-mono">{threadId}</dd>
+            </TooltipTrigger>
+            <TooltipContent className="font-mono">{threadId}</TooltipContent>
+          </Tooltip>
           <dt className="text-muted-foreground">Channel</dt>
           <dd>Web Chat</dd>
           <dt className="text-muted-foreground">Started</dt>
@@ -887,8 +941,6 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
               <dd>{closeReason}</dd>
             </>
           ) : null}
-          <dt className="text-muted-foreground">Category</dt>
-          <dd>{threadTagLabels[0] ?? "—"}</dd>
           {feedback ? (
             <>
               <dt className="text-muted-foreground">User Feedback</dt>
@@ -929,6 +981,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
             >
               <Link
                 href="/threads"
+                onClick={returnToThreads}
                 className="flex shrink-0 items-center gap-1 text-muted-foreground hover:text-foreground"
               >
                 <IconChevronLeft className="size-4" />
@@ -947,13 +1000,8 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
               <div className="min-w-0">
                 <h1 className="truncate text-2xl font-bold">{customerName}</h1>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
-                  {threadTagLabels.map((tag) => (
-                    <Badge
-                      key={tag}
-                      className="bg-primary/10 text-primary hover:bg-primary/10"
-                    >
-                      {tag}
-                    </Badge>
+                  {(threadTags as ThreadTagData[]).map((tag) => (
+                    <TagBadge key={tag.name} tag={tag} />
                   ))}
                 </div>
               </div>
@@ -965,8 +1013,10 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
             {/* <Button variant="outline">Flag for review</Button> */}
             {existingThreadTicket ? (
               <Button asChild>
-                <Link href={`/helpdesk?ticket=${existingThreadTicket.id}`}>
-                  Open Ticket #{existingThreadTicket.ticket_id}
+                <Link
+                  href={`/helpdesk?search=${encodeURIComponent(details?.customer_email ?? customerName)}`}
+                >
+                  View All Tickets
                 </Link>
               </Button>
             ) : (
@@ -974,6 +1024,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
                 disabled={!storeCode || !canCreateTicket}
                 onClick={() => setIsCreateTicketOpen(true)}
               >
+                <IconPlus data-icon="inline-start" />
                 Create Ticket
               </Button>
             )}
@@ -1048,13 +1099,12 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
         </Tabs>
       </main>
       <div className="fixed inset-x-0 bottom-0 z-20 flex gap-3 border-t bg-background p-3 lg:hidden">
-        <Button variant="outline" size="icon" aria-label="Flag for review">
-          <IconFlag />
-        </Button>
         {existingThreadTicket ? (
           <Button className="flex-1" asChild>
-            <Link href={`/helpdesk?ticket=${existingThreadTicket.id}`}>
-              Open Ticket #{existingThreadTicket.ticket_id}
+            <Link
+              href={`/helpdesk?search=${encodeURIComponent(details?.customer_email ?? customerName)}`}
+            >
+              View All Tickets
             </Link>
           </Button>
         ) : (
@@ -1063,6 +1113,7 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
             disabled={!storeCode || !canCreateTicket}
             onClick={() => setIsCreateTicketOpen(true)}
           >
+            <IconPlus data-icon="inline-start" />
             Create Ticket
           </Button>
         )}

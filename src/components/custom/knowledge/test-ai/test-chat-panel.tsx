@@ -4,10 +4,15 @@ import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import {
+  IconAlertCircle,
   IconAlertTriangle,
+  IconCircleCheck,
   IconCoin,
+  IconGauge,
   IconRefresh,
   IconSparkles,
+  IconThumbDown,
+  IconThumbUp,
 } from "@tabler/icons-react";
 
 import { CustomerAvatar } from "@/components/custom/customer-avatar";
@@ -22,7 +27,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { BADGE_TONE_STYLES } from "@/lib/badge-tones";
 import {
@@ -33,8 +37,12 @@ import {
 } from "@/lib/config";
 import { getKnowledgeItemHref } from "@/lib/helpers";
 import { cn } from "@/lib/utils";
-import type { TestMessage } from "@/redux/api-slice/knowledge-test-ai-slice";
-import { useAppSelector } from "@/redux/hooks";
+import {
+  SetTestAnswerFeedback,
+  type TestFeedback,
+  type TestMessage,
+} from "@/redux/api-slice/knowledge-test-ai-slice";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 
 /** What the user asked, on the right like a sent message, with their profile icon (their initials). */
 function QuestionBubble({ children }: { children: string }) {
@@ -89,9 +97,87 @@ function CreditChip() {
   );
 }
 
+/** How confident the answer is, as a percentage (the backend works it out from how closely the knowledge matched). */
+function ConfidenceChip({ confidence }: { confidence: number }) {
+  return (
+    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+      <IconGauge className="size-3.5" />
+      Confidence: {Math.round(confidence * 100)}%
+    </span>
+  );
+}
+
+/** Whether the AI found an answer in the knowledge. */
+function AnswerStatusChip({ found }: { found: boolean }) {
+  return found ? (
+    <Badge variant="outline" className={BADGE_TONE_STYLES.success}>
+      <IconCircleCheck />
+      Status: Answered
+    </Badge>
+  ) : (
+    <Badge variant="outline" className={BADGE_TONE_STYLES.danger}>
+      <IconAlertCircle />
+      Status: Not found
+    </Badge>
+  );
+}
+
+/**
+ * The thumbs up and down under an answer to a test question. Pressing the
+ * rating already given takes it back.
+ */
+function FeedbackButtons({ item }: { item: TestMessage }) {
+  const dispatch = useAppDispatch();
+  const storeCode = useAppSelector(
+    (state) => state.GetStoresReducer.selectedStore,
+  );
+  if (item.testQuestionId === null || !storeCode) return null;
+  const testQuestionId = item.testQuestionId;
+
+  const rate = (rating: TestFeedback) =>
+    dispatch(
+      SetTestAnswerFeedback({
+        storeCode,
+        messageId: item.id,
+        testQuestionId,
+        feedback: item.feedback === rating ? null : rating,
+        previous: item.feedback,
+      }),
+    );
+
+  return (
+    <span className="ml-auto flex items-center gap-1">
+      {(
+        [
+          { rating: "good", label: "Good answer", Icon: IconThumbUp },
+          { rating: "bad", label: "Bad answer", Icon: IconThumbDown },
+        ] as const
+      ).map(({ rating, label, Icon }) => (
+        <Button
+          key={rating}
+          variant="ghost"
+          size="icon-sm"
+          aria-label={label}
+          aria-pressed={item.feedback === rating}
+          onClick={() => rate(rating)}
+          className={cn(
+            item.feedback === rating
+              ? "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
+              : "text-muted-foreground",
+          )}
+        >
+          <Icon className="size-4" />
+        </Button>
+      ))}
+    </span>
+  );
+}
+
 /** One saved AI answer: its text, the products it used, whether anything was found, the credit it cost and its sources. */
 function AnswerMessage({ item }: { item: TestMessage }) {
   const hasProducts = item.products.length > 0;
+  // The AI answered from the knowledge or the products, or found nothing.
+  const found = item.citations.length > 0 || hasProducts;
   // Several passages can come from one knowledge item: list each item once.
   const sources = [
     ...new Map(
@@ -105,13 +191,13 @@ function AnswerMessage({ item }: { item: TestMessage }) {
       <p className="leading-relaxed whitespace-pre-wrap">{item.message}</p>
       {hasProducts && <ProductCarousel products={item.products} alignStart />}
       <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t pt-2.5">
-        {item.citations.length === 0 && !hasProducts ? (
-          <Badge variant="outline" className={BADGE_TONE_STYLES.warning}>
-            Nothing found
-          </Badge>
-        ) : (
-          <CreditChip />
+        <AnswerStatusChip found={found} />
+        {found && item.confidence !== null && (
+          <ConfidenceChip confidence={item.confidence} />
         )}
+        {found && <CreditChip />}
+        {/* Nothing to rate when the AI found no answer. */}
+        {found && <FeedbackButtons item={item} />}
       </div>
       {(sources.length > 0 || hasProducts) && (
         <p className="mt-1.5 text-xs text-muted-foreground">
@@ -125,7 +211,7 @@ function AnswerMessage({ item }: { item: TestMessage }) {
                 rel="noopener noreferrer"
                 className="font-medium text-primary hover:underline"
               >
-                {source.title || "Knowledge item"}
+                {source.title || "Knowledge Item"}
               </Link>
             )),
             ...(hasProducts ? [KNOWLEDGE_TEST_PRODUCT_SOURCE_LABEL] : []),
@@ -173,11 +259,11 @@ export function TestChatPanel({
 
   return (
     <section
-      aria-label="AI test chat"
+      aria-label="AI Test Chat"
       className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border bg-card"
     >
       <header className="flex flex-col gap-0.5 border-b px-3 py-2.5 sm:px-4 sm:py-3">
-        <h3 className="text-sm font-semibold">AI test chat</h3>
+        <h3 className="text-sm font-semibold">AI Test Chat</h3>
         <p className="text-xs text-muted-foreground">
           Answers come from your knowledge and products.{" "}
           {KNOWLEDGE_TEST_CHAT_NOTICE}
@@ -194,7 +280,7 @@ export function TestChatPanel({
               <EmptyMedia variant="icon">
                 <IconSparkles />
               </EmptyMedia>
-              <EmptyTitle>Test your AI</EmptyTitle>
+              <EmptyTitle>Test Your AI</EmptyTitle>
               <EmptyDescription>
                 Pick a question from the list, or type your own below, to see
                 how your AI answers it from your knowledge and products.
@@ -239,10 +325,6 @@ export function TestChatPanel({
                       <Spinner />
                       Generating answer…
                     </span>
-                    <div className="mt-3 flex flex-col gap-2">
-                      <Skeleton className="h-3.5 w-full" />
-                      <Skeleton className="h-3.5 w-4/5" />
-                    </div>
                   </AnswerBubble>
                 )}
               </div>

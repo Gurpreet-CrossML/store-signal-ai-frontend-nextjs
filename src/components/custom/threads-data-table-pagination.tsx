@@ -56,6 +56,9 @@ export function DataTablePagination<TData>({
   // bar's buttons, so it would keep showing the old page.
   const { pageIndex, pageSize } = table.getState().pagination;
   const pageCount = table.getPageCount();
+  // `>=`, not `===`: with no results pageCount is 0, and `0 === -1` would
+  // leave next enabled and let the page run past the end ("Page 6 of 1").
+  const isLastPage = pageIndex >= pageCount - 1;
 
   const handlePageSizeChange = (newPageSize: number) => {
     table.setPageSize(newPageSize);
@@ -174,7 +177,7 @@ export function DataTablePagination<TData>({
                 "max-sm:col-start-3 max-sm:row-start-2 max-sm:justify-self-start",
             )}
             onClick={() => handlePageIndexChange(pageIndex + 1)}
-            disabled={pageIndex === pageCount - 1}
+            disabled={isLastPage}
             aria-label="Go to next page"
           >
             <IconChevronRight className="h-4 w-4" />
@@ -184,7 +187,7 @@ export function DataTablePagination<TData>({
             size="icon"
             className="hidden h-8 w-8 lg:flex"
             onClick={() => handlePageIndexChange(pageCount - 1)}
-            disabled={pageIndex === pageCount - 1}
+            disabled={isLastPage}
             aria-label="Go to last page"
           >
             <IconChevronsRight className="h-4 w-4" />

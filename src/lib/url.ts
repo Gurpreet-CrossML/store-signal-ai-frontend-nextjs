@@ -23,15 +23,28 @@ export function isValidUrl(value: string): boolean {
   }
 }
 
-/** Stricter than `isValidUrl`, for addresses we'll fetch: the host must be a
- * real domain (with a TLD, e.g. `company.com`) or an IPv4 address. Plain words
- * like "AGENT" pass `isValidUrl` because a scheme gets prepended to them. */
+// Endings that only look like a domain: reserved names and file extensions.
+const NOT_A_TLD =
+  /^(local|localhost|test|example|invalid|internal|lan|home|txt|html?|php|png|jpe?g|pdf)$/i;
+
+/** Stricter than `isValidUrl`, for addresses we'll fetch: a https website
+ * whose host is a real-looking domain (with a TLD, e.g. `company.com`).
+ * IP addresses and explicit `http://` links are refused. Plain words like
+ * "AGENT" pass `isValidUrl` because a scheme gets prepended to them. Without a
+ * list of top-level domains, "shop.sdf" still passes, but "www.sdf",
+ * "company.local" and "file.txt" do not. */
 export function isValidWebsiteUrl(value: string): boolean {
-  if (!isValidUrl(value)) return false;
+  if (!isValidUrl(value) || /^http:\/\//i.test(value.trim())) return false;
   const { hostname } = new URL(normalizeUrl(value));
-  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(hostname)) return true;
-  return /^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+([a-z]{2,63}|xn--[a-z0-9-]{1,59})$/i.test(
-    hostname,
+  // An IP address ends in a number, so the domain check below refuses it too.
+  const labels = hostname.split(".");
+  // "www.sdf" is "www" plus an ending, not a site.
+  if (labels.length === 2 && labels[0].toLowerCase() === "www") return false;
+  return (
+    !NOT_A_TLD.test(labels[labels.length - 1]) &&
+    /^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+([a-z]{2,63}|xn--[a-z0-9-]{1,59})$/i.test(
+      hostname,
+    )
   );
 }
 
@@ -46,7 +59,7 @@ export function isSafeHttpUrl(value: string): boolean {
 }
 
 /** Takes the spaces and tabs out of typed text. Addresses never contain them;
- * several are told apart by a new line (or a comma). */
+ * several are told apart by a new line. */
 export function stripUrlSpaces(value: string): string {
   return value.replace(/[^\S\r\n]+/g, "");
 }
@@ -93,14 +106,15 @@ export type ParsedUrlList = {
   duplicates: string[];
 };
 
-/** Splits the field into addresses: one per line, or comma-separated. */
+/** Splits the field into addresses: one per line. A comma or semicolon is part
+ * of the address ("…?cid=1,2"), not a separator. */
 export function parseUrlList(text: string): ParsedUrlList {
   const urls: string[] = [];
   const invalid: string[] = [];
   const duplicates: string[] = [];
   const seen = new Map<string, string>();
 
-  for (const piece of text.split(/[\r\n,;]+/)) {
+  for (const piece of text.split(/[\r\n]+/)) {
     const token = piece.trim();
     if (!token) continue;
     if (

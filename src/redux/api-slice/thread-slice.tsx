@@ -7,6 +7,7 @@ import type {
   ThreadCloseReason,
   ThreadClosedByType,
 } from "@/lib/thread-options";
+import type { CustomerSegment } from "@/redux/api-slice/customer-slice";
 
 type ThreadFilters = {
   from?: string;
@@ -85,6 +86,8 @@ export type Thread = {
   id: string;
   name: string | null;
   customer: Customer | null;
+  /** The customer's segment when they were linked to this chat; kept after. */
+  customer_segment?: CustomerSegment;
   source?: "native" | "webhook" | "whatsapp" | null;
   chat_handler?: "ai" | "human";
   chat_handler_user?: ThreadHandlerUser | null;
@@ -167,8 +170,21 @@ export type ClarifyingQuestion = {
   from_catalogue?: boolean;
 };
 
+/** One item a customer picked on a return's item picker, with its reason. */
+export type PickerPick = {
+  item: string;
+  /** The reason's code, e.g. "too_small"; "" when they gave none. */
+  reason: string;
+  /** The reason as the customer saw it. */
+  label: string;
+  /** Their own words, for an "other" reason. */
+  note: string;
+};
+
 export type ThreadJsonContent = {
   questions?: ClarifyingQuestion[];
+  /** On a customer's message: what they picked on the item picker above it. */
+  picker_answer?: PickerPick[];
   products?: ProductData[];
   related_products?: ProductData[];
   comparison_block?: ProductComparisonBlock[] | null;

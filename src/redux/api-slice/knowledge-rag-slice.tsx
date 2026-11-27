@@ -5,6 +5,14 @@ import { isAxiosError } from "axios";
 import { axiosInstance } from "@/redux/axios-config";
 import { ENDPOINTS } from "@/lib/config";
 import { toPaginatedList } from "@/lib/helpers";
+import { firstMessage } from "@/lib/form-errors";
+import {
+  uploadInGroups,
+  type BatchedUploadResult,
+  type FileOutcome,
+  type GroupReply,
+  type UploadSnapshot,
+} from "@/lib/knowledge-upload";
 
 // --- Types ------------------------------------------------------------
 // Kept flat (rather than a discriminated union) because the Add/Edit form
@@ -42,6 +50,12 @@ export type KnowledgeStatus =
   | "pending"
   | "processing"
   | "failed";
+
+/** Why a `failed` item failed, when the backend knows (`failure_reason`). */
+export type KnowledgeFailureReason =
+  | "storage_limit"
+  | "record_limit"
+  | "no_content";
 
 export type AIScope = "sales" | "support" | "social" | "internal";
 
@@ -118,6 +132,8 @@ export type KnowledgeItem = {
   fileType?: string;
   fileSize?: number;
   processingError?: string | null;
+  /** Why a failed item failed, when known: plan storage full, too many records, or nothing to index. */
+  failureReason?: KnowledgeFailureReason;
   lastProcessedAt?: string | null;
 
   // Google Drive
@@ -236,6 +252,8 @@ type ApiKnowledgeItem = {
   source: KnowledgeSource;
   title: string;
   status: KnowledgeStatus;
+  failure_reason?: "" | KnowledgeFailureReason;
+  error_message?: string | null;
   ai_scope: AIScope[];
   tags: string[];
   knowledge_categories?: KnowledgeCategoryRef[];
@@ -265,6 +283,12 @@ function mapApiKnowledgeItem(api: ApiKnowledgeItem): KnowledgeItem {
     source: api.source,
     title: api.title,
     status: api.status,
+    // The error text is only shown for a failure the backend has classified
+    // (`failure_reason`); the raw text of any other failure stays out of the UI.
+    processingError: api.failure_reason
+      ? api.error_message || undefined
+      : undefined,
+    failureReason: api.failure_reason || undefined,
     aiScope: api.ai_scope ?? [],
     tags: api.tags ?? [],
     createdAt: api.created_at,
@@ -370,6 +394,7 @@ export const FetchKnowledgeItems = createAsyncThunk(
       createdBy = [],
       knowledgeCategory = [],
       approvalWaiting = false,
+      silent = false,
     }: {
       storeCode: string;
       page?: number;
@@ -387,6 +412,8 @@ export const FetchKnowledgeItems = createAsyncThunk(
       knowledgeCategory?: string[];
       /** Only the pages the automatic import saved as drafts for approval. */
       approvalWaiting?: boolean;
+      /** Suppress errors and loading UI for interval refreshes. */
+      silent?: boolean;
     },
     thunkAPI,
   ) => {
@@ -419,9 +446,11 @@ export const FetchKnowledgeItems = createAsyncThunk(
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
-      toast.error("Couldn't load knowledge items.", {
-        description: data?.message || "Please try again later.",
-      });
+      if (!silent) {
+        toast.error("Couldn't load knowledge items.", {
+          description: data?.message || "Please try again later.",
+        });
+      }
       return thunkAPI.rejectWithValue(data || "Couldn't load knowledge items.");
     }
   },
@@ -433,11 +462,14 @@ export const FetchKnowledgeStats = createAsyncThunk(
     {
       storeCode,
       knowledgeCategory = [],
+      silent = false,
     }: {
       storeCode: string;
       /** Limits the item counts and creators to these knowledge categories;
        * the storage figures always cover the whole store. */
       knowledgeCategory?: string[];
+      /** Suppress loading UI for interval refreshes. */
+      silent?: boolean;
     },
     thunkAPI,
   ) => {
@@ -449,6 +481,7 @@ export const FetchKnowledgeStats = createAsyncThunk(
         `${ENDPOINTS.fetchKnowledgeStats()}?${params.toString()}`,
         { useBackend: true },
       );
+
       return response.data?.data as KnowledgeStats;
     } catch (error) {
       const response = isAxiosError(error) ? error.response : undefined;
@@ -550,7 +583,7 @@ export const CreateKnowledgeItemsBulk = createAsyncThunk(
 
       let payload: FormData | Record<string, unknown>;
       // The shared axios instance gives up after 30s, but a big batch (up to
-      // 100 pages, each re-checked and queued for indexing) can take longer.
+      // 20 pages, each re-checked and queued for indexing) can take longer.
       // Giving up early is worse than waiting: the backend still saves
       // everything, so the user sees an error for items that were added.
       let requestConfig: {
@@ -619,6 +652,140 @@ export const CreateKnowledgeItemsBulk = createAsyncThunk(
   },
 );
 
+/** A document to upload, with the knowledge categories it is filed under. */
+export type DocumentToUpload = { file: File; categories: number[] };
+
+/** Which of the files a server answer lists were saved, by position among
+ * the files sent. The answer lists the saved items in order; if some files
+ * were left out (no storage for them), they are found by name. */
+function savedPositions(
+  sent: DocumentToUpload[],
+  saved: { file_name?: string }[],
+): number[] {
+  if (saved.length === sent.length) return sent.map((_, position) => position);
+  const unmatched = sent.map((document, position) => ({
+    position,
+    name: document.file.name,
+  }));
+  const positions: number[] = [];
+  for (const item of saved) {
+    const at = unmatched.findIndex(({ name }) => name === item.file_name);
+    if (at >= 0) positions.push(unmatched.splice(at, 1)[0].position);
+  }
+  return positions;
+}
+
+/** Uploads documents in small groups instead of one request
+ * (`knowledge/views.py` `KnowledgeItemAPIView.post`, `source: "file"`), so a
+ * big upload doesn't outlast the browser's wait. Resolves with what became of
+ * each document (see `uploadInGroups`); it doesn't reject for a refused or
+ * unsent file, since the page shows each file's result itself. */
+export const UploadKnowledgeDocuments = createAsyncThunk(
+  "UploadKnowledgeDocuments",
+  async (
+    input: {
+      storeCode: string;
+      type: KnowledgeType;
+      aiScope: AIScope[];
+      productIds?: string[];
+      categoryIds?: string[];
+      collectionIds?: string[];
+      documents: DocumentToUpload[];
+      /** The outcomes of an earlier run: only the files still unsent are sent. */
+      previous?: FileOutcome[];
+      /** Send the files for processing now instead of saving them as drafts. */
+      publish?: boolean;
+    },
+    thunkAPI,
+  ): Promise<BatchedUploadResult> => {
+    const { storeCode, documents, publish = false } = input;
+
+    const send = async (positions: number[]): Promise<GroupReply> => {
+      // The page was left (and called this off): send nothing more.
+      if (thunkAPI.signal.aborted) {
+        return { kind: "failed", message: "The upload was cancelled." };
+      }
+      const group = positions.map((position) => documents[position]);
+      const formData = new FormData();
+      formData.append("type", input.type);
+      formData.append("source", "file");
+      formData.append("publish", String(publish));
+      input.aiScope.forEach((scope) => formData.append("ai_scope", scope));
+      (input.productIds ?? []).forEach((id) => formData.append("products", id));
+      (input.categoryIds ?? []).forEach((id) =>
+        formData.append("categories", id),
+      );
+      (input.collectionIds ?? []).forEach((id) =>
+        formData.append("collections", id),
+      );
+      group.forEach(({ file }) => formData.append("files", file));
+      // A document's own categories travel as `knowledge_categories_<n>`, n
+      // being its position among the `files` of this request.
+      group.forEach(({ categories }, n) =>
+        categories.forEach((id) =>
+          formData.append(`knowledge_categories_${n}`, String(id)),
+        ),
+      );
+
+      try {
+        const response = await axiosInstance.post(
+          `${ENDPOINTS.createKnowledgeItem()}?store_code=${storeCode}`,
+          formData,
+          {
+            timeout: BULK_CREATE_TIMEOUT_MS,
+            headers: { "Content-Type": "multipart/form-data" },
+          },
+        );
+        const saved: ApiKnowledgeItem[] = response.data?.data ?? [];
+        return {
+          kind: "saved",
+          savedIndexes: savedPositions(group, saved).map((at) => positions[at]),
+        };
+      } catch (error) {
+        const response = isAxiosError(error) ? error.response : undefined;
+        const body = response?.data;
+
+        // A list answers for each file in turn: `{}` for one that was fine.
+        if (response?.status === 400 && Array.isArray(body?.data)) {
+          const errors: Record<number, string> = {};
+          (body.data as unknown[]).forEach((entry, at) => {
+            const message = firstMessage(entry);
+            if (message && positions[at] !== undefined) {
+              errors[positions[at]] = message;
+            }
+          });
+          if (Object.keys(errors).length > 0)
+            return { kind: "invalid", errors };
+        }
+
+        const timedOut = isAxiosError(error) && error.code === "ECONNABORTED";
+        return {
+          kind: "failed",
+          message:
+            firstMessage(body?.data) ||
+            body?.message ||
+            (timedOut
+              ? "The upload took too long."
+              : "The connection was lost."),
+        };
+      }
+    };
+
+    return uploadInGroups({
+      sizes: documents.map(({ file }) => file.size),
+      initial: input.previous,
+      send,
+      // A call that was cancelled must not write its results back: the page
+      // that wanted them is gone, and the next one would show them as its own.
+      onChange: (snapshot) => {
+        if (!thunkAPI.signal.aborted) {
+          thunkAPI.dispatch(SetDocumentUploadSnapshot(snapshot));
+        }
+      },
+    });
+  },
+);
+
 /** One page found while scanning a website. `title` and `wordCount` are
  * best-effort — the crawler may not be able to read either. */
 export type DiscoveredPage = {
@@ -643,16 +810,19 @@ type ApiDiscoveredPage = {
   knowledge_category_ids?: number[];
 };
 
-/** The most specific message in a failed scan response: the `url` field error
- * (e.g. "can't be scanned" / "couldn't reach this website"), else the
- * envelope's `message`. */
+/** The most specific message in a failed scan response: the `url` or `urls`
+ * field error (e.g. "can't be scanned", "private links aren't allowed"), else
+ * any other error in `data`, else the envelope's `message`. The server may
+ * send a field's error as a string or a list. */
 function discoveryErrorMessage(payload: unknown): string | undefined {
   const body = payload as
-    | { message?: string; data?: { url?: unknown } }
+    | { message?: string; data?: Record<string, unknown> | null }
     | undefined;
-  const urlError = body?.data?.url;
+  const data = body?.data;
   return (
-    (Array.isArray(urlError) ? String(urlError[0]) : undefined) ||
+    firstMessage(data?.url) ||
+    firstMessage(data?.urls) ||
+    firstMessage(data) ||
     body?.message ||
     undefined
   );
@@ -716,9 +886,15 @@ export const DiscoverWebsiteUrls = createAsyncThunk(
 
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
-      toast.error("Couldn't scan the website.", {
-        description: discoveryErrorMessage(data) || "Please try again later.",
-      });
+      // A problem with the address is shown under the input, so it isn't
+      // toasted a second time; anything else (a server error) still is.
+      const fields = (data as { data?: { url?: unknown; urls?: unknown } })
+        ?.data;
+      if (!firstMessage(fields?.url) && !firstMessage(fields?.urls)) {
+        toast.error("Couldn't scan the website.", {
+          description: discoveryErrorMessage(data) || "Please try again later.",
+        });
+      }
       return thunkAPI.rejectWithValue(data || "Couldn't scan the website.");
     }
   },
@@ -1110,6 +1286,14 @@ const KnowledgeRagSlice = createSlice({
       CreateKnowledgeItemsBulkIsSuccess: false,
       CreateKnowledgeItemsBulkIsError: null as null | string | object,
     },
+    UploadKnowledgeDocumentsState: {
+      UploadKnowledgeDocumentsIsLoading: false,
+      /** What became of each document, as far as the upload has got (and what
+       * it ended with); null when no upload has run. */
+      UploadKnowledgeDocumentsOutcomes: null as null | FileOutcome[],
+      /** The documents in the request being sent right now. */
+      UploadKnowledgeDocumentsActive: [] as number[],
+    },
     DiscoverWebsiteUrlsState: {
       DiscoverWebsiteUrlsIsLoading: false,
       DiscoverWebsiteUrlsIsSuccess: false,
@@ -1166,6 +1350,19 @@ const KnowledgeRagSlice = createSlice({
     },
   },
   reducers: {
+    /** Records how far a document upload has got, so the page can show each
+     * file's result as it comes in. */
+    SetDocumentUploadSnapshot: (state, action: { payload: UploadSnapshot }) => {
+      const upload = state.UploadKnowledgeDocumentsState;
+      upload.UploadKnowledgeDocumentsOutcomes = action.payload.outcomes;
+      upload.UploadKnowledgeDocumentsActive = action.payload.active;
+    },
+    /** Forgets the last upload's results, for a fresh list of documents. */
+    ResetDocumentUpload: (state) => {
+      const upload = state.UploadKnowledgeDocumentsState;
+      upload.UploadKnowledgeDocumentsOutcomes = null;
+      upload.UploadKnowledgeDocumentsActive = [];
+    },
     /** Clears the website-scan results (list, flags, errors). */
     ResetDiscoverWebsiteUrls: (state) => {
       state.DiscoverWebsiteUrlsState = {
@@ -1186,7 +1383,9 @@ const KnowledgeRagSlice = createSlice({
     builder
       // FetchKnowledgeItems
       .addCase(FetchKnowledgeItems.pending, (state, action) => {
-        state.FetchKnowledgeItemsState.FetchKnowledgeItemsIsLoading = true;
+        if (!action.meta.arg.silent) {
+          state.FetchKnowledgeItemsState.FetchKnowledgeItemsIsLoading = true;
+        }
         state.FetchKnowledgeItemsState.FetchKnowledgeItemsIsSuccess = false;
         state.FetchKnowledgeItemsState.FetchKnowledgeItemsIsError = null;
         state.FetchKnowledgeItemsState.FetchKnowledgeItemsLatestRequestId =
@@ -1199,7 +1398,9 @@ const KnowledgeRagSlice = createSlice({
         ) {
           return;
         }
-        state.FetchKnowledgeItemsState.FetchKnowledgeItemsIsLoading = false;
+        if (!action.meta.arg.silent) {
+          state.FetchKnowledgeItemsState.FetchKnowledgeItemsIsLoading = false;
+        }
         state.FetchKnowledgeItemsState.FetchKnowledgeItemsIsSuccess = true;
         state.FetchKnowledgeItemsState.FetchKnowledgeItemsListData =
           action.payload;
@@ -1211,16 +1412,20 @@ const KnowledgeRagSlice = createSlice({
         ) {
           return;
         }
-        state.FetchKnowledgeItemsState.FetchKnowledgeItemsIsLoading = false;
+        if (!action.meta.arg.silent) {
+          state.FetchKnowledgeItemsState.FetchKnowledgeItemsIsLoading = false;
+        }
         state.FetchKnowledgeItemsState.FetchKnowledgeItemsIsSuccess = false;
-        state.FetchKnowledgeItemsState.FetchKnowledgeItemsIsError =
-          "Couldn't load knowledge items.";
-        state.FetchKnowledgeItemsState.FetchKnowledgeItemsListData = {
-          count: 0,
-          next: null,
-          previous: null,
-          results: [],
-        };
+        if (!action.meta.arg.silent) {
+          state.FetchKnowledgeItemsState.FetchKnowledgeItemsIsError =
+            "Couldn't load knowledge items.";
+          state.FetchKnowledgeItemsState.FetchKnowledgeItemsListData = {
+            count: 0,
+            next: null,
+            previous: null,
+            results: [],
+          };
+        }
       })
       // CreateKnowledgeItemsBulk
       .addCase(CreateKnowledgeItemsBulk.pending, (state) => {
@@ -1238,6 +1443,16 @@ const KnowledgeRagSlice = createSlice({
         state.CreateKnowledgeItemsBulkState.CreateKnowledgeItemsBulkIsSuccess = false;
         state.CreateKnowledgeItemsBulkState.CreateKnowledgeItemsBulkIsError =
           "Couldn't add knowledge.";
+      })
+      // UploadKnowledgeDocuments
+      .addCase(UploadKnowledgeDocuments.pending, (state) => {
+        state.UploadKnowledgeDocumentsState.UploadKnowledgeDocumentsIsLoading = true;
+      })
+      .addCase(UploadKnowledgeDocuments.fulfilled, (state) => {
+        state.UploadKnowledgeDocumentsState.UploadKnowledgeDocumentsIsLoading = false;
+      })
+      .addCase(UploadKnowledgeDocuments.rejected, (state) => {
+        state.UploadKnowledgeDocumentsState.UploadKnowledgeDocumentsIsLoading = false;
       })
       // UpdateKnowledgeItem
       .addCase(UpdateKnowledgeItem.pending, (state) => {
@@ -1342,20 +1557,28 @@ const KnowledgeRagSlice = createSlice({
           state.DiscoverWebsiteUrlsState.DiscoverWebsiteUrlsThrottled = true;
       })
       // FetchKnowledgeStats
-      .addCase(FetchKnowledgeStats.pending, (state) => {
-        state.FetchKnowledgeStatsState.FetchKnowledgeStatsIsLoading = true;
+      .addCase(FetchKnowledgeStats.pending, (state, action) => {
+        if (!action.meta.arg.silent) {
+          state.FetchKnowledgeStatsState.FetchKnowledgeStatsIsLoading = true;
+        }
         state.FetchKnowledgeStatsState.FetchKnowledgeStatsIsError = null;
       })
       .addCase(FetchKnowledgeStats.fulfilled, (state, action) => {
-        state.FetchKnowledgeStatsState.FetchKnowledgeStatsIsLoading = false;
+        if (!action.meta.arg.silent) {
+          state.FetchKnowledgeStatsState.FetchKnowledgeStatsIsLoading = false;
+        }
         state.FetchKnowledgeStatsState.FetchKnowledgeStatsIsSuccess = true;
         state.FetchKnowledgeStatsState.FetchKnowledgeStatsData = action.payload;
       })
-      .addCase(FetchKnowledgeStats.rejected, (state) => {
-        state.FetchKnowledgeStatsState.FetchKnowledgeStatsIsLoading = false;
+      .addCase(FetchKnowledgeStats.rejected, (state, action) => {
+        if (!action.meta.arg.silent) {
+          state.FetchKnowledgeStatsState.FetchKnowledgeStatsIsLoading = false;
+        }
         state.FetchKnowledgeStatsState.FetchKnowledgeStatsIsSuccess = false;
-        state.FetchKnowledgeStatsState.FetchKnowledgeStatsIsError =
-          "Couldn't load knowledge statistics.";
+        if (!action.meta.arg.silent) {
+          state.FetchKnowledgeStatsState.FetchKnowledgeStatsIsError =
+            "Couldn't load knowledge statistics.";
+        }
       })
       // FetchKnowledgeCategories
       .addCase(FetchKnowledgeCategories.pending, (state) => {
@@ -1426,6 +1649,10 @@ const KnowledgeRagSlice = createSlice({
   },
 });
 
-export const { ResetDiscoverWebsiteUrls } = KnowledgeRagSlice.actions;
+export const {
+  ResetDiscoverWebsiteUrls,
+  SetDocumentUploadSnapshot,
+  ResetDocumentUpload,
+} = KnowledgeRagSlice.actions;
 
 export default KnowledgeRagSlice.reducer;

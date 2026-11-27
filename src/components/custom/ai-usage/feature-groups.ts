@@ -24,8 +24,21 @@ export const FEATURE_GROUPS: {
     title: "Helpdesk AI",
     features: {
       ticket_message_draft: {
-        name: "Copilot Replies",
-        description: "Drafts a reply for your agent to send",
+        name: "Reply With AI",
+        description: "Drafts a reply in the reply box for your agent to send",
+      },
+      copilot_summary: {
+        name: "Copilot Ticket Summary",
+        description: "Summarises a ticket in the Copilot tab",
+      },
+      copilot_kb_answer: {
+        name: "Copilot KB Answer",
+        description:
+          "Answers from your knowledge base in the Copilot tab; not charged when nothing relevant is found",
+      },
+      copilot_draft: {
+        name: "Copilot Draft Reply",
+        description: "Drafts a reply in the Copilot tab",
       },
       ticket_message_improve: {
         name: "Reply Polishing",
@@ -59,6 +72,15 @@ export const FEATURE_GROUPS: {
       comment_tagging: {
         name: "Comment Classification And Tagging",
         description: "Sorts comments by type and tags",
+      },
+    },
+  },
+  {
+    title: "Knowledge Base",
+    features: {
+      knowledge_test_answer: {
+        name: "Knowledge Test Answers",
+        description: "Answers a test question from your knowledge base",
       },
     },
   },

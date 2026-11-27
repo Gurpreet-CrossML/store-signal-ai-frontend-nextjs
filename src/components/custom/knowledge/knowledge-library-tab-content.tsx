@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -35,6 +35,7 @@ import {
   KNOWLEDGE_APPROVAL_WAITING_DESCRIPTION,
   KNOWLEDGE_APPROVAL_WAITING_NAME,
   KNOWLEDGE_APPROVAL_WAITING_PARAM,
+  KNOWLEDGE_STATUS_POLL_MS,
   KNOWLEDGE_UNCATEGORIZED_DESCRIPTION,
   KNOWLEDGE_UNCATEGORIZED_FILTER,
   KNOWLEDGE_UNCATEGORIZED_NAME,
@@ -141,7 +142,10 @@ export default function KnowledgeLibraryTabContent({
   const categoryFilter = isUncategorized
     ? KNOWLEDGE_UNCATEGORIZED_FILTER
     : categorySlug;
-  const categoryFilters = isAll ? [] : [categoryFilter];
+  const categoryFilters = useMemo(
+    () => (isAll ? [] : [categoryFilter]),
+    [isAll, categoryFilter],
+  );
 
   // All list filters live in the URL (?q=&type=&source=&status=&page=&pageSize=)
   // so a reload, back/forward or a shared link restores the same view.
@@ -318,6 +322,57 @@ export default function KnowledgeLibraryTabContent({
   useEffect(() => {
     loadStats();
   }, [loadStats]);
+
+  const hasProcessingKnowledge = items.some(
+    (item) => item.status === "pending" || item.status === "processing",
+  );
+
+  useEffect(() => {
+    if (!storeCode || !hasProcessingKnowledge) return;
+
+    const poll = window.setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      dispatch(
+        FetchKnowledgeItems({
+          storeCode,
+          page,
+          pageSize,
+          search: debouncedSearch,
+          source: filters.source || undefined,
+          status: filters.status,
+          aiScope: filters.aiScope,
+          type: filters.type,
+          createdBy: filters.createdBy,
+          knowledgeCategory: categoryFilters,
+          approvalWaiting,
+          silent: true,
+        }),
+      );
+      dispatch(
+        FetchKnowledgeStats({
+          storeCode,
+          knowledgeCategory: categoryFilters,
+          silent: true,
+        }),
+      );
+    }, KNOWLEDGE_STATUS_POLL_MS);
+
+    return () => window.clearInterval(poll);
+  }, [
+    storeCode,
+    hasProcessingKnowledge,
+    dispatch,
+    page,
+    pageSize,
+    debouncedSearch,
+    filters.source,
+    filters.status,
+    filters.aiScope,
+    filters.type,
+    filters.createdBy,
+    categoryFilters,
+    approvalWaiting,
+  ]);
 
   useEffect(() => {
     if (storeCode && !isUncategorized && !isAll && categoriesData === null)
@@ -658,7 +713,7 @@ export default function KnowledgeLibraryTabContent({
               <AlertDialogTitle>Delete This Knowledge?</AlertDialogTitle>
               <AlertDialogDescription>
                 This will permanently remove{" "}
-                <strong className="font-semibold break-words text-foreground">
+                <strong className="font-semibold text-foreground [overflow-wrap:anywhere]">
                   {itemToDelete?.title}
                 </strong>
                 . This action cannot be undone.
@@ -705,7 +760,7 @@ export default function KnowledgeLibraryTabContent({
               <AlertDialogDescription>
                 {publishTargets.length === 1 ? (
                   <>
-                    <strong className="font-semibold break-words text-foreground">
+                    <strong className="font-semibold text-foreground [overflow-wrap:anywhere]">
                       {publishTargets[0].title}
                     </strong>{" "}
                     will be processed and added to what your AI knows.

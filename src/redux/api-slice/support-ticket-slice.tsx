@@ -11,6 +11,7 @@ import type { TicketLanguage, TicketSentiment } from "@/lib/ticket-options";
 import { toast } from "sonner";
 import { isAxiosError } from "axios";
 import { OrderData } from "@/redux/api-slice/thread-slice";
+import type { CustomerSegment } from "@/redux/api-slice/customer-slice";
 import type {
   CopilotAction,
   CopilotActions,
@@ -254,6 +255,8 @@ export type SupportTicket = {
   customer: string | SupportTicketCustomer | null;
   /** The customer's full name; sent by the ticket list only. */
   customer_name?: string | null;
+  /** The customer's segment when the ticket was opened; kept after. */
+  customer_segment?: CustomerSegment;
   /** The chat the ticket was raised from; sent by the ticket's details. */
   thread?: string | null;
   /** Whether that chat is still open; null when there is none. */
