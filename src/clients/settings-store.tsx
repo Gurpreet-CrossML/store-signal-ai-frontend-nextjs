@@ -1,20 +1,20 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState , useRef } from "react";
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table";
 import { toast } from "sonner";
 import { IconPlus } from "@tabler/icons-react";
 
-// import {
-//   AlertDialog,
-//   AlertDialogCancel,
-//   AlertDialogContent,
-//   AlertDialogDescription,
-//   AlertDialogFooter,
-//   AlertDialogHeader,
-//   AlertDialogTitle,
-//   AlertDialogAction,
-// } from "@/components/ui/alert-dialog";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Dialog,
@@ -40,6 +40,13 @@ import {
   type StoreListItem,
 } from "@/redux/api-slice/stores-slice";
 
+const hasEnteredData = (root: HTMLElement | null) =>
+  Array.from(
+    root?.querySelectorAll<HTMLInputElement>(
+      "input:not([type=radio]):not([type=checkbox])",
+    ) ?? [],
+  ).some((input) => input.value.trim() !== "");
+
 export default function SettingsStore() {
   const dispatch = useAppDispatch();
   const selectedStore = useAppSelector(
@@ -61,6 +68,8 @@ export default function SettingsStore() {
   const [limit, setLimit] = useState(PAGE_SIZE_OPTIONS[0]);
 
   const [connectOpen, setConnectOpen] = useState(false);
+  const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
+  const connectRef = useRef<HTMLDivElement>(null);
   const [ipsTarget, setIpsTarget] = useState<StoreListItem | null>(null);
   const [scriptTarget, setScriptTarget] = useState<StoreListItem | null>(null);
   // Store deactivation is hidden until the product allows users to deactivate stores.
@@ -74,6 +83,25 @@ export default function SettingsStore() {
     }, 400);
     return () => clearTimeout(handle);
   }, [searchInput]);
+
+   useEffect(() => {
+    if (!connectOpen) return;
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!hasEnteredData(connectRef.current)) return;
+      event.preventDefault();
+      event.returnValue = true;
+    };
+    window.addEventListener("beforeunload", warnBeforeUnload);
+    return () => window.removeEventListener("beforeunload", warnBeforeUnload);
+  }, [connectOpen]);
+
+  const requestCloseConnect = () => {
+    if (hasEnteredData(connectRef.current)) {
+      setDiscardDialogOpen(true);
+      return;
+    }
+    setConnectOpen(false);
+  };
 
   // Shopify's OAuth return lands on this page while the callback is still
   // creating the store, so the mount fetch can race it; refetch again once
@@ -170,8 +198,11 @@ export default function SettingsStore() {
         }
       />
 
-      <Dialog open={connectOpen} onOpenChange={setConnectOpen}>
-        <DialogContent>
+      <Dialog open={connectOpen} onOpenChange={(open) => open ? setConnectOpen(true) : requestCloseConnect()}>
+        <DialogContent
+          ref={connectRef}
+          onInteractOutside={(e) => e.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle>Connect A Store</DialogTitle>
             <DialogDescription>
@@ -182,6 +213,30 @@ export default function SettingsStore() {
           <StoreSetupForm redirectToSetting />
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={discardDialogOpen} onOpenChange={setDiscardDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Discard</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your entered data will be lost if you close this window. Are you
+              sure you want to continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                setDiscardDialogOpen(false);
+                setConnectOpen(false);
+              }}
+            >
+              Discard 
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <ShopifyConnectProgress />
 
