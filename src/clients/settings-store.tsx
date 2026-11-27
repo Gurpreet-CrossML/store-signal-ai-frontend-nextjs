@@ -222,7 +222,7 @@ export default function SettingsStore() {
       <AlertDialog open={discardDialogOpen} onOpenChange={setDiscardDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Discard</AlertDialogTitle>
+            <AlertDialogTitle>Discard Changes?</AlertDialogTitle>
             <AlertDialogDescription>
               Your entered data will be lost if you close this window. Are you
               sure you want to continue?
