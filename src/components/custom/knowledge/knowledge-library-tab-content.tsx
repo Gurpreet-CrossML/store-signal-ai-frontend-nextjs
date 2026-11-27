@@ -713,7 +713,7 @@ export default function KnowledgeLibraryTabContent({
               <AlertDialogTitle>Delete This Knowledge?</AlertDialogTitle>
               <AlertDialogDescription>
                 This will permanently remove{" "}
-                <strong className="font-semibold break-words text-foreground">
+                <strong className="font-semibold text-foreground [overflow-wrap:anywhere]">
                   {itemToDelete?.title}
                 </strong>
                 . This action cannot be undone.
@@ -760,7 +760,7 @@ export default function KnowledgeLibraryTabContent({
               <AlertDialogDescription>
                 {publishTargets.length === 1 ? (
                   <>
-                    <strong className="font-semibold break-words text-foreground">
+                    <strong className="font-semibold text-foreground [overflow-wrap:anywhere]">
                       {publishTargets[0].title}
                     </strong>{" "}
                     will be processed and added to what your AI knows.

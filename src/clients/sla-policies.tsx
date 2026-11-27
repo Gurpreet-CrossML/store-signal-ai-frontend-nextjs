@@ -7,6 +7,7 @@ import { Formik, Form, type FormikHelpers } from "formik";
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table";
 
 import { DataTable } from "@/components/custom/data-table";
+import { InfoIcon } from "@/components/custom/info-icon";
 import { PAGE_SIZE_OPTIONS } from "@/components/custom/threads-data-table-pagination";
 import { MultiSelectCombobox } from "@/components/custom/multi-select-combobox";
 import { NumberStepper } from "@/components/custom/number-stepper";
@@ -482,8 +483,7 @@ export default function SlaPolicies() {
       >
         <DialogContent
           ref={setDialogEl}
-          // Only the close (X) button dismisses on click; clicking the
-          // backdrop must not discard the form.
+          showCloseButton={false}
           onInteractOutside={(e) => e.preventDefault()}
           className="max-h-[90vh] overflow-y-auto sm:max-w-[460px]"
         >
@@ -604,65 +604,76 @@ export default function SlaPolicies() {
                     ) : null}
                   </div>
 
-                  {TARGET_INPUTS.map((input) => (
-                    <div key={input.value} className="space-y-2">
-                      <Label htmlFor={input.value}>{input.label}</Label>
-                      <div className="flex items-center gap-2">
-                        <NumberStepper
-                          id={input.value}
-                          label={`${input.label.toLowerCase()} target`}
-                          placeholder="—"
-                          clearable
-                          max={maxForUnit(values[input.unit])}
-                          value={values[input.value]}
-                          onChange={(value) =>
-                            setFieldValue(input.value, value)
-                          }
-                          onBlur={() => setFieldTouched(input.value, true)}
-                          invalid={!!errorFor(input.value)}
-                        />
-                        <Select
-                          value={values[input.unit]}
-                          onValueChange={(unit) => {
-                            // A value that fits in minutes may not in hours.
-                            setFieldValue(
-                              input.value,
-                              sanitizeWholeNumber(
-                                values[input.value],
-                                maxForUnit(unit as SlaUnit),
-                              ),
-                            );
-                            setFieldValue(input.unit, unit);
-                          }}
-                        >
-                          <SelectTrigger
-                            className="w-28"
-                            aria-label={`${input.label} unit`}
-                          >
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="minutes">Minutes</SelectItem>
-                            <SelectItem value="hours">Hours</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
+                  <div className="space-y-2">
+                    <div className="space-y-0.5">
+                      <Label>
+                        Targets <RequiredMark />
+                      </Label>
                       <p className="text-xs text-muted-foreground">
-                        {input.hint} Optional, up to 30 days.
+                        Add at least one. Each can be up to 30 days.
                       </p>
-                      {errorFor(input.value) ? (
-                        <p className="text-xs text-destructive">
-                          {errorFor(input.value)}
-                        </p>
-                      ) : null}
                     </div>
-                  ))}
-
-                  {fieldErrors.targets && submitted ? (
-                    <p className="text-xs text-destructive">
-                      {fieldErrors.targets}
-                    </p>
-                  ) : null}
+                    <div className="space-y-4 rounded-md border p-3">
+                      {TARGET_INPUTS.map((input) => (
+                        <div key={input.value} className="space-y-2">
+                          <Label htmlFor={input.value}>{input.label}</Label>
+                          <div className="flex items-center gap-2">
+                            <NumberStepper
+                              id={input.value}
+                              label={`${input.label.toLowerCase()} target`}
+                              placeholder="—"
+                              clearable
+                              max={maxForUnit(values[input.unit])}
+                              value={values[input.value]}
+                              onChange={(value) =>
+                                setFieldValue(input.value, value)
+                              }
+                              onBlur={() => setFieldTouched(input.value, true)}
+                              invalid={!!errorFor(input.value)}
+                            />
+                            <Select
+                              value={values[input.unit]}
+                              onValueChange={(unit) => {
+                                // A value that fits in minutes may not in hours.
+                                setFieldValue(
+                                  input.value,
+                                  sanitizeWholeNumber(
+                                    values[input.value],
+                                    maxForUnit(unit as SlaUnit),
+                                  ),
+                                );
+                                setFieldValue(input.unit, unit);
+                              }}
+                            >
+                              <SelectTrigger
+                                className="w-28"
+                                aria-label={`${input.label} unit`}
+                              >
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="minutes">Minutes</SelectItem>
+                                <SelectItem value="hours">Hours</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {input.hint}
+                          </p>
+                          {errorFor(input.value) ? (
+                            <p className="text-xs text-destructive">
+                              {errorFor(input.value)}
+                            </p>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                    {fieldErrors.targets && submitted ? (
+                      <p className="text-xs text-destructive">
+                        {fieldErrors.targets}
+                      </p>
+                    ) : null}
+                  </div>
 
                   <div className="flex items-center justify-between gap-3 rounded-md border p-3">
                     <div className="space-y-0.5">
@@ -682,27 +693,21 @@ export default function SlaPolicies() {
                   </div>
 
                   {creating ? (
-                    <div className="flex items-start gap-3 rounded-md border p-3">
+                    <div className="flex items-center gap-3 rounded-md border p-3">
                       <Checkbox
                         id="applyToExisting"
                         checked={values.applyToExisting}
                         onCheckedChange={(checked) =>
                           setFieldValue("applyToExisting", checked === true)
                         }
-                        className="mt-0.5"
                       />
-                      <div className="space-y-0.5">
+                      {/* The icon sits outside the label so clicking it
+                          doesn't toggle the checkbox. */}
+                      <div className="flex items-center gap-1.5">
                         <Label htmlFor="applyToExisting">
                           Apply To Existing Tickets Immediately
                         </Label>
-                        <p className="text-xs text-muted-foreground">
-                          Checked: tickets that already carry these tags are
-                          counted from when they were created, so the ones past
-                          a target become overdue right away. Unchecked: their
-                          clocks start now, and a ticket is overdue only after
-                          the full time has passed. This only applies now; a tag
-                          added to a ticket later takes effect at once.
-                        </p>
+                        <InfoIcon text="Checked: tickets that already carry these tags are counted from when they were created, so the ones past a target become overdue right away. Unchecked: their clocks start now, and a ticket is overdue only after the full time has passed. This only applies now; a tag added to a ticket later takes effect at once." />
                       </div>
                     </div>
                   ) : null}

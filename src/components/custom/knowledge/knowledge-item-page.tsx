@@ -730,7 +730,7 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
           <AlertDialogHeader>
             <AlertDialogTitle>Publish This Knowledge?</AlertDialogTitle>
             <AlertDialogDescription>
-              <strong className="font-semibold break-words text-foreground">
+              <strong className="font-semibold text-foreground [overflow-wrap:anywhere]">
                 {item.title}
               </strong>{" "}
               is processed and goes live in your assistant once that finishes.
