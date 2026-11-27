@@ -12,6 +12,12 @@ export const EMAIL_MAX_LENGTH = 254;
 export const PHONE_MAX_DIGITS = 15;
 export const STREET_MAX_LENGTH = 255;
 
+// Same as the backend's `LOGO_ALLOWED_EXTENSIONS` and `MAX_LOGO_SIZE_BYTES`.
+const LOGO_EXTENSIONS = [".png", ".jpg", ".jpeg", ".svg"];
+const LOGO_MAX_SIZE_MB = 8;
+export const LOGO_ACCEPT = LOGO_EXTENSIONS.join(",");
+export const LOGO_HINT = `PNG, JPG or SVG, up to ${LOGO_MAX_SIZE_MB} MB.`;
+
 const locationId = z.number().int().positive().nullable();
 
 export const companyProfileSchema = z
@@ -68,12 +74,6 @@ export const companyProfileSchema = z
   });
 
 export type CompanyProfileValues = z.infer<typeof companyProfileSchema>;
-
-// Same as the backend's `LOGO_ALLOWED_EXTENSIONS` and `MAX_LOGO_SIZE_BYTES`.
-const LOGO_EXTENSIONS = [".png", ".jpg", ".jpeg", ".svg"];
-const LOGO_MAX_SIZE_MB = 8;
-export const LOGO_ACCEPT = LOGO_EXTENSIONS.join(",");
-export const LOGO_HINT = `PNG, JPG or SVG, up to ${LOGO_MAX_SIZE_MB} MB.`;
 
 /** Why `file` can't be the logo, or null. The server also checks its content. */
 export function logoFileError(file: File): string | null {
