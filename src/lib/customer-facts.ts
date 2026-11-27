@@ -29,13 +29,6 @@ export function primaryAddress(
   );
 }
 
-/** "Chandigarh New York, US" — locality then country, whichever parts exist. */
-export function formatLocation(address?: CustomerAddress) {
-  if (!address) return null;
-  const locality = [address.city, address.region].filter(Boolean).join(" ");
-  return [locality, address.country_id].filter(Boolean).join(", ") || null;
-}
-
 /**
  * The address on their most recent order that has one.
  *
@@ -46,43 +39,6 @@ export function latestShippingAddress(customer: CustomerRecord) {
   return (customer.orders ?? []).find(
     (order) => order.shipping_address?.city || order.shipping_address?.address1,
   )?.shipping_address;
-}
-
-/**
- * Where the shopper is, from their address book or the last place they had
- * something shipped.
- *
- * Orders arrive newest first, so the first one with an address is the most
- * recent — the one most likely to still be where they are.
- */
-export function customerLocation(customer: CustomerRecord): string | null {
-  const fromAddressBook = formatLocation(primaryAddress(customer));
-  if (fromAddressBook) return fromAddressBook;
-
-  const shipping = latestShippingAddress(customer);
-  if (!shipping) return null;
-
-  const locality = [shipping.city, shipping.province].filter(Boolean).join(" ");
-  return [locality, shipping.country].filter(Boolean).join(", ") || null;
-}
-
-/** How many orders they have placed. */
-export function customerOrderCount(customer: CustomerRecord): number {
-  return customer.orders_count || (customer.orders?.length ?? 0);
-}
-
-/** What they have spent, in the currency their orders were placed in. */
-export function customerTotalSpent(customer: CustomerRecord): {
-  amount: number;
-  currency: string;
-} {
-  const orders = customer.orders ?? [];
-  const reported = Number(customer.total_spent ?? 0);
-  const amount =
-    reported ||
-    orders.reduce((sum, order) => sum + Number(order.total_price ?? 0), 0);
-
-  return { amount, currency: orders[0]?.currency ?? "USD" };
 }
 
 /**

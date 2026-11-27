@@ -30,6 +30,8 @@ declare module "@tanstack/react-table" {
   interface ColumnMeta<TData extends RowData, TValue> {
     /** Extra classes for this column's body cells, e.g. to let it fill the row. */
     cellClassName?: string;
+    /** Extra classes for this column's header cell, e.g. to hide it on phones. */
+    headClassName?: string;
   }
 }
 
@@ -100,7 +102,10 @@ export function DataTable<TData, TValue>({
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id} className={headerClassName}>
                 {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id}>
+                  <TableHead
+                    key={header.id}
+                    className={header.column.columnDef.meta?.headClassName}
+                  >
                     {header.isPlaceholder
                       ? null
                       : flexRender(

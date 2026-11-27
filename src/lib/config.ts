@@ -282,6 +282,11 @@ export const ENDPOINTS = {
   // Paginated customer list for the dashboard (page / limit). The plain
   // route above stays for the chat widget, which reads it unpaginated.
   fetchCustomerList: () => createAPIUrl("/chat/customers/list/", "django"),
+  fetchCustomerTable: () => createAPIUrl("/chat/customers/table/", "django"),
+  fetchCustomerProfile: (customerId: number) =>
+    createAPIUrl(`/chat/customers/${customerId}/profile/`, "django"),
+  fetchCustomerSummary: () =>
+    createAPIUrl("/chat/customers/summary/", "django"),
   fetchCustomerDetails: (customerId: number) =>
     createAPIUrl(`/chat/customers/${customerId}/`, "django"),
   // POST — create a shopper from just an email, so a guest ticket can be
