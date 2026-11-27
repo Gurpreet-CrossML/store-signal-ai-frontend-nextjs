@@ -21,7 +21,7 @@ import type {
  * captured, show Magento-only per-item tax) that are not worth getting
  * subtly different in a second copy.
  */
-function formatShippingAddress(address: OrderShippingAddress): {
+export function formatShippingAddress(address: OrderShippingAddress): {
   recipient: string | null;
   lines: string[];
 } {
@@ -100,7 +100,7 @@ function ShippingAddress({
  * tax) for the order summary — each only appears when the platform
  * actually captured that value, since not every synced order has one.
  */
-function getPriceBreakdownRows(
+export function getPriceBreakdownRows(
   order: OrderData,
 ): { label: string; value: string }[] {
   const rows: { label: string; value: string }[] = [];

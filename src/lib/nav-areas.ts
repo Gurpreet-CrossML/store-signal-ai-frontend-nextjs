@@ -99,7 +99,7 @@ export const NAV_AREAS = {
         description:
           "Every shopper this store has, with spend and contact details.",
         pageDescription:
-          "Who your best customers are, who is about to stop buying and who needs help.",
+          "Who your best customers are and who is about to stop buying.",
         icon: IconUsersGroup,
       },
       {

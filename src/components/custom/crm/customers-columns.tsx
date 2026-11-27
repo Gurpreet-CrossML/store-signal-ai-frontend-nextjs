@@ -1,7 +1,6 @@
 "use client";
 
 import { type ColumnDef } from "@tanstack/react-table";
-import { IconLifebuoy } from "@tabler/icons-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Typography } from "@/components/ui/typography";
@@ -12,7 +11,6 @@ import { BADGE_TONE_STYLES, type BadgeTone } from "@/lib/badge-tones";
 import { formatPrice } from "@/lib/helpers";
 import { cn } from "@/lib/utils";
 import type {
-  BuyingRhythm,
   CustomerBadge,
   CustomerListRow,
   CustomerRecord,
@@ -32,8 +30,7 @@ const CUSTOMER_BADGES: Record<
   Exclude<CustomerBadge, "vip">,
   { label: string; tone: BadgeTone }
 > = {
-  at_risk: { label: "At risk", tone: "danger" },
-  new: { label: "New", tone: "info" },
+  at_risk: { label: "At Risk", tone: "danger" },
 };
 
 /**
@@ -73,46 +70,17 @@ function plural(count: number, noun: string) {
   return `${count} ${noun}${count === 1 ? "" : "s"}`;
 }
 
-/**
- * The "Buying rhythm" text, and its colour when it needs attention. Never
- * the days since the last order or the order count: their own columns show
- * those.
- */
-function rhythmText(rhythm: BuyingRhythm) {
-  const days = rhythm.days ?? 0;
-  const every = days === 1 ? "every day" : `every ${days} days`;
-  switch (rhythm.kind) {
-    case "every":
-      return { text: every.charAt(0).toUpperCase() + every.slice(1) };
-    case "overdue":
-      return {
-        text: `Overdue by ${plural(days, "day")}`,
-        className: "text-amber-600 dark:text-amber-400",
-      };
-    case "waiting":
-      return {
-        text: "Last order not shipped yet",
-        className: "text-rose-600 dark:text-rose-400",
-      };
-    case "lapsed":
-      return rhythm.days
-        ? { text: `Used to order ${every}` }
-        : { text: "—", className: "text-muted-foreground" };
-    case "never_ordered":
-      return { text: `Signed up ${daysAgo(days).toLowerCase()}` };
-    default:
-      return { text: "—", className: "text-muted-foreground" };
-  }
-}
-
 function Muted({ children }: { children: React.ReactNode }) {
   return <Typography variant="muted">{children}</Typography>;
 }
 
 // Columns past the customer and lifetime value hide on smaller screens: the
-// tablet keeps last order and buying rhythm, the phone keeps just the two.
+// tablet keeps last order, the phone keeps just the two.
 const FROM_TABLET = "max-md:hidden";
 const FROM_DESKTOP = "max-xl:hidden";
+// The number columns share one width and alignment, so the gaps between
+// them are even; the customer column takes the rest.
+const NUMBER_COLUMN = "w-36 text-right";
 
 export function getCustomerColumns({
   currency,
@@ -164,7 +132,8 @@ export function getCustomerColumns({
     },
     {
       id: "lifetime_value",
-      header: () => <div className="text-right">Lifetime value</div>,
+      header: "Lifetime Value",
+      meta: { headClassName: NUMBER_COLUMN },
       cell: ({ row }) => {
         const value = Number(row.original.lifetime_value);
         return (
@@ -176,8 +145,11 @@ export function getCustomerColumns({
     },
     {
       id: "orders",
-      header: () => <div className="text-right">Orders</div>,
-      meta: { headClassName: FROM_DESKTOP, cellClassName: FROM_DESKTOP },
+      header: "Orders",
+      meta: {
+        headClassName: `${NUMBER_COLUMN} ${FROM_DESKTOP}`,
+        cellClassName: FROM_DESKTOP,
+      },
       cell: ({ row }) => (
         <div className="text-right tabular-nums">
           {row.original.order_count}
@@ -186,8 +158,11 @@ export function getCustomerColumns({
     },
     {
       id: "average_order",
-      header: () => <div className="text-right">Avg order</div>,
-      meta: { headClassName: FROM_DESKTOP, cellClassName: FROM_DESKTOP },
+      header: "Avg Order",
+      meta: {
+        headClassName: `${NUMBER_COLUMN} ${FROM_DESKTOP}`,
+        cellClassName: FROM_DESKTOP,
+      },
       cell: ({ row }) => (
         <div className="text-right tabular-nums">
           {row.original.average_order
@@ -198,41 +173,17 @@ export function getCustomerColumns({
     },
     {
       id: "last_order",
-      header: "Last order",
-      meta: { headClassName: FROM_TABLET, cellClassName: FROM_TABLET },
+      header: "Last Order",
+      meta: {
+        headClassName: `${NUMBER_COLUMN} ${FROM_TABLET}`,
+        cellClassName: `text-right ${FROM_TABLET}`,
+      },
       cell: ({ row }) =>
         row.original.last_order_at ? (
           daysAgo(daysSince(row.original.last_order_at))
         ) : (
           <Muted>—</Muted>
         ),
-    },
-    {
-      id: "buying_rhythm",
-      header: "Buying rhythm",
-      meta: { headClassName: FROM_TABLET, cellClassName: FROM_TABLET },
-      cell: ({ row }) => {
-        const { text, className } = rhythmText(row.original.buying_rhythm);
-        return <span className={className}>{text}</span>;
-      },
-    },
-    {
-      id: "help_desk",
-      header: "Help desk",
-      meta: { headClassName: FROM_DESKTOP, cellClassName: FROM_DESKTOP },
-      cell: ({ row }) => {
-        const open = row.original.open_tickets;
-        if (!open) return <Muted>—</Muted>;
-        return (
-          <Badge
-            variant="outline"
-            className={cn("font-normal", BADGE_TONE_STYLES.danger)}
-          >
-            <IconLifebuoy />
-            {open} open
-          </Badge>
-        );
-      },
     },
   ];
 }

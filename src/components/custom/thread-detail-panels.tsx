@@ -706,9 +706,9 @@ export function OrdersCard({
               </motion.div>
             );
           })}
-          {hiddenOrderCount > 0 && customerData?.id ? (
+          {hiddenOrderCount > 0 && customerData?.email ? (
             <Link
-              href={`/crm/orders?customer=${customerData.id}`}
+              href={`/crm/orders?search=${encodeURIComponent(customerData.email)}`}
               className="text-center text-primary underline underline-offset-2 hover:text-primary"
             >
               View All Orders

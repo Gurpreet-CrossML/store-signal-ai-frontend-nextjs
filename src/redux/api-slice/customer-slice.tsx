@@ -80,24 +80,7 @@ export type CustomerRecord = {
 
 /** The one group badge a list row shows; the backend picks it. */
 /** Only the daily analysis's segments get a badge. */
-export type CustomerBadge = "at_risk" | "vip" | "new";
-
-/**
- * How the customer buys, worked out by the backend. `days` is the usual gap
- * (every, and lapsed when known), how overdue, or for never_ordered how long
- * ago they signed up; otherwise null.
- */
-export type BuyingRhythm = {
-  kind:
-    | "never_ordered"
-    | "unknown"
-    | "waiting"
-    | "lapsed"
-    | "first_order"
-    | "overdue"
-    | "every";
-  days: number | null;
-};
+export type CustomerBadge = "at_risk" | "vip";
 
 /** One row of the Customers page table (GET /chat/customers/table/). */
 export type CustomerListRow = Pick<
@@ -110,8 +93,6 @@ export type CustomerListRow = Pick<
   lifetime_value: string;
   average_order: string | null;
   last_order_at: string | null;
-  buying_rhythm: BuyingRhythm;
-  open_tickets: number;
 };
 
 export type CustomerListResponse = {
@@ -126,8 +107,7 @@ export type CustomerGroup =
   | "repeat"
   | "at_risk"
   | "lapsed"
-  | "never_ordered"
-  | "new";
+  | "never_ordered";
 /**
  * Everything the list screen can narrow by. All of it resolves server-side —
  * the client only ever holds one page, so filtering here would silently
@@ -140,7 +120,6 @@ export type CustomerFilters = {
   /** ISO instants bounding the last order date. */
   last_order_from?: string;
   last_order_to?: string;
-  has_open_tickets?: boolean;
   /** Sort key, e.g. "-lifetime_value" — leading "-" is descending. */
   ordering?: string;
 };
@@ -174,7 +153,8 @@ export type CustomerActivity =
 /** One customer's page numbers (GET /chat/customers/<id>/profile/). */
 export type CustomerProfile = CustomerListRow & {
   usual_gap_days: number | null;
-  store_name: string;
+  /** Help Desk tickets still being worked on. */
+  open_tickets: number;
   platform: string;
   currency: string;
   admin_url: string | null;
@@ -205,7 +185,6 @@ export type CustomerSummary = {
   total: number;
   currency: string;
   groups: Record<CustomerGroup, number>;
-  open_tickets: number;
   /** Days without an order before a customer counts as lapsed. */
   lapsed_days: number;
 };

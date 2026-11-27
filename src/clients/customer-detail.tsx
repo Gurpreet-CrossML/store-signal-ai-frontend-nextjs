@@ -15,12 +15,20 @@ import {
 } from "@tabler/icons-react";
 
 import { CustomerAvatar } from "@/components/custom/customer-avatar";
+import {
+  Panel,
+  PanelSwitch,
+  Row,
+  TicketStatus,
+  TonePill,
+  activityTime,
+  platformName,
+} from "@/components/custom/crm/detail-panels";
 import { LoadingState } from "@/components/custom/loading-state";
 import {
   CustomerBadgeTag,
   customerDisplayName,
 } from "@/components/custom/crm/customers-columns";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
@@ -43,7 +51,6 @@ import {
   latestShippingAddress,
   primaryAddress,
 } from "@/lib/customer-facts";
-import { BADGE_TONE_STYLES, type BadgeTone } from "@/lib/badge-tones";
 import { formatDate, formatPrice } from "@/lib/helpers";
 import { cn } from "@/lib/utils";
 import {
@@ -56,22 +63,11 @@ import {
 } from "@/redux/api-slice/customer-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 
-/** "shopify" → "Shopify"; the platform name shown on buttons and cards. */
-function platformName(platform: string) {
-  const names: Record<string, string> = {
-    shopify: "Shopify",
-    magento: "Magento",
-  };
-  return (
-    names[platform] ?? platform.charAt(0).toUpperCase() + platform.slice(1)
-  );
-}
-
 /** Where a chat or ticket came from, in words. */
 function channelName(channel: string | null) {
   const names: Record<string, string> = {
-    native: "Web chat",
-    web: "Web chat",
+    native: "Web Chat",
+    web: "Web Chat",
     whatsapp: "WhatsApp",
   };
   if (!channel) return "—";
@@ -85,22 +81,6 @@ function formatHours(hours: number) {
   const rest = hours % 24;
   if (!days) return `${hours}h`;
   return rest ? `${days}d ${rest}h` : `${days}d`;
-}
-
-/** "today 2:04 AM", "yesterday 9:12 AM", else the date. */
-function activityTime(value: string) {
-  const date = new Date(value);
-  const time = date.toLocaleTimeString(undefined, {
-    hour: "numeric",
-    minute: "2-digit",
-  });
-  const days = Math.floor(
-    (new Date().setHours(0, 0, 0, 0) - new Date(value).setHours(0, 0, 0, 0)) /
-      86_400_000,
-  );
-  if (days === 0) return `today ${time}`;
-  if (days === 1) return `yesterday ${time}`;
-  return formatDate(value);
 }
 
 /** The "Waiting to ship" cell text and colour. */
@@ -127,81 +107,6 @@ function shippingText(shipping: OrderShipping) {
   };
 }
 
-function TonePill({
-  tone,
-  children,
-}: {
-  tone: BadgeTone;
-  children: React.ReactNode;
-}) {
-  return (
-    <Badge
-      variant="outline"
-      className={cn("font-normal", BADGE_TONE_STYLES[tone])}
-    >
-      {children}
-    </Badge>
-  );
-}
-
-/** A bordered block with a title row, like every card on the page. */
-function Panel({
-  title,
-  action,
-  children,
-  className,
-}: {
-  title: string;
-  action?: React.ReactNode;
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <section className={cn("overflow-hidden rounded-xl border", className)}>
-      <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
-        <h3 className="text-sm font-medium">{title}</h3>
-        {action}
-      </div>
-      {children}
-    </section>
-  );
-}
-
-/** One label and value line in a side card. */
-function Row({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-4 text-sm">
-      <span className="shrink-0 text-muted-foreground">{label}</span>
-      <span className="min-w-0 truncate text-right">{children}</span>
-    </div>
-  );
-}
-
-/**
- * How the customer is doing against their usual gap. Not the last order
- * date: the orders table already shows that.
- */
-function scheduleText({ buying_rhythm: rhythm }: CustomerProfile) {
-  const days = rhythm.days ?? 0;
-  switch (rhythm.kind) {
-    case "every":
-      return "On their usual schedule";
-    case "overdue":
-      return `Overdue by ${days} day${days === 1 ? "" : "s"}`;
-    case "lapsed":
-      return "Stopped ordering";
-    // Waiting, one order or none: the orders table and card already say so.
-    default:
-      return "";
-  }
-}
-
 /** The four headline numbers. */
 function KpiStrip({ profile }: { profile: CustomerProfile }) {
   const { currency } = profile;
@@ -214,7 +119,7 @@ function KpiStrip({ profile }: { profile: CustomerProfile }) {
 
   const cards = [
     {
-      label: "Lifetime value",
+      label: "Lifetime Value",
       value: ltv > 0 ? formatPrice(ltv, currency) : "—",
       detail: ltv > 0 ? "Delivered orders, after tax and shipping" : "",
     },
@@ -226,15 +131,15 @@ function KpiStrip({ profile }: { profile: CustomerProfile }) {
         : "No orders yet",
     },
     {
-      label: "Orders every",
+      label: "Orders Every",
       value: profile.usual_gap_days
         ? `${profile.usual_gap_days} day${profile.usual_gap_days === 1 ? "" : "s"}`
         : "—",
-      detail: scheduleText(profile),
+      detail: "",
     },
     {
-      label: "Help desk",
-      value: profile.open_tickets ? `${profile.open_tickets} open` : "—",
+      label: "Help Desk",
+      value: profile.open_tickets ? `${profile.open_tickets} Open` : "—",
       detail: replyText ?? (profile.open_tickets ? "" : "No open tickets"),
     },
   ];
@@ -270,18 +175,12 @@ function OrderSignals({
   return (
     <TonePill tone="topic">
       <IconMessageChatbot />
-      Chat-assisted
+      Chat-Assisted
     </TonePill>
   );
 }
 
-function OrdersPanel({
-  profile,
-  customerId,
-}: {
-  profile: CustomerProfile;
-  customerId: number;
-}) {
+function OrdersPanel({ profile }: { profile: CustomerProfile }) {
   const router = useRouter();
   const orders = profile.recent_orders;
   const openOrder = (id: number) => router.push(`/crm/orders/${id}`);
@@ -292,10 +191,10 @@ function OrdersPanel({
       action={
         profile.order_count > 0 ? (
           <Link
-            href={`/crm/orders?customer=${customerId}`}
+            href={`/crm/orders?search=${encodeURIComponent(profile.email)}`}
             className="flex items-center gap-1 text-sm text-primary hover:underline"
           >
-            All orders
+            All Orders
             <IconArrowRight className="size-3.5" />
           </Link>
         ) : null
@@ -318,7 +217,7 @@ function OrdersPanel({
                 </TableHead>
                 <TableHead className="text-right">Total</TableHead>
                 <TableHead>Fulfillment</TableHead>
-                <TableHead>Waiting to ship</TableHead>
+                <TableHead>Waiting To Ship</TableHead>
                 <TableHead>Signals</TableHead>
               </TableRow>
             </TableHeader>
@@ -399,19 +298,6 @@ const ACTIVITY_TABS: { value: ActivityTab; label: string }[] = [
 /** How many events the feed shows at once. */
 const ACTIVITY_SHOWN = 20;
 
-/** A ticket's status as a coloured pill. */
-function TicketStatus({ status }: { status: string }) {
-  const statuses: Record<string, { label: string; tone: BadgeTone }> = {
-    open: { label: "Open", tone: "danger" },
-    reopen: { label: "Reopened", tone: "danger" },
-    snoozed: { label: "Snoozed", tone: "warning" },
-    resolved: { label: "Resolved", tone: "success" },
-    closed: { label: "Closed", tone: "neutral" },
-  };
-  const known = statuses[status] ?? { label: status, tone: "neutral" };
-  return <TonePill tone={known.tone}>{known.label}</TonePill>;
-}
-
 /** One feed line: what happened, where, and when — linked to the record. */
 function ActivityItem({ event }: { event: CustomerActivity }) {
   const when = activityTime(event.at);
@@ -424,8 +310,8 @@ function ActivityItem({ event }: { event: CustomerActivity }) {
             "bg-violet-50 text-violet-600 dark:bg-violet-950 dark:text-violet-300",
           title:
             event.handler === "ai"
-              ? "Chatted with the AI"
-              : "Chatted with your team",
+              ? "Chatted With The AI"
+              : "Chatted With Your Team",
           detail: `${event.title || "Chat"} · ${when}`,
           status: null,
         }
@@ -435,7 +321,7 @@ function ActivityItem({ event }: { event: CustomerActivity }) {
           iconClass:
             "bg-rose-50 text-rose-600 dark:bg-rose-950 dark:text-rose-300",
           title: event.title,
-          detail: `${channelName(event.channel)} → ticket #${event.ticket_id} · ${when}`,
+          detail: `${channelName(event.channel)} → Ticket #${event.ticket_id} · ${when}`,
           status: <TicketStatus status={event.status} />,
         };
   const Icon = item.icon;
@@ -478,24 +364,7 @@ function ActivityPanel({ profile }: { profile: CustomerProfile }) {
     <Panel
       title="Activity"
       action={
-        <div className="flex rounded-md bg-muted p-0.5">
-          {ACTIVITY_TABS.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              aria-pressed={tab === option.value}
-              onClick={() => setTab(option.value)}
-              className={cn(
-                "rounded px-2 py-0.5 text-xs transition-colors",
-                tab === option.value
-                  ? "bg-background font-medium shadow-xs"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
+        <PanelSwitch options={ACTIVITY_TABS} value={tab} onChange={setTab} />
       }
     >
       {events.length === 0 ? (
@@ -523,7 +392,7 @@ function TopProductsPanel({
   if (!profile.top_products.length) return null;
   return (
     <Panel
-      title={`What ${firstName} buys`}
+      title={`What ${firstName} Buys`}
       action={
         <span className="text-xs text-muted-foreground">
           By units, all time
@@ -603,7 +472,7 @@ function AddressPanel({
 
   return (
     <Panel
-      title="Default address"
+      title="Default Address"
       action={
         !saved && shipped ? (
           <span className="text-xs text-muted-foreground">
@@ -655,10 +524,8 @@ function PlatformPanel({
         <Row label="Customer ID">
           <span className="font-mono">{customer.customer_id || "—"}</span>
         </Row>
-        <Row label="Store">{profile?.store_name ?? customer.store ?? "—"}</Row>
-        {has("tags") ? <Row label="Tags">{text("tags")}</Row> : null}
         {has("tax_exempt") ? (
-          <Row label="Tax exempt">{metadata.tax_exempt ? "Yes" : "No"}</Row>
+          <Row label="Tax Exempt">{metadata.tax_exempt ? "Yes" : "No"}</Row>
         ) : null}
         {has("note") ? <Row label="Note">{text("note")}</Row> : null}
       </div>
@@ -723,7 +590,7 @@ export default function CustomerDetail({ customerId }: { customerId: number }) {
   const facts = [
     customer.email !== name ? customer.email : null,
     customer.phone,
-    `customer since ${formatDate(since.value)}`,
+    `Customer since ${formatDate(since.value)}`,
   ].filter(Boolean);
 
   return (
@@ -771,7 +638,7 @@ export default function CustomerDetail({ customerId }: { customerId: number }) {
           <Button size="sm" asChild>
             <a href={numbers.admin_url} target="_blank" rel="noreferrer">
               <IconExternalLink />
-              Open in {platformName(numbers.platform)}
+              Open In {platformName(numbers.platform)}
             </a>
           </Button>
         ) : null}
@@ -787,7 +654,7 @@ export default function CustomerDetail({ customerId }: { customerId: number }) {
         <div className="flex min-w-0 flex-col gap-4">
           {numbers ? (
             <>
-              <OrdersPanel profile={numbers} customerId={customerId} />
+              <OrdersPanel profile={numbers} />
               <ActivityPanel profile={numbers} />
             </>
           ) : null}
@@ -798,14 +665,14 @@ export default function CustomerDetail({ customerId }: { customerId: number }) {
           ) : null}
           <Panel title="Contact">
             <div className="flex flex-col gap-2.5 px-4 py-3">
-              <Row label="Email verified">
+              <Row label="Email Verified">
                 {customer.is_email_verified ? (
                   <TonePill tone="success">Verified</TonePill>
                 ) : (
-                  <TonePill tone="neutral">Not verified</TonePill>
+                  <TonePill tone="neutral">Not Verified</TonePill>
                 )}
               </Row>
-              <Row label="Preferred channel">
+              <Row label="Preferred Channel">
                 {channelName(numbers?.preferred_channel ?? null)}
               </Row>
             </div>
