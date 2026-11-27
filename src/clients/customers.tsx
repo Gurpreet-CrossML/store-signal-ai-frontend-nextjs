@@ -8,7 +8,7 @@ import type { OnChangeFn, PaginationState } from "@tanstack/react-table";
 import { DataTable } from "@/components/custom/data-table";
 import { getCustomerColumns } from "@/components/custom/crm/customers-columns";
 import {
-  CustomerFilterPopover,
+  CustomerFilterBar,
   EMPTY_CUSTOMER_FILTERS,
   countActiveCustomerFilters,
   type CustomerFilterSelection,
@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useDebounce } from "@/hooks/use-debounce";
 import { endOfDay, startOfDay } from "@/lib/helpers";
 import {
   FetchCustomers,
@@ -68,15 +69,12 @@ export default function Customers() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [ordering, setOrdering] = useState<CustomerOrdering>("-total_spent");
 
-  // Draft is what the popover edits; applied is what the request uses, so
+  // Filters apply as they change; the request uses the debounced copy so
   // half-typed bounds don't fire a query on every keystroke.
-  const [draftFilters, setDraftFilters] = useState<CustomerFilterSelection>(
+  const [filters, setFilters] = useState<CustomerFilterSelection>(
     EMPTY_CUSTOMER_FILTERS,
   );
-  const [appliedFilters, setAppliedFilters] = useState<CustomerFilterSelection>(
-    EMPTY_CUSTOMER_FILTERS,
-  );
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const appliedFilters = useDebounce(filters);
 
   // Debounce the search so a request isn't fired per keystroke, and reset to
   // page 1 in the same tick rather than chaining a second effect off it.
@@ -91,8 +89,6 @@ export default function Customers() {
   const requestFilters: CustomerFilters = useMemo(
     () => ({
       ...(debouncedSearch ? { search: debouncedSearch } : {}),
-      accepts_email_marketing: triState(appliedFilters.emailConsent),
-      accepts_sms_marketing: triState(appliedFilters.smsConsent),
       is_email_verified: triState(appliedFilters.emailVerified),
       orders_count_min: numeric(appliedFilters.ordersMin),
       orders_count_max: numeric(appliedFilters.ordersMax),
@@ -140,15 +136,15 @@ export default function Customers() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="relative w-full max-w-sm">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative min-w-64 flex-1">
           <IconSearch className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={searchInput}
             onChange={(event) => setSearchInput(event.target.value)}
             placeholder="Search name, email, phone or customer ID…"
             aria-label="Search customers"
-            className="pl-9"
+            className={cn("h-8 pl-9", searchInput && ACTIVE_FILTER_STYLE)}
           />
           {searchInput ? (
             <button
@@ -162,54 +158,42 @@ export default function Customers() {
           ) : null}
         </div>
 
-        <div className="flex items-center gap-2">
-          <Select
-            value={ordering}
-            onValueChange={(value) => {
-              setOrdering(value as CustomerOrdering);
-              setPage(1);
-            }}
+        <Select
+          value={ordering}
+          onValueChange={(value) => {
+            setOrdering(value as CustomerOrdering);
+            setPage(1);
+          }}
+        >
+          <SelectTrigger
+            size="sm"
+            // A sort order is always applied, including the default.
+            className={cn("w-44", ACTIVE_FILTER_STYLE)}
+            aria-label="Sort customers"
           >
-            <SelectTrigger
-              // A sort order is always applied, including the default.
-              className={cn("w-44", ACTIVE_FILTER_STYLE)}
-              aria-label="Sort customers"
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {SORT_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {SORT_OPTIONS.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-          <CustomerFilterPopover
-            open={isFilterOpen}
-            onOpenChange={(open) => {
-              setIsFilterOpen(open);
-              // Reopening starts from what is actually applied, not from an
-              // abandoned draft.
-              if (open) setDraftFilters(appliedFilters);
-            }}
-            filters={draftFilters}
-            onFiltersChange={setDraftFilters}
-            activeCount={activeFilterCount}
-            onApply={() => {
-              setAppliedFilters(draftFilters);
-              setPage(1);
-              setIsFilterOpen(false);
-            }}
-            onClear={() => {
-              setDraftFilters(EMPTY_CUSTOMER_FILTERS);
-              setAppliedFilters(EMPTY_CUSTOMER_FILTERS);
-              setPage(1);
-              setIsFilterOpen(false);
-            }}
-          />
-        </div>
+        <CustomerFilterBar
+          filters={filters}
+          onChange={(next) => {
+            setFilters(next);
+            setPage(1);
+          }}
+          activeCount={countActiveCustomerFilters(filters)}
+          onClear={() => {
+            setFilters(EMPTY_CUSTOMER_FILTERS);
+            setPage(1);
+          }}
+        />
       </div>
 
       <DataTable
