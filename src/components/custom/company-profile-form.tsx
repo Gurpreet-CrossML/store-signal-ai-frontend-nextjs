@@ -3,10 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useFormik } from "formik";
 import {
-  IconBuilding,
-  IconCircleCheck,
   IconDeviceFloppy,
-  IconInfoCircle,
   IconLock,
   IconPhotoPlus,
   IconTrash,
@@ -14,13 +11,6 @@ import {
 } from "@tabler/icons-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -29,8 +19,18 @@ import { LocationSelect } from "@/components/custom/location-select";
 import { UnsavedChangesDialog } from "@/components/custom/unsaved-changes-dialog";
 import { Spinner } from "@/components/ui/spinner";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { companyProfileSchema } from "@/lib/company-profile-schema";
-import { applyServerFieldErrors, formikErrorsFromZod } from "@/lib/form-errors";
+import {
+  companyProfileSchema,
+  LOGO_ACCEPT,
+  LOGO_HINT,
+  logoFileError,
+  PHONE_MAX_DIGITS,
+} from "@/lib/company-profile-schema";
+import {
+  applyServerFieldErrors,
+  formikErrorsFromZod,
+  serverFieldErrors,
+} from "@/lib/form-errors";
 import {
   FetchCompanyProfile,
   FetchCities,
@@ -40,8 +40,8 @@ import {
 } from "@/redux/api-slice/tenancy-slice";
 
 const EDITABLE_FIELDS = [
-  { name: "email", label: "Company Email", type: "email" },
-  { name: "phone", label: "Phone", type: "text" },
+  { name: "email", label: "Company Email", type: "email", inputMode: "email" },
+  { name: "phone", label: "Phone", type: "tel", inputMode: "numeric" },
 ] as const;
 
 export default function CompanyProfileForm({
@@ -76,6 +76,7 @@ export default function CompanyProfileForm({
   // to clear the saved one.
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [removeLogo, setRemoveLogo] = useState(false);
+  const [logoError, setLogoError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -104,17 +105,21 @@ export default function CompanyProfileForm({
   const openFilePicker = () => fileInputRef.current?.click();
 
   const onFilePicked = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] ?? null;
-    if (file) {
-      setLogoFile(file);
-      setRemoveLogo(false);
-    }
+    const file = e.target.files?.[0];
     e.target.value = ""; // allow re-selecting the same file
+    if (!file) return;
+
+    const error = logoFileError(file);
+    setLogoError(error);
+    if (error) return; // keep the previously staged logo
+    setLogoFile(file);
+    setRemoveLogo(false);
   };
 
   const onRemoveLogo = () => {
     setLogoFile(null);
     setRemoveLogo(true);
+    setLogoError(null);
   };
 
   const formik = useFormik({
@@ -143,9 +148,11 @@ export default function CompanyProfileForm({
       if (UpdateCompanyProfile.fulfilled.match(result)) {
         setLogoFile(null);
         setRemoveLogo(false);
+        setLogoError(null);
       }
       if (UpdateCompanyProfile.rejected.match(result)) {
         applyServerFieldErrors(formik, result.payload);
+        setLogoError(serverFieldErrors(result.payload).logo ?? null);
       }
       return UpdateCompanyProfile.fulfilled.match(result);
     },
@@ -185,6 +192,12 @@ export default function CompanyProfileForm({
     formik.setFieldValue("city", Number(city));
   };
 
+  // Digits only, up to the max: typed or pasted, anything else is dropped.
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const digits = e.target.value.replace(/\D/g, "").slice(0, PHONE_MAX_DIGITS);
+    formik.setFieldValue("phone", digits);
+  };
+
   // Loading until a fetch has finished (not just while it is in flight), so the
   // first render, before the effects dispatch, doesn't flash an empty select.
   // A state or city list is only needed once its parent is chosen.
@@ -205,193 +218,183 @@ export default function CompanyProfileForm({
 
   return (
     <div className={cn("flex w-full flex-1 flex-col", className)}>
+      {/* noValidate: the schema validates; the browser's own email check
+          would pop up with different rules. */}
       <form
+        noValidate
         onSubmit={formik.handleSubmit}
         className="flex flex-1 flex-col gap-6"
       >
-        {/* One card for the whole profile. On a phone it drops its frame
-            and the fields sit straight on the page. */}
-        <Card className="max-sm:gap-4 max-sm:rounded-none max-sm:bg-transparent max-sm:py-0 max-sm:shadow-none max-sm:ring-0">
-          <CardHeader className="border-b max-sm:hidden">
-            <div className="flex items-center gap-3">
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                <IconBuilding className="size-4" />
-              </span>
-              <div>
-                <CardTitle>Company Details</CardTitle>
-                <CardDescription>
-                  Your company&apos;s logo, name, contact details and address.
-                </CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-6 max-sm:px-0">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={onFilePicked}
-            />
-            {/* The logo: a dashed square until one is picked, then its
-                preview, with the actions beside it. */}
-            <div className="flex items-center gap-4">
-              {shownLogo ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={shownLogo}
-                  alt="Company logo"
-                  className="size-16 shrink-0 rounded-lg border bg-muted object-contain p-1"
-                />
-              ) : (
-                <button
-                  type="button"
-                  onClick={openFilePicker}
-                  aria-label="Upload logo"
-                  className="flex size-16 shrink-0 items-center justify-center rounded-lg border-2 border-dashed text-muted-foreground transition hover:bg-muted/50 hover:text-foreground"
-                >
-                  <IconPhotoPlus className="size-5" />
-                </button>
-              )}
-              <div className="flex min-w-0 flex-col gap-1.5">
-                <div>
-                  <p className="text-sm font-medium">Logo</p>
-                  <p className="text-xs text-muted-foreground">
-                    {logoFile
-                      ? `New logo selected: ${logoFile.name}`
-                      : removeLogo && companyProfile?.logo
-                        ? "Logo will be removed when you save."
-                        : "PNG, JPG or SVG. Shown in the app and emails."}
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={openFilePicker}
-                  >
-                    <IconUpload />
-                    {shownLogo ? "Change Logo" : "Upload Logo"}
-                  </Button>
-                  {shownLogo && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive hover:text-destructive"
-                      onClick={onRemoveLogo}
-                    >
-                      <IconTrash />
-                      Remove
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              {/* Set by the platform operator, so shown locked. */}
-              <Field>
-                <FieldLabel htmlFor="company-name">Company Name</FieldLabel>
-                <div className="relative">
-                  <Input
-                    id="company-name"
-                    value={companyProfile?.name ?? ""}
-                    readOnly
-                    aria-readonly
-                    className="bg-muted pr-9 text-muted-foreground"
-                  />
-                  <IconLock className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted-foreground" />
-                </div>
-              </Field>
-              {EDITABLE_FIELDS.map((f) => (
-                <Field key={f.name}>
-                  <FieldLabel htmlFor={f.name}>{f.label}</FieldLabel>
-                  <Input
-                    id={f.name}
-                    name={f.name}
-                    type={f.type}
-                    autoComplete="off"
-                    onChange={formik.handleChange}
-                    onBlur={formik.handleBlur}
-                    value={formik.values[f.name]}
-                  />
-                  {formik.touched[f.name] && formik.errors[f.name] && (
-                    <FieldError>{formik.errors[f.name]}</FieldError>
-                  )}
-                </Field>
-              ))}
-              <LocationSelect
-                id="country"
-                label="Country"
-                value={formik.values.country}
-                options={countries}
-                onChange={handleCountryChange}
-                loading={countriesLoading}
-                disabled={!countries.length}
-                placeholder="Select country"
-                loadingPlaceholder="Loading countries..."
-                error={
-                  formik.touched.country ? formik.errors.country : undefined
-                }
-              />
-              <LocationSelect
-                id="state"
-                label="State"
-                value={formik.values.state}
-                options={states}
-                onChange={handleStateChange}
-                loading={statesLoading}
-                disabled={!formik.values.country}
-                placeholder="Select state"
-                loadingPlaceholder="Loading states..."
-                error={formik.touched.state ? formik.errors.state : undefined}
-              />
-              <LocationSelect
-                id="city"
-                label="City"
-                value={formik.values.city}
-                options={cities}
-                onChange={handleCityChange}
-                loading={citiesLoading}
-                disabled={!formik.values.state}
-                placeholder="Select city"
-                loadingPlaceholder="Loading cities..."
-                error={formik.touched.city ? formik.errors.city : undefined}
-              />
-              <Field>
-                <FieldLabel htmlFor="street">Street</FieldLabel>
+        <div className="flex flex-col gap-6">
+          <div className="grid gap-x-4 gap-y-6 sm:grid-cols-2">
+            {/* Set by the platform operator, so shown locked. */}
+            <Field className="sm:col-span-2">
+              <FieldLabel htmlFor="company-name">Company Name</FieldLabel>
+              <div className="relative">
                 <Input
-                  id="street"
-                  name="street"
-                  type="text"
-                  autoComplete="off"
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  value={formik.values.street}
+                  id="company-name"
+                  value={companyProfile?.name ?? ""}
+                  readOnly
+                  aria-readonly
+                  className="bg-muted pr-9 text-muted-foreground"
                 />
-                {formik.touched.street && formik.errors.street && (
-                  <FieldError>{formik.errors.street}</FieldError>
+                <IconLock className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted-foreground" />
+              </div>
+            </Field>
+            {EDITABLE_FIELDS.map((f) => (
+              <Field key={f.name}>
+                <FieldLabel htmlFor={f.name}>{f.label}</FieldLabel>
+                <Input
+                  id={f.name}
+                  name={f.name}
+                  type={f.type}
+                  inputMode={f.inputMode}
+                  autoComplete="off"
+                  onChange={
+                    f.name === "phone" ? handlePhoneChange : formik.handleChange
+                  }
+                  onBlur={formik.handleBlur}
+                  value={formik.values[f.name]}
+                />
+                {formik.touched[f.name] && formik.errors[f.name] && (
+                  <FieldError>{formik.errors[f.name]}</FieldError>
                 )}
               </Field>
+            ))}
+          </div>
+
+          <Field>
+            <FieldLabel htmlFor="street">Street</FieldLabel>
+            <Input
+              id="street"
+              name="street"
+              type="text"
+              autoComplete="off"
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              value={formik.values.street}
+            />
+            {formik.touched.street && formik.errors.street && (
+              <FieldError>{formik.errors.street}</FieldError>
+            )}
+          </Field>
+
+          <div className="grid gap-4 sm:grid-cols-3">
+            <LocationSelect
+              id="country"
+              label="Country"
+              value={formik.values.country}
+              options={countries}
+              onChange={handleCountryChange}
+              loading={countriesLoading}
+              disabled={!countries.length}
+              placeholder="Select country"
+              loadingPlaceholder="Loading countries..."
+              error={formik.touched.country ? formik.errors.country : undefined}
+            />
+            <LocationSelect
+              id="state"
+              label="State"
+              value={formik.values.state}
+              options={states}
+              onChange={handleStateChange}
+              loading={statesLoading}
+              disabled={!formik.values.country}
+              placeholder="Select state"
+              loadingPlaceholder="Loading states..."
+              error={formik.touched.state ? formik.errors.state : undefined}
+            />
+            <LocationSelect
+              id="city"
+              label="City"
+              value={formik.values.city}
+              options={cities}
+              onChange={handleCityChange}
+              loading={citiesLoading}
+              disabled={!formik.values.state}
+              placeholder="Select city"
+              loadingPlaceholder="Loading cities..."
+              error={formik.touched.city ? formik.errors.city : undefined}
+            />
+          </div>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={LOGO_ACCEPT}
+            className="hidden"
+            onChange={onFilePicked}
+          />
+          {/* The logo: a dashed square until one is picked, then its
+              preview, with the actions beside it. */}
+          <div className="flex items-center gap-4">
+            {shownLogo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={shownLogo}
+                alt="Company logo"
+                className="size-16 shrink-0 rounded-lg border bg-muted object-contain p-1"
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={openFilePicker}
+                aria-label="Upload logo"
+                className="flex size-16 shrink-0 items-center justify-center rounded-lg border-2 border-dashed text-muted-foreground transition hover:bg-muted/50 hover:text-foreground"
+              >
+                <IconPhotoPlus className="size-5" />
+              </button>
+            )}
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <div>
+                <p className="text-sm font-medium">Logo</p>
+                <p className="text-xs text-muted-foreground">
+                  {LOGO_HINT} Shown in the app and emails.
+                </p>
+                {(logoFile || (removeLogo && companyProfile?.logo)) && (
+                  <p className="truncate text-xs text-muted-foreground">
+                    {logoFile
+                      ? `New logo selected: ${logoFile.name}`
+                      : "Logo will be removed when you save."}
+                  </p>
+                )}
+              </div>
+              {logoError && <FieldError>{logoError}</FieldError>}
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={openFilePicker}
+                >
+                  <IconUpload />
+                  {shownLogo ? "Change Logo" : "Upload Logo"}
+                </Button>
+                {shownLogo && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive hover:text-destructive"
+                    onClick={onRemoveLogo}
+                  >
+                    <IconTrash />
+                    Remove
+                  </Button>
+                )}
+              </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* Save bar: whether anything is waiting, and the button. Pinned to
             the bottom of the page, like the Knowledge add pages. */}
         <div className="sticky bottom-0 z-10 -mx-4 mt-auto -mb-4 flex items-center justify-between gap-3 border-t border-border bg-background px-4 py-3">
           <p className="hidden items-center gap-1.5 text-sm text-muted-foreground sm:flex">
-            {hasChanges ? (
+            {hasChanges && (
               <>
                 <span className="size-2 rounded-full bg-amber-500" />
                 Unsaved changes
-              </>
-            ) : (
-              <>
-                <IconCircleCheck className="size-4 text-emerald-600" />
-                All changes saved
               </>
             )}
           </p>

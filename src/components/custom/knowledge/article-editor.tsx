@@ -119,8 +119,24 @@ const SLASH_ITEMS: SlashItem[] = [
   },
 ];
 
-/** The text after a "/" that starts an empty-ish line, and where to draw the menu. */
-type SlashState = { query: string; top: number; left: number } | null;
+/**
+ * The text after a "/" that starts an empty-ish line, and where the caret is
+ * (its top and bottom edge, in the viewport) so the menu can sit by it.
+ */
+type SlashState = {
+  query: string;
+  top: number;
+  bottom: number;
+  left: number;
+} | null;
+
+// Room kept between the "/" menu and the edge of the screen, the gap between
+// the menu and the caret, and the least height worth showing the menu at.
+const SLASH_MENU_MARGIN = 12;
+const SLASH_MENU_GAP = 6;
+const SLASH_MENU_MIN_HEIGHT = 120;
+// About what the full menu needs (7 entries), to decide whether it fits below.
+const SLASH_MENU_FULL_HEIGHT = 360;
 
 function readSlashState(editor: Editor): SlashState {
   const { selection } = editor.state;
@@ -133,7 +149,12 @@ function readSlashState(editor: Editor): SlashState {
   if (!text.startsWith("/") || /\s/.test(text)) return null;
 
   const coords = editor.view.coordsAtPos(selection.from);
-  return { query: text.slice(1), top: coords.bottom + 6, left: coords.left };
+  return {
+    query: text.slice(1),
+    top: coords.top,
+    bottom: coords.bottom,
+    left: coords.left,
+  };
 }
 
 function ToolbarButton({
@@ -170,6 +191,21 @@ function ToolbarButton({
 
 function Divider() {
   return <span className="mx-1 h-5 w-px shrink-0 bg-border" aria-hidden />;
+}
+
+/** The hint shown over a link on hover: the key is Cmd on a Mac, else Ctrl. */
+function linkHint() {
+  const isMac =
+    typeof navigator !== "undefined" &&
+    /mac|iphone|ipad/i.test(navigator.userAgent);
+  return `${isMac ? "⌘" : "Ctrl"} + click to open`;
+}
+
+/** Opens a link address in a new tab; only web, mail and phone addresses. */
+function openLink(href: string | null | undefined) {
+  const value = href?.trim();
+  if (!value || !/^(https?:\/\/|mailto:|tel:)/i.test(value)) return;
+  window.open(value, "_blank", "noopener,noreferrer");
 }
 
 function LinkButton({ editor }: { editor: Editor }) {
@@ -452,6 +488,16 @@ export function ArticleEditor({
         role: "textbox",
         "aria-multiline": "true",
         "aria-label": "Article body",
+        // Read by the link hover hint in globals.css.
+        style: `--link-hint: "${linkHint()}"`,
+      },
+      // Ctrl/Cmd + click on a link opens it, so it can be checked while editing.
+      handleClick: (_view, _pos, event) => {
+        if (!event.ctrlKey && !event.metaKey) return false;
+        const link = (event.target as HTMLElement).closest("a");
+        if (!link) return false;
+        openLink(link.getAttribute("href"));
+        return true;
       },
       handleKeyDown: (_view, event) => {
         const menu = slashRef.current;
@@ -484,7 +530,10 @@ export function ArticleEditor({
     editor,
     selector: ({ editor: e }) => (e ? readSlashState(e) : null),
     equalityFn: (a, b) =>
-      a?.query === b?.query && a?.top === b?.top && a?.left === b?.left,
+      a?.query === b?.query &&
+      a?.top === b?.top &&
+      a?.bottom === b?.bottom &&
+      a?.left === b?.left,
   });
   const words = useEditorState({
     editor,
@@ -513,6 +562,14 @@ export function ArticleEditor({
     item.run(editor);
   };
 
+  // Keep the entry picked with the arrow keys in view when the menu scrolls.
+  const menuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    menuRef.current
+      ?.querySelector('[aria-selected="true"]')
+      ?.scrollIntoView({ block: "nearest" });
+  }, [index, query]);
+
   useEffect(() => {
     slashRef.current = slash
       ? {
@@ -526,6 +583,23 @@ export function ArticleEditor({
 
   if (!editor) return <div className="min-h-80" aria-busy />;
 
+  // The menu opens below the line being typed on; near the bottom of the
+  // screen, where it would be cut off, it opens above instead. Either way it
+  // is held to the room on that side and scrolls if it is taller.
+  const spaceBelow =
+    slash === null
+      ? 0
+      : window.innerHeight - slash.bottom - SLASH_MENU_GAP - SLASH_MENU_MARGIN;
+  const spaceAbove =
+    slash === null ? 0 : slash.top - SLASH_MENU_GAP - SLASH_MENU_MARGIN;
+  const opensAbove =
+    spaceBelow < Math.min(SLASH_MENU_FULL_HEIGHT, items.length * 52) &&
+    spaceAbove > spaceBelow;
+  const menuMaxHeight = Math.max(
+    SLASH_MENU_MIN_HEIGHT,
+    opensAbove ? spaceAbove : spaceBelow,
+  );
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <Toolbar editor={editor} words={words ?? 0} />
@@ -537,14 +611,20 @@ export function ArticleEditor({
 
       {slash && items.length > 0 && (
         <div
+          ref={menuRef}
           role="listbox"
           aria-label="Blocks"
           style={{
             position: "fixed",
-            top: slash.top,
+            ...(opensAbove
+              ? {
+                  bottom: window.innerHeight - slash.top + SLASH_MENU_GAP,
+                }
+              : { top: slash.bottom + SLASH_MENU_GAP }),
             left: Math.min(slash.left, window.innerWidth - 240),
+            maxHeight: menuMaxHeight,
           }}
-          className="z-50 w-56 rounded-lg border bg-popover p-1 shadow-md"
+          className="z-50 w-56 overflow-y-auto rounded-lg border bg-popover p-1 shadow-md"
         >
           {items.map((item, itemIndex) => (
             <button

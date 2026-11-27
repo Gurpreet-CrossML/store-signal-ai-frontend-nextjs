@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { IconArrowLeft, IconCloud, IconWorld } from "@tabler/icons-react";
@@ -36,6 +35,7 @@ import {
   type KnowledgeStatus,
 } from "@/redux/api-slice/knowledge-rag-slice";
 
+import { KnowledgeAddedScreen } from "@/components/custom/knowledge/add-knowledge-parts";
 import { ArticleEditor } from "@/components/custom/knowledge/article-editor";
 import { KnowledgeStatusBadge } from "@/components/custom/knowledge/knowledge-badges";
 import {
@@ -53,7 +53,10 @@ import {
   type KnowledgeScope,
 } from "@/components/custom/knowledge/knowledge-scope";
 import { AI_SCOPE_META } from "@/components/custom/knowledge/knowledge-meta";
-import { UnsavedChangesDialog } from "@/components/custom/unsaved-changes-dialog";
+import {
+  UnsavedChangesDialog,
+  type UnsavedChangesDialogHandle,
+} from "@/components/custom/unsaved-changes-dialog";
 import {
   KnowledgeSettingsButton,
   KnowledgeSettingsDrawer,
@@ -63,7 +66,7 @@ import {
  * backend's `KNOWLEDGE_ARTICLE_MIN_LENGTH`). */
 const MIN_PUBLISH_LENGTH = 30;
 /** How long after the last edit a draft is saved by itself. */
-const AUTOSAVE_DELAY_MS = 1500;
+const AUTOSAVE_DELAY_MS = 800;
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 
@@ -129,6 +132,8 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
   const [titleTouched, setTitleTouched] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
+  // Set once a draft was published: the page then shows the "added" screen.
+  const [justPublished, setJustPublished] = useState(false);
   // On a tablet or phone the settings panel is a drawer, opened from the header.
   const belowLg = useIsBelowLg();
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -157,6 +162,12 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
   const showTitleError =
     titleTooShort && (showErrors || titleTouched || bodyLength > 0);
   const overLimit = titleOver || bodyOver;
+  // A missing or too short title is flagged under the title as soon as there
+  // is text, so Publish stays off until it is fixed. A text that is too short
+  // is not: pressing Publish is what shows that message, so the button must
+  // stay on for it. Scope problems work the same way (Publish opens the
+  // settings that show them).
+  const cannotPublish = titleTooShort;
 
   // --- Loading an existing article -----------------------------------------
   useEffect(() => {
@@ -329,6 +340,25 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debounced]);
 
+  // Back asks first when there are edits that are not saved.
+  const unsavedChanges = useRef<UnsavedChangesDialogHandle>(null);
+  const goBack = () =>
+    unsavedChanges.current?.confirmLeave(() => router.back());
+  // True from the moment leaving starts saving what is pending until it is
+  // done, so Back is off (and shows it is working) even before the request
+  // has started. It stays on once the save worked, as the page is going away.
+  const [isSavingToLeave, setIsSavingToLeave] = useState(false);
+  const saveBeforeLeaving = async () => {
+    setIsSavingToLeave(true);
+    let saved = false;
+    try {
+      saved = await save();
+    } finally {
+      if (!saved) setIsSavingToLeave(false);
+    }
+    return saved;
+  };
+
   // --- Publishing -----------------------------------------------------------
   const requestPublish = () => {
     setShowErrors(true);
@@ -351,7 +381,15 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
         PublishKnowledgeItems.fulfilled.match(result) &&
         result.payload.publishedIds.length > 0
       ) {
-        router.push("/knowledge");
+        // A new article ends on the "added" screen, like every other kind of
+        // knowledge; publishing changes to a live one goes back to where the
+        // user came from.
+        if (isLive) {
+          router.back();
+        } else {
+          setPublishOpen(false);
+          setJustPublished(true);
+        }
         return;
       }
     }
@@ -359,7 +397,25 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
     setPublishOpen(false);
   };
 
+  // A new article is one of the kinds of knowledge picked on the first step,
+  // so it can go back to that step.
+  const isNewArticle = !articleId;
+  const changeSource = () =>
+    unsavedChanges.current?.confirmLeave(() => router.push("/knowledge/new"));
+
   // --- Rendering ------------------------------------------------------------
+  if (justPublished) {
+    return (
+      <div className="flex min-h-full w-full flex-col p-4">
+        <KnowledgeAddedScreen
+          title="Article Published"
+          description="We're reading it now. It goes live in your assistant as soon as it's ready, and you can follow its progress in Knowledge."
+          onAddMore={() => router.replace("/knowledge/new")}
+        />
+      </div>
+    );
+  }
+
   if (loadState === "loading") {
     return (
       <div className="flex flex-1 items-center justify-center gap-2 p-10 text-sm text-muted-foreground">
@@ -376,8 +432,8 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
         <p className="text-sm text-muted-foreground">
           It may have been deleted, or it belongs to another store.
         </p>
-        <Button asChild variant="outline">
-          <Link href="/knowledge">Back To Knowledge</Link>
+        <Button variant="outline" onClick={() => router.back()}>
+          Back To Knowledge
         </Button>
       </div>
     );
@@ -409,8 +465,12 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
     .filter(Boolean)
     .join(", ");
 
+  // While a publish (or a save before leaving) is on its way, nothing on the
+  // page can be changed. Autosave is not counted: it runs as the user types.
+  const isBusy = isPublishing || isSavingToLeave;
+
   const settingsPanel = (
-    <>
+    <fieldset disabled={isBusy} className="contents">
       <KnowledgeCategoriesField
         options={categoryOptions}
         isLoading={categoriesLoading}
@@ -461,18 +521,27 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
           </section>
         </>
       )}
-    </>
+    </fieldset>
   );
 
   return (
     // The editor fills the screen and only the text scrolls.
     <div className="flex h-app-screen min-h-0 flex-col overflow-hidden">
       <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b px-4 py-2.5">
-        <Button asChild variant="ghost" size="sm" className="-ml-2">
-          <Link href="/knowledge">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="-ml-2"
+          // Not while a save is on its way: leaving would cut it short.
+          disabled={saveState === "saving" || isBusy}
+          onClick={goBack}
+        >
+          {isSavingToLeave ? (
+            <Spinner className="size-4" />
+          ) : (
             <IconArrowLeft className="size-4" />
-            Knowledge
-          </Link>
+          )}
+          Knowledge
         </Button>
 
         <div className="flex min-w-0 flex-1 basis-40 items-center gap-2 text-sm">
@@ -496,6 +565,7 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
           {belowLg && (
             <KnowledgeSettingsButton
               invalid={showErrors && hasScopeError}
+              disabled={isBusy}
               onClick={() => setSettingsOpen(true)}
             />
           )}
@@ -509,7 +579,8 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
               isLocked ||
               !html ||
               overLimit ||
-              isPublishing ||
+              cannotPublish ||
+              isBusy ||
               (isLive && !isDirty && !hasUnpublishedChanges)
             }
             onClick={requestPublish}
@@ -533,20 +604,42 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
             </p>
           )}
 
-          <div className="px-4 pt-6 sm:px-8">
-            <input
-              value={title}
-              onChange={(event) => {
-                setTitle(event.target.value);
-              }}
-              disabled={isLocked}
-              placeholder="Article title"
-              aria-label="Article title"
-              maxLength={KNOWLEDGE_TITLE_MAX_LENGTH}
-              onBlur={() => setTitleTouched(true)}
-              aria-invalid={titleOver || showTitleError}
-              className="w-full bg-transparent text-3xl font-bold tracking-tight outline-none placeholder:text-muted-foreground/60 disabled:opacity-70"
-            />
+          <div className="px-4 pt-3 sm:px-8">
+            {/* The title wraps onto more lines when it is long, so it never
+                runs under Change Source, which sits at the end of its row. */}
+            <div className="flex items-start gap-3">
+              <textarea
+                rows={1}
+                value={title}
+                onChange={(event) => {
+                  // A title is one line of text: no line breaks, typed or pasted.
+                  setTitle(event.target.value.replace(/\s*\n+\s*/g, " "));
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") event.preventDefault();
+                }}
+                disabled={isLocked || isBusy}
+                placeholder="Article Title"
+                aria-label="Article title"
+                maxLength={KNOWLEDGE_TITLE_MAX_LENGTH}
+                onBlur={() => setTitleTouched(true)}
+                aria-invalid={titleOver || showTitleError}
+                className="field-sizing-content min-w-0 flex-1 resize-none bg-transparent text-3xl font-bold tracking-tight break-words outline-none placeholder:text-muted-foreground/60 disabled:opacity-70"
+              />
+              {/* Only a new article has a source step to go back to. */}
+              {isNewArticle && (
+                <Button
+                  type="button"
+                  variant="link"
+                  size="sm"
+                  className="mt-2 h-auto shrink-0 p-0"
+                  disabled={saveState === "saving" || isBusy}
+                  onClick={changeSource}
+                >
+                  Change Source
+                </Button>
+              )}
+            </div>
             {showTitleError && (
               <p role="alert" className="mt-1 text-xs text-destructive">
                 {titleLength
@@ -569,7 +662,7 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
 
           <ArticleEditor
             initialHtml={initialHtml}
-            disabled={isLocked}
+            disabled={isLocked || isBusy}
             onChange={(next) => {
               setHtml(next);
             }}
@@ -584,7 +677,7 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
             {bodyLength.toLocaleString()} /{" "}
             {ARTICLE_BODY_MAX_LENGTH.toLocaleString()} characters
             {bodyLength < MIN_PUBLISH_LENGTH &&
-              ` · at least ${MIN_PUBLISH_LENGTH} to publish`}
+              ` · at least ${MIN_PUBLISH_LENGTH} characters to publish`}
             {bodyOver &&
               " · too long to save or publish, please shorten the article"}
           </p>
@@ -594,8 +687,7 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
               className="px-4 pb-6 text-xs text-destructive sm:px-8"
             >
               The article text needs at least {MIN_PUBLISH_LENGTH} characters
-              before it can be published ({bodyLength} so far). The title can be
-              as short as you like.
+              before it can be published ({bodyLength} so far).
             </p>
           )}
         </main>
@@ -630,7 +722,7 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
               {isLive ? (
                 <>
                   Your assistant switches to this version of{" "}
-                  <strong className="font-semibold break-words text-foreground">
+                  <strong className="font-semibold text-foreground [overflow-wrap:anywhere]">
                     {title.trim() || "Untitled Article"}
                   </strong>{" "}
                   as soon as it&apos;s published. Until then it keeps using the
@@ -639,7 +731,7 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
               ) : (
                 <>
                   Your assistant starts answering from{" "}
-                  <strong className="font-semibold break-words text-foreground">
+                  <strong className="font-semibold text-foreground [overflow-wrap:anywhere]">
                     {title.trim() || "Untitled Article"}
                   </strong>{" "}
                   as soon as it&apos;s published.
@@ -685,7 +777,11 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
       </AlertDialog>
 
       <UnsavedChangesDialog
+        ref={unsavedChanges}
         isDirty={hasUnsavedEdits}
+        // The editor saves by itself, so leaving saves what is pending first
+        // and the prompt only opens when that can't be done.
+        autoSave={saveBeforeLeaving}
         isSaving={saveState === "saving"}
         onSave={() => {
           // A save it can't make (no title, too long) shows why on the page.

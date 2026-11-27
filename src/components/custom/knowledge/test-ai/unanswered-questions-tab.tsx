@@ -14,6 +14,8 @@ import {
   resolveDashboardRange,
   type DashboardFilterState,
 } from "@/components/custom/dashboard-filters";
+import { LoadingState } from "@/components/custom/loading-state";
+import { useUnansweredQuestionList } from "@/components/custom/knowledge/test-ai/use-unanswered-question-list";
 import { QuestionsDataTablePagination } from "@/components/custom/knowledge/test-ai/questions-data-table-pagination";
 import { QuestionsSearchInput } from "@/components/custom/knowledge/test-ai/questions-search-input";
 import { AskQuestionButton } from "@/components/custom/knowledge/test-ai/ask-question-button";
@@ -25,14 +27,18 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useDebounce } from "@/hooks/use-debounce";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { useIsBelowLg } from "@/hooks/use-narrow-viewport";
-import { KNOWLEDGE_UNANSWERED_PAGE_SIZE } from "@/lib/config";
 import { formatDateTime, getThreadHref } from "@/lib/helpers";
 import { cn } from "@/lib/utils";
 import {
-  FetchUnansweredQuestions,
   FetchUnansweredWorkflows,
   ResetUnansweredQuestions,
   type UnansweredWorkflow,
@@ -66,13 +72,7 @@ function WorkflowRows({
   );
 
   if (workflows === null) {
-    return (
-      <div className="flex flex-col gap-2">
-        {[0, 1, 2].map((key) => (
-          <Skeleton key={key} className="h-12 rounded-lg" />
-        ))}
-      </div>
-    );
+    return <LoadingState label="Loading workflows…" />;
   }
 
   if (workflows.length === 0) {
@@ -156,53 +156,22 @@ function WorkflowQuestions({
   /** Goes back to the list of workflows. */
   onBack: () => void;
 }) {
-  const dispatch = useAppDispatch();
-  const storeCode = useAppSelector(
-    (state) => state.GetStoresReducer.selectedStore,
-  );
   const {
-    FetchUnansweredQuestionsData: data,
-    FetchUnansweredQuestionsIsLoading: isLoading,
-  } = useAppSelector(
-    (state) => state.GetKnowledgeTestAiReducer.FetchUnansweredQuestionsState,
-  );
-
-  const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(KNOWLEDGE_UNANSWERED_PAGE_SIZE);
-  const debouncedSearch = useDebounce(search);
-
-  useEffect(() => {
-    if (!storeCode) return;
-    dispatch(
-      FetchUnansweredQuestions({
-        storeCode,
-        page,
-        pageSize,
-        search: debouncedSearch,
-        workflow: workflow.code,
-        dateFrom: range.from,
-        dateTo: range.to,
-      }),
-    );
-  }, [
-    dispatch,
-    storeCode,
+    data,
+    questions,
     page,
     pageSize,
-    debouncedSearch,
-    workflow.code,
-    range.from,
-    range.to,
-  ]);
-
-  const questions = data?.results ?? [];
-  // Before the first answer there is nothing to say "none" about.
-  const showSkeleton = isLoading && data === null;
-  // Also true while the debounce waits to send what was just typed, so the
-  // list never looks settled while a new search is on its way.
-  const isRefreshing = isLoading || search !== debouncedSearch;
-  const hasSearch = debouncedSearch.trim() !== "";
+    search,
+    showLoading,
+    isRefreshing,
+    hasSearch,
+    changeSearch,
+    changePagination,
+  } = useUnansweredQuestionList({
+    workflow: workflow.code,
+    dateFrom: range.from,
+    dateTo: range.to,
+  });
 
   return (
     <div className="flex flex-col gap-3">
@@ -225,20 +194,13 @@ function WorkflowQuestions({
 
       <QuestionsSearchInput
         value={search}
-        onChange={(value) => {
-          setSearch(value);
-          setPage(1);
-        }}
+        onChange={changeSearch}
         placeholder="Search questions"
         isRefreshing={isRefreshing}
       />
 
-      {showSkeleton ? (
-        <div className="flex flex-col gap-2">
-          {[0, 1, 2, 3].map((key) => (
-            <Skeleton key={key} className="h-20 rounded-lg" />
-          ))}
-        </div>
+      {showLoading ? (
+        <LoadingState label="Loading questions…" />
       ) : questions.length === 0 ? (
         <Empty className="rounded-lg border">
           <EmptyHeader>
@@ -258,47 +220,97 @@ function WorkflowQuestions({
           </EmptyHeader>
         </Empty>
       ) : (
-        <ul
+        <div
           aria-busy={isRefreshing}
           className={cn(
-            "divide-y rounded-lg border transition-opacity",
+            "rounded-lg border transition-opacity",
             isRefreshing && "opacity-60",
           )}
         >
-          {questions.map((item) => (
-            <li key={item.id} className="flex flex-col gap-2 px-3 py-3">
-              <div className="flex items-start justify-between gap-3">
-                <p className="min-w-0 text-sm font-medium">{item.question}</p>
-                <AskQuestionButton
-                  question={item.question}
-                  onAsk={onAsk}
-                  disabled={isAsking}
-                />
-              </div>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground">
-                <span>{formatDateTime(item.askedAt)}</span>
-                <Link
-                  href={getThreadHref(item.threadId, item.threadIsActive)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-medium text-primary hover:underline"
-                >
-                  View Chat
-                </Link>
-              </div>
-            </li>
-          ))}
-        </ul>
+          {/* Narrow panel (phone or tablet drawer): a card per question. */}
+          <ul className="divide-y @3xl/tabs:hidden">
+            {questions.map((item, index) => (
+              <li key={item.id} className="flex flex-col gap-2 p-3">
+                <div className="flex items-start gap-2">
+                  <span className="mt-0.5 w-6 shrink-0 text-sm text-muted-foreground tabular-nums">
+                    {(page - 1) * pageSize + index + 1}.
+                  </span>
+                  <p className="min-w-0 flex-1 text-sm leading-snug font-medium break-words">
+                    {item.question}
+                  </p>
+                  <AskQuestionButton
+                    question={item.question}
+                    onAsk={onAsk}
+                    disabled={isAsking}
+                  />
+                </div>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pl-8 text-xs">
+                  <span className="text-muted-foreground">
+                    {formatDateTime(item.askedAt)}
+                  </span>
+                  <Link
+                    href={getThreadHref(item.threadId, item.threadIsActive)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-primary hover:underline"
+                  >
+                    View Chat
+                  </Link>
+                </div>
+              </li>
+            ))}
+          </ul>
+          <Table containerClassName="hidden @3xl/tabs:block">
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="w-12">#</TableHead>
+                <TableHead>Question</TableHead>
+                <TableHead>Asked</TableHead>
+                <TableHead>Chat</TableHead>
+                <TableHead className="w-24 text-right">Action</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {questions.map((item, index) => (
+                <TableRow key={item.id}>
+                  <TableCell className="text-muted-foreground tabular-nums">
+                    {(page - 1) * pageSize + index + 1}
+                  </TableCell>
+                  <TableCell className="font-medium whitespace-normal">
+                    {item.question}
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {formatDateTime(item.askedAt)}
+                  </TableCell>
+                  <TableCell className="text-xs">
+                    <Link
+                      href={getThreadHref(item.threadId, item.threadIsActive)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium text-primary hover:underline"
+                    >
+                      View Chat
+                    </Link>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <AskQuestionButton
+                      question={item.question}
+                      onAsk={onAsk}
+                      disabled={isAsking}
+                    />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       )}
 
       <QuestionsDataTablePagination
         totalCount={data?.count ?? 0}
         pageSize={pageSize}
         page={page}
-        onPaginationChange={(next) => {
-          setPage(next.page);
-          setPageSize(next.pageSize);
-        }}
+        onPaginationChange={changePagination}
       />
     </div>
   );

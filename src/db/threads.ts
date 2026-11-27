@@ -160,6 +160,7 @@ type ThreadListRow = {
   cart_total: string | number;
   ended_at: string | null;
   customer_id: number | null;
+  customer_segment: string;
   customer_first_name: string | null;
   customer_last_name: string | null;
   customer_email: string | null;
@@ -183,6 +184,8 @@ export type ThreadListItem = {
   chat_handler_user: { id: number; name: string; email: string } | null;
   need_escalation: boolean;
   escalation_time: string | null;
+  /** The customer's segment when they were linked to this chat; kept after. */
+  customer_segment: string;
   customer: {
     id: number | null;
     name: string | null;
@@ -291,6 +294,9 @@ export async function list_threads(
       >`COALESCE((SELECT NULLIF(regexp_replace(${userMetadata.updatedCartData}->>'total', '[^0-9.]', '', 'g'), '')::numeric FROM ${userMetadata} WHERE ${userMetadata.threadId} = ${chatThread.id} LIMIT 1), 0)`,
       ended_at: chatThread.endedAt,
       customer_id: chatCustomer.id,
+      // The chat's own copy, taken when it got its customer; never the
+      // customer's current segment, so old chats keep what they had.
+      customer_segment: chatThread.customerSegment,
       customer_first_name: chatCustomer.firstName,
       customer_last_name: chatCustomer.lastName,
       customer_email: chatCustomer.email,
@@ -423,6 +429,7 @@ export async function list_threads(
           : null,
       need_escalation: row.need_escalation,
       escalation_time: row.escalation_time,
+      customer_segment: row.customer_segment,
       customer: {
         // Null for a guest — the UI keys its tickets lookup off this.
         id: row.customer_id ?? null,
@@ -764,6 +771,8 @@ export type ThreadDetail =
       last_message_at: string | null;
       customer_name: string | null;
       customer_email: string | null;
+      /** The customer's segment when they were linked to this chat; kept after. */
+      customer_segment: string;
       /** Identity, plus the phone and past-thread count the side panel shows. */
       customer: {
         id: number;
@@ -824,6 +833,9 @@ export async function get_thread_details(
       created_at: chatThread.createdAt,
       ended_at: chatThread.endedAt,
       customer_id: chatCustomer.id,
+      // The chat's own copy, taken when it got its customer; never the
+      // customer's current segment, so old chats keep what they had.
+      customer_segment: chatThread.customerSegment,
       customer_first_name: chatCustomer.firstName,
       customer_last_name: chatCustomer.lastName,
       customer_email: chatCustomer.email,
@@ -1007,6 +1019,7 @@ export async function get_thread_details(
     last_message_at,
     customer_name,
     customer_email: t.customer_email,
+    customer_segment: t.customer_segment,
     // The id was always selected by the join but never returned, so the
     // client's `customer?.id` reads were silently undefined.
     customer:

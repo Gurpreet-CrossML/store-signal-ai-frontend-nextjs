@@ -172,7 +172,7 @@ export function KnowledgeScopePanel({
         <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
       </div>
 
-      <fieldset className="flex flex-col gap-3">
+      <fieldset className="flex min-w-0 flex-col gap-3">
         <legend className="mb-2 text-xs font-semibold text-muted-foreground">
           Applies To
         </legend>
@@ -180,10 +180,10 @@ export function KnowledgeScopePanel({
           value={value.scopeKind}
           onValueChange={(next) => changeKind(next as ScopeKind)}
           disabled={appliesToLocked}
-          className="gap-3"
+          className="min-w-0 gap-3"
         >
           {APPLIES_TO.map(({ value: kind, label, hint }) => (
-            <div key={kind} className="flex flex-col gap-2">
+            <div key={kind} className="flex min-w-0 flex-col gap-2">
               <Label className="items-start gap-2.5 font-normal">
                 <RadioGroupItem value={kind} className="mt-0.5" />
                 <span className="flex flex-col gap-0.5">
@@ -192,7 +192,7 @@ export function KnowledgeScopePanel({
                 </span>
               </Label>
               {value.scopeKind === kind && kind !== "general" && (
-                <div className="pl-6.5">{picker(kind)}</div>
+                <div className="min-w-0 pl-6.5">{picker(kind)}</div>
               )}
             </div>
           ))}

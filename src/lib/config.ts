@@ -218,9 +218,18 @@ export const ENDPOINTS = {
   fetchKnowledgeStats: () => `/knowledge/knowledge-items/stats/`,
   // The knowledge categories with how many items are filed under each. Django.
   fetchKnowledgeCategories: () => `/knowledge/knowledge-items/categories/`,
-  // The sample customer questions a store owner can try on their AI (the same
-  // list for every store), and the questions the AI couldn't answer. Django.
+  // The sample customer questions a store owner can try on their AI, with how
+  // the store's AI did on each, and the questions the AI couldn't answer. Django.
   fetchTestQuestions: () => `/knowledge/test-questions/`,
+  // How many of the test questions the store's AI answered (answered over the
+  // ones asked), and how many were never asked. Django.
+  fetchTestCoverage: () => `/knowledge/test-questions/coverage/`,
+  // PATCH a good/bad rating on the AI's latest answer to a test question.
+  testQuestionFeedback: (id: number) =>
+    `/knowledge/test-questions/${id}/feedback/`,
+  // How many customer questions the AI answered over a period, the change
+  // since the period before, and the questions it couldn't answer most often. Django.
+  fetchAnswerCoverage: () => `/chat/answer-coverage/`,
   fetchUnansweredQuestions: () => `/chat/unanswered-questions/`,
   // The workflows that left customer questions unanswered, with how many each left.
   fetchUnansweredWorkflows: () => `/chat/unanswered-questions/workflows/`,
@@ -273,6 +282,11 @@ export const ENDPOINTS = {
   // Paginated customer list for the dashboard (page / limit). The plain
   // route above stays for the chat widget, which reads it unpaginated.
   fetchCustomerList: () => createAPIUrl("/chat/customers/list/", "django"),
+  fetchCustomerTable: () => createAPIUrl("/chat/customers/table/", "django"),
+  fetchCustomerProfile: (customerId: number) =>
+    createAPIUrl(`/chat/customers/${customerId}/profile/`, "django"),
+  fetchCustomerSummary: () =>
+    createAPIUrl("/chat/customers/summary/", "django"),
   fetchCustomerDetails: (customerId: number) =>
     createAPIUrl(`/chat/customers/${customerId}/`, "django"),
   // POST — create a shopper from just an email, so a guest ticket can be
@@ -280,6 +294,10 @@ export const ENDPOINTS = {
   // NOTE: pending confirmation from the backend team.
   createCustomer: () => createAPIUrl("/chat/customers/", "django"),
   fetchOrders: () => createAPIUrl("/chat/orders/", "django"),
+  fetchOrderTable: () => createAPIUrl("/chat/orders/table/", "django"),
+  fetchOrderSummary: () => createAPIUrl("/chat/orders/summary/", "django"),
+  fetchOrderProfile: (orderId: number) =>
+    createAPIUrl(`/chat/orders/${orderId}/profile/`, "django"),
   // One customer's stored orders. Read-only — it never calls the commerce
   // platform, so it is the cheap one to reach for.
   fetchCustomerOrders: (customerId: number) =>
@@ -929,6 +947,10 @@ export const ARTICLE_BODY_MAX_LENGTH = 30_000;
 // `KNOWLEDGE_UNCATEGORIZED_FILTER`), and the name it goes by in the page URL
 // (/knowledge/categories/uncategorized).
 export const KNOWLEDGE_UNCATEGORIZED_FILTER = "none";
+// How a category's coverage (0-1) is coloured: at least this much is good
+// (green), at least the lower one is middling (amber), below it is poor (red).
+export const COVERAGE_GOOD_AT = 0.8;
+export const COVERAGE_MIDDLING_AT = 0.5;
 export const KNOWLEDGE_UNCATEGORIZED_ROUTE = "uncategorized";
 
 // The list of all the store's knowledge, whatever its category
@@ -939,8 +961,9 @@ export const KNOWLEDGE_ALL_ROUTE = "all";
 export const KNOWLEDGE_APPROVAL_WAITING_PARAM = "approval_waiting";
 export const KNOWLEDGE_APPROVAL_WAITING_HREF = `/knowledge/categories/${KNOWLEDGE_ALL_ROUTE}?${KNOWLEDGE_APPROVAL_WAITING_PARAM}=true`;
 
-// The Test AI page, opened by the Test AI button on the Knowledge screen: the
-// AI test chat on the left and, on the right, a panel with these two tabs.
+// The Test AI page, opened by the Test AI button on the Knowledge screen: a
+// panel with these two tabs on the left (70%) and the AI test chat on the
+// right (30%).
 export const KNOWLEDGE_TEST_AI_HREF = "/knowledge/test-ai";
 export const KNOWLEDGE_TEST_AI_TABS = {
   questions: "questions",
@@ -955,13 +978,16 @@ export const KNOWLEDGE_TEST_QUESTION_MIN_LENGTH = 3;
 export const KNOWLEDGE_TEST_QUESTION_MAX_LENGTH = 100;
 // What a Test AI answer says its products came from. Shopify is the only
 // platform a store can be connected with today.
-export const KNOWLEDGE_TEST_PRODUCT_SOURCE_LABEL = "Shopify products";
+export const KNOWLEDGE_TEST_PRODUCT_SOURCE_LABEL = "Shopify Products";
 // AI credits one Test AI answer costs when the AI model runs.
 export const KNOWLEDGE_TEST_ANSWER_CREDITS = 1;
 // Said under the Test AI chat: it is never saved.
 export const KNOWLEDGE_TEST_CHAT_NOTICE =
   "This chat isn't saved. It will be cleared when you switch pages or reload.";
 // Who wrote a Test AI chat message.
+// How the store's AI did on a test question, as the backend names it. A
+// question not asked yet has none; "not_asked" picks those in the status filter.
+export const KNOWLEDGE_TEST_STATUS_NOT_ASKED = "not_asked";
 export const KNOWLEDGE_TEST_SENDERS = { user: "user", ai: "ai" } as const;
 export type KnowledgeTestSender =
   (typeof KNOWLEDGE_TEST_SENDERS)[keyof typeof KNOWLEDGE_TEST_SENDERS];
@@ -989,10 +1015,24 @@ export const KNOWLEDGE_APPROVAL_WAITING_DESCRIPTION =
 // `max_length`.
 export const KNOWLEDGE_FAQ_CAP = 20;
 // Pages and links that can be added in one request.
-export const KNOWLEDGE_WEBSITE_URL_CAP = 100;
+export const KNOWLEDGE_WEBSITE_URL_CAP = 20;
 // Specific pages that can be listed in the field at once.
 export const KNOWLEDGE_SPECIFIC_PAGE_CAP = 20;
 export const KNOWLEDGE_FILE_CAP = 15;
+// Documents go up in groups, so one request never runs longer than the browser
+// waits for it (15 files of 20 MB take about 5 minutes in one request, and a
+// group of this size about 30 seconds). A group ends at whichever limit it
+// reaches first; one file bigger than the byte limit goes up alone.
+export const KNOWLEDGE_FILE_BATCH_MAX_FILES = 5;
+export const KNOWLEDGE_FILE_BATCH_MAX_BYTES = 40 * 1024 * 1024;
+// Per-file limits for uploaded documents. They mirror the backend's
+// `KNOWLEDGE_MAX_FILE_SIZE`, `KNOWLEDGE_MAX_PAGES` and `KNOWLEDGE_MAX_RECORDS`,
+// which enforce them; the dropzone only shows them.
+export const KNOWLEDGE_FILE_MAX_SIZE_BYTES = 20 * 1024 * 1024;
+// Longest document, in pages.
+export const KNOWLEDGE_FILE_MAX_PAGES = 100;
+// Most records (rows or items) a CSV, JSON or spreadsheet may hold.
+export const KNOWLEDGE_FILE_MAX_RECORDS = 5000;
 export const KNOWLEDGE_URL_MAX_LENGTH = 2048;
 // How long the pages field waits after typing stops before it is read.
 export const KNOWLEDGE_URL_INPUT_DELAY_MS = 500;
@@ -1021,6 +1061,9 @@ export const KNOWLEDGE_SCAN_ACTIVE_STATUSES: readonly KnowledgeScanStatus[] = [
 ];
 // How often the checklist is re-read while the import is not complete.
 export const KNOWLEDGE_SCAN_POLL_MS = 5000;
+// How often knowledge item statuses and storage are refreshed while
+// pending or processing items are visible.
+export const KNOWLEDGE_STATUS_POLL_MS = 5_000;
 
 // The Help Desk ticket's language dropdown footer while no agent has changed
 // the language. Once one has, it says who changed it instead.

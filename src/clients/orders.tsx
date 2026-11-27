@@ -2,17 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { IconSearch, IconX } from "@tabler/icons-react";
-import type { OnChangeFn, PaginationState } from "@tanstack/react-table";
+import { IconArrowsSort, IconSearch, IconX } from "@tabler/icons-react";
+import type { PaginationState } from "@tanstack/react-table";
 
+import { CountTabs, type CountTab } from "@/components/custom/count-tabs";
 import { DataTable } from "@/components/custom/data-table";
 import { getOrderColumns } from "@/components/custom/crm/orders-columns";
-import {
-  EMPTY_ORDER_FILTERS,
-  OrderFilterPopover,
-  countActiveOrderFilters,
-  type OrderFilterSelection,
-} from "@/components/custom/crm/order-filters";
+import { DateRangePicker } from "@/components/custom/date-range-picker";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -21,44 +18,43 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useDebounce } from "@/hooks/use-debounce";
+import { ACTIVE_FILTER_STYLE } from "@/lib/config";
 import { endOfDay, startOfDay } from "@/lib/helpers";
+import { cn } from "@/lib/utils";
 import {
+  FetchOrderSummary,
   FetchOrders,
   type OrderFilters,
   type OrderOrdering,
+  type OrderPayment,
+  type OrderTab,
 } from "@/redux/api-slice/order-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { ACTIVE_FILTER_STYLE } from "@/lib/config";
-import { cn } from "@/lib/utils";
-
-const PER_PAGE = 25;
 
 const SORT_OPTIONS: { value: OrderOrdering; label: string }[] = [
   { value: "-created_at", label: "Newest First" },
   { value: "created_at", label: "Oldest First" },
-  { value: "-total_price", label: "Highest Value" },
-  { value: "total_price", label: "Lowest Value" },
-  { value: "-order_number", label: "Order Number" },
+  { value: "-total_price", label: "Total: High To Low" },
+  { value: "total_price", label: "Total: Low To High" },
 ];
 
-function numeric(value: string) {
-  if (!value.trim()) return undefined;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : undefined;
-}
+const PAYMENT_OPTIONS: { value: OrderPayment | "all"; label: string }[] = [
+  { value: "all", label: "All Payments" },
+  { value: "paid", label: "Paid" },
+  { value: "pending", label: "Pending" },
+  { value: "refunded", label: "Refunded" },
+];
+
+/** A picked placed date range, as the picker gives it ("" when open). */
+type DateRange = { from: string; to: string };
+
+const NO_RANGE: DateRange = { from: "", to: "" };
 
 export default function Orders() {
   const dispatch = useAppDispatch();
   const router = useRouter();
   const searchParams = useSearchParams();
-
-  // Set when arriving from a customer's page, so the list opens scoped to
-  // that shopper rather than making you search for them again.
-  const customerParam = Number(searchParams?.get("customer") ?? "");
-  const customerId =
-    Number.isInteger(customerParam) && customerParam > 0
-      ? customerParam
-      : undefined;
 
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
@@ -66,62 +62,54 @@ export default function Orders() {
   const { FetchOrdersData, FetchOrdersIsLoading } = useAppSelector(
     (state) => state.GetOrderReducer.FetchOrdersState,
   );
+  const summary = useAppSelector(
+    (state) =>
+      state.GetOrderReducer.FetchOrderSummaryState.FetchOrderSummaryData,
+  );
 
-  const [page, setPage] = useState(1);
-  // Arriving from a customer's page fills the search with their email, so
-  // the list opens scoped to that shopper and the filter shows in the box.
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 25,
+  });
+  // "View All Orders" links (customer page, Live Support, Help Desk) open
+  // the list searched by the customer's email.
   const [searchInput, setSearchInput] = useState(
     () => searchParams?.get("search")?.trim() ?? "",
   );
-  const [debouncedSearch, setDebouncedSearch] = useState(
-    () => searchParams?.get("search")?.trim() ?? "",
-  );
   const [ordering, setOrdering] = useState<OrderOrdering>("-created_at");
+  const [tab, setTab] = useState<OrderTab | "all">("all");
+  const [payment, setPayment] = useState<OrderPayment | "all">("all");
+  const [placed, setPlaced] = useState<DateRange>(NO_RANGE);
+  // Search waits for typing to pause, so a request isn't fired per keystroke.
+  const search = useDebounce(searchInput.trim());
 
-  const [draftFilters, setDraftFilters] =
-    useState<OrderFilterSelection>(EMPTY_ORDER_FILTERS);
-  const [appliedFilters, setAppliedFilters] =
-    useState<OrderFilterSelection>(EMPTY_ORDER_FILTERS);
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  // Back to page 1 whenever the selection changes (render-phase, so the
+  // fetch below never asks for a page past the end).
+  const querySignature = JSON.stringify([
+    storeCode,
+    search,
+    ordering,
+    tab,
+    payment,
+    placed,
+  ]);
+  const [prevSignature, setPrevSignature] = useState(querySignature);
+  if (querySignature !== prevSignature) {
+    setPrevSignature(querySignature);
+    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+  }
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(searchInput.trim());
-      setPage(1);
-    }, 350);
-    return () => clearTimeout(timer);
-  }, [searchInput]);
-
-  const requestFilters: OrderFilters = useMemo(
+  const requestFilters = useMemo<OrderFilters>(
     () => ({
-      ...(debouncedSearch ? { search: debouncedSearch } : {}),
-      ...(customerId ? { customer: customerId } : {}),
-      ...(appliedFilters.financialStatuses.length
-        ? { financial_status: appliedFilters.financialStatuses }
-        : {}),
-      ...(appliedFilters.fulfillmentStatuses.length
-        ? { fulfillment_status: appliedFilters.fulfillmentStatuses }
-        : {}),
-      total_min: numeric(appliedFilters.totalMin),
-      total_max: numeric(appliedFilters.totalMax),
-      ...(appliedFilters.money === "outstanding"
-        ? { has_outstanding: true }
-        : {}),
-      ...(appliedFilters.money === "refunded" ? { has_refund: true } : {}),
-      ...(appliedFilters.cancelled === "any"
-        ? {}
-        : { cancelled: appliedFilters.cancelled === "yes" }),
-      // The picker yields whole days; the range has to cover all of its
-      // last one or "up to today" would stop at midnight.
-      ...(appliedFilters.createdFrom
-        ? { created_from: startOfDay(appliedFilters.createdFrom) }
-        : {}),
-      ...(appliedFilters.createdTo
-        ? { created_to: endOfDay(appliedFilters.createdTo) }
-        : {}),
+      ...(search ? { search } : {}),
+      ...(tab !== "all" ? { tab } : {}),
+      ...(payment !== "all" ? { payment } : {}),
+      // The picker gives whole days; the range covers all of its last one.
+      ...(placed.from ? { placed_from: startOfDay(placed.from) } : {}),
+      ...(placed.to ? { placed_to: endOfDay(placed.to) } : {}),
       ordering,
     }),
-    [appliedFilters, customerId, debouncedSearch, ordering],
+    [search, tab, payment, placed, ordering],
   );
 
   useEffect(() => {
@@ -129,39 +117,64 @@ export default function Orders() {
     dispatch(
       FetchOrders({
         storeCode,
-        page,
-        limit: PER_PAGE,
+        page: pagination.pageIndex + 1,
+        limit: pagination.pageSize,
         filters: requestFilters,
       }),
     );
-  }, [dispatch, storeCode, page, requestFilters]);
+  }, [dispatch, storeCode, pagination, requestFilters]);
 
-  const columns = useMemo(() => getOrderColumns(), []);
-  const activeFilterCount = countActiveOrderFilters(appliedFilters);
+  // The tab counts are for the whole store, so they only reload with it.
+  useEffect(() => {
+    if (!storeCode) return;
+    dispatch(FetchOrderSummary({ storeCode }));
+  }, [dispatch, storeCode]);
 
-  const pagination: PaginationState = {
-    pageIndex: page - 1,
-    pageSize: PER_PAGE,
-  };
-  const handlePaginationChange: OnChangeFn<PaginationState> = (updater) => {
-    const next = typeof updater === "function" ? updater(pagination) : updater;
-    setPage(next.pageIndex + 1);
-  };
+  // A column that would say the same on every row is left out.
+  const columns = useMemo(
+    () =>
+      getOrderColumns({
+        // Pending and Refunded each cover several states (authorized,
+        // partially refunded…), so only Paid makes the column redundant.
+        showPayment: payment !== "paid",
+        showFulfillment: tab === "all",
+      }),
+    [payment, tab],
+  );
 
+  const tabs: CountTab<OrderTab | "all">[] = [
+    { key: "all", label: "All Orders", count: summary?.total },
+    {
+      key: "unfulfilled",
+      label: "Unfulfilled",
+      count: summary?.tabs.unfulfilled,
+    },
+    {
+      key: "partial",
+      label: "Partially Fulfilled",
+      count: summary?.tabs.partial,
+    },
+    { key: "fulfilled", label: "Fulfilled", count: summary?.tabs.fulfilled },
+    { key: "cancelled", label: "Cancelled", count: summary?.tabs.cancelled },
+  ];
+
+  const hasRange = Boolean(placed.from || placed.to);
   const hasQuery =
-    Boolean(debouncedSearch) || activeFilterCount > 0 || Boolean(customerId);
+    Boolean(search) || tab !== "all" || payment !== "all" || hasRange;
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="relative w-full max-w-sm">
+      <CountTabs tabs={tabs} tab={tab} onChange={setTab} />
+
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative min-w-56 flex-1 sm:max-w-sm">
           <IconSearch className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={searchInput}
             onChange={(event) => setSearchInput(event.target.value)}
-            placeholder="Search order number, email, phone or tracking…"
+            placeholder="Search order, customer or email"
             aria-label="Search orders"
-            className="pl-9"
+            className={cn("h-8 pl-9", searchInput && ACTIVE_FILTER_STYLE)}
           />
           {searchInput ? (
             <button
@@ -175,52 +188,67 @@ export default function Orders() {
           ) : null}
         </div>
 
-        <div className="flex items-center gap-2">
-          <Select
-            value={ordering}
-            onValueChange={(value) => {
-              setOrdering(value as OrderOrdering);
-              setPage(1);
-            }}
+        <DateRangePicker
+          from={placed.from}
+          to={placed.to}
+          placeholder="Placed"
+          disabled={{ after: new Date() }}
+          onRangeChange={(from, to) => setPlaced({ from, to })}
+        />
+        {hasRange ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground"
+            onClick={() => setPlaced(NO_RANGE)}
           >
-            <SelectTrigger
-              // A sort order is always applied, including the default.
-              className={cn("w-44", ACTIVE_FILTER_STYLE)}
-              aria-label="Sort orders"
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {SORT_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            <IconX />
+            Clear
+          </Button>
+        ) : null}
 
-          <OrderFilterPopover
-            open={isFilterOpen}
-            onOpenChange={(open) => {
-              setIsFilterOpen(open);
-              if (open) setDraftFilters(appliedFilters);
-            }}
-            filters={draftFilters}
-            onFiltersChange={setDraftFilters}
-            activeCount={activeFilterCount}
-            onApply={() => {
-              setAppliedFilters(draftFilters);
-              setPage(1);
-              setIsFilterOpen(false);
-            }}
-            onClear={() => {
-              setDraftFilters(EMPTY_ORDER_FILTERS);
-              setAppliedFilters(EMPTY_ORDER_FILTERS);
-              setPage(1);
-              setIsFilterOpen(false);
-            }}
-          />
-        </div>
+        <Select
+          value={payment}
+          onValueChange={(value) => setPayment(value as OrderPayment | "all")}
+        >
+          <SelectTrigger
+            size="sm"
+            className={cn("w-auto", payment !== "all" && ACTIVE_FILTER_STYLE)}
+            aria-label="Filter by payment"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {PAYMENT_OPTIONS.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={ordering}
+          onValueChange={(value) => setOrdering(value as OrderOrdering)}
+        >
+          {/* Phones keep the default sort, as on Customers. */}
+          <SelectTrigger
+            size="sm"
+            className="w-auto max-sm:hidden"
+            aria-label="Sort orders"
+          >
+            <IconArrowsSort className="text-muted-foreground" />
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {SORT_OPTIONS.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <DataTable
@@ -228,9 +256,10 @@ export default function Orders() {
         data={FetchOrdersData.results}
         totalCount={FetchOrdersData.count}
         pagination={pagination}
-        onPaginationChange={handlePaginationChange}
+        onPaginationChange={setPagination}
         isLoading={FetchOrdersIsLoading}
         noun="order"
+        headerClassName="bg-muted/50 max-md:hidden"
         onRowClick={(order) => router.push(`/crm/orders/${order.id}`)}
         emptyTitle={hasQuery ? "No Matching Orders" : "No Orders Yet"}
         emptyDescription={

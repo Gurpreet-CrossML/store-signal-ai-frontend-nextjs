@@ -2,27 +2,16 @@ import Link from "next/link";
 import {
   IconAlertTriangle,
   IconArticle,
-  IconBuildingStore,
-  IconCreditCard,
   IconFileText,
-  IconFolder,
   IconGlobe,
-  IconHeadset,
   IconInbox,
-  IconLock,
   IconMessageQuestion,
   IconPencil,
-  IconReceiptRefund,
-  IconRulerMeasure,
-  IconShieldCheck,
-  IconShirt,
-  IconShoppingBag,
-  IconTool,
-  IconTruckDelivery,
-  IconWash,
-  type Icon,
 } from "@tabler/icons-react";
 
+import { CategoryCoverageChip } from "@/components/custom/knowledge/category-coverage-chip";
+import { getKnowledgeCategoryIcon } from "@/components/custom/knowledge/knowledge-meta";
+import type { KnowledgeCategoryIcon } from "@/components/custom/knowledge/knowledge-meta";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Tooltip,
@@ -40,6 +29,7 @@ import type {
   KnowledgeCategories,
   KnowledgeSourceCounts,
 } from "@/redux/api-slice/knowledge-rag-slice";
+import { useAppSelector } from "@/redux/hooks";
 
 /** "2 drafts", or "1 draft". */
 function draftCountLabel(count: number) {
@@ -105,76 +95,7 @@ function SourceCounts({ counts }: { counts: KnowledgeSourceCounts }) {
   );
 }
 
-type CategoryIcon = { icon: Icon; className: string };
-
-// The icon and colour of each category's tile, by its slug. A category added
-// later (no entry here) gets the folder icon.
-const CATEGORY_ICONS: Record<string, CategoryIcon> = {
-  "shipping-and-delivery": {
-    icon: IconTruckDelivery,
-    className:
-      "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300",
-  },
-  "returns-refunds-and-exchanges": {
-    icon: IconReceiptRefund,
-    className:
-      "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
-  },
-  "orders-and-payments": {
-    icon: IconShoppingBag,
-    className:
-      "bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300",
-  },
-  "products-and-usage": {
-    icon: IconShirt,
-    className:
-      "bg-pink-100 text-pink-700 dark:bg-pink-500/15 dark:text-pink-300",
-  },
-  "safety-and-suitability": {
-    icon: IconShieldCheck,
-    className: "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300",
-  },
-  "account-privacy-and-legal": {
-    icon: IconLock,
-    className:
-      "bg-slate-100 text-slate-700 dark:bg-slate-500/15 dark:text-slate-300",
-  },
-  "store-and-brand": {
-    icon: IconBuildingStore,
-    className:
-      "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300",
-  },
-  "warranty-and-repairs": {
-    icon: IconTool,
-    className:
-      "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300",
-  },
-  "customer-support-and-contact": {
-    icon: IconHeadset,
-    className:
-      "bg-cyan-100 text-cyan-700 dark:bg-cyan-500/15 dark:text-cyan-300",
-  },
-  "payments-and-billing": {
-    icon: IconCreditCard,
-    className:
-      "bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300",
-  },
-  "product-care-and-maintenance": {
-    icon: IconWash,
-    className:
-      "bg-teal-100 text-teal-700 dark:bg-teal-500/15 dark:text-teal-300",
-  },
-  "sizing-and-fit": {
-    icon: IconRulerMeasure,
-    className:
-      "bg-lime-100 text-lime-700 dark:bg-lime-500/15 dark:text-lime-300",
-  },
-};
-
-const DEFAULT_CATEGORY_ICON: CategoryIcon = {
-  icon: IconFolder,
-  className: "bg-muted text-muted-foreground",
-};
+type CategoryIcon = KnowledgeCategoryIcon;
 
 const UNCATEGORIZED_ICON: CategoryIcon = {
   icon: IconInbox,
@@ -193,6 +114,7 @@ function CategoryCard({
   draftCount,
   failedCount,
   sourceCounts,
+  coverage,
   dashed = false,
 }: {
   href: string;
@@ -206,6 +128,8 @@ function CategoryCard({
   failedCount: number;
   /** Of `count`, how many of each kind. */
   sourceCounts: KnowledgeSourceCounts;
+  /** How well the knowledge answers customers here; left out until known. */
+  coverage?: React.ReactNode;
   /** A dashed outline sets the card apart from the real categories. */
   dashed?: boolean;
 }) {
@@ -245,6 +169,7 @@ function CategoryCard({
         )}
         {/* What kinds of knowledge are in it. */}
         {count > 0 && <SourceCounts counts={sourceCounts} />}
+        {coverage}
         {/* What needs the user's attention, once there is something. */}
         {(failedCount > 0 || draftCount > 0) && (
           <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-medium">
@@ -279,6 +204,14 @@ export function KnowledgeCategoriesGrid({
   data: KnowledgeCategories | null;
   isLoading: boolean;
 }) {
+  // The coverage the KB Coverage card loaded for its period; each card shows
+  // its own category's share once that is known.
+  const { FetchAnswerCoverageData: coverage } = useAppSelector(
+    (state) => state.GetKnowledgeTestAiReducer.FetchAnswerCoverageState,
+  );
+  const coverageOf = (slug: string) =>
+    coverage?.categories.find((entry) => entry.slug === slug);
+
   if (!data) {
     return isLoading ? (
       <div className={GRID_CLASS} aria-busy="true">
@@ -307,16 +240,25 @@ export function KnowledgeCategoriesGrid({
         <CategoryCard
           key={category.id}
           href={`/knowledge/categories/${encodeURIComponent(category.slug)}`}
-          icon={CATEGORY_ICONS[category.slug] ?? DEFAULT_CATEGORY_ICON}
+          icon={getKnowledgeCategoryIcon(category.slug)}
           name={category.name}
           description={category.description}
           count={category.count}
           draftCount={category.draft_count}
           failedCount={category.failed_count}
           sourceCounts={category.source_counts}
+          coverage={
+            coverage && (
+              <CategoryCoverageChip
+                entry={coverageOf(category.slug)}
+                hasKnowledge={category.count > 0}
+              />
+            )
+          }
         />
       ))}
-      {data.uncategorized_count > 0 && (
+      {/* Also when only customer questions have no category, so those gaps show. */}
+      {(data.uncategorized_count > 0 || coverage?.uncategorized) && (
         <CategoryCard
           href={`/knowledge/categories/${KNOWLEDGE_UNCATEGORIZED_ROUTE}`}
           icon={UNCATEGORIZED_ICON}
@@ -326,6 +268,9 @@ export function KnowledgeCategoriesGrid({
           draftCount={data.uncategorized_draft_count}
           failedCount={data.uncategorized_failed_count}
           sourceCounts={data.uncategorized_source_counts}
+          coverage={
+            coverage && <CategoryCoverageChip entry={coverage.uncategorized} />
+          }
           dashed
         />
       )}

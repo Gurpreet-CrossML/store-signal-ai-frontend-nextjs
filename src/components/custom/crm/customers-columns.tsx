@@ -1,220 +1,189 @@
 "use client";
 
 import { type ColumnDef } from "@tanstack/react-table";
-import {
-  IconMail,
-  IconMessage,
-  IconRosetteDiscountCheck,
-} from "@tabler/icons-react";
 
 import { Badge } from "@/components/ui/badge";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { Typography } from "@/components/ui/typography";
 import { CustomerAvatar } from "@/components/custom/customer-avatar";
-import { BADGE_TONE_STYLES } from "@/lib/badge-tones";
-import {
-  customerLocation,
-  customerOrderCount,
-  customerSince,
-  customerTotalSpent,
-} from "@/lib/customer-facts";
-import { formatPrice, formatRelativeDateTime } from "@/lib/helpers";
+import { CustomerSegmentBadge } from "@/components/custom/customer-segment-badge";
+import type { CustomerTab } from "@/components/custom/crm/customer-tabs";
+import { BADGE_TONE_STYLES, type BadgeTone } from "@/lib/badge-tones";
+import { formatPrice } from "@/lib/helpers";
 import { cn } from "@/lib/utils";
-import type { CustomerRecord } from "@/redux/api-slice/customer-slice";
+import type {
+  CustomerBadge,
+  CustomerListRow,
+  CustomerRecord,
+} from "@/redux/api-slice/customer-slice";
 
 /** The customer's own name, or their email when the platform sent none. */
-export function customerDisplayName(customer: CustomerRecord) {
+export function customerDisplayName(
+  customer: Pick<CustomerRecord, "first_name" | "last_name" | "email">,
+) {
   const full =
     `${customer.first_name ?? ""} ${customer.last_name ?? ""}`.trim();
   return full || customer.email || "Guest";
 }
 
-/**
- * Consent as two marks rather than one "Subscribed" pill: email and SMS are
- * separate permissions, and a store that can email but not text a customer
- * needs to see that at a glance before starting a campaign.
- */
-function ConsentMarks({ customer }: { customer: CustomerRecord }) {
-  const channels = [
-    {
-      key: "email",
-      icon: IconMail,
-      granted: customer.accepts_email_marketing,
-      label: "Email Marketing",
-    },
-    {
-      key: "sms",
-      icon: IconMessage,
-      granted: customer.accepts_sms_marketing,
-      label: "SMS Marketing",
-    },
-  ];
+/** The other badges' label and colour; VIP uses the app's own VIP badge. */
+const CUSTOMER_BADGES: Record<
+  Exclude<CustomerBadge, "vip">,
+  { label: string; tone: BadgeTone }
+> = {
+  at_risk: { label: "At Risk", tone: "danger" },
+};
 
+/**
+ * A customer's group badge. VIP is the same yellow badge Live Support and
+ * Help Desk show, so a VIP looks the same everywhere.
+ */
+export function CustomerBadgeTag({
+  badge,
+  className,
+}: {
+  badge: CustomerBadge;
+  className?: string;
+}) {
+  if (badge === "vip") {
+    return <CustomerSegmentBadge segment="vip" className={className} />;
+  }
+  const { label, tone } = CUSTOMER_BADGES[badge];
   return (
-    <div className="flex items-center gap-1.5">
-      {channels.map((channel) => (
-        <Tooltip key={channel.key}>
-          <TooltipTrigger asChild>
-            <span
-              className={cn(
-                "flex size-6 items-center justify-center rounded-md border",
-                channel.granted
-                  ? BADGE_TONE_STYLES.success
-                  : "border-border text-muted-foreground/50",
-              )}
-            >
-              <channel.icon className="size-3.5" />
-            </span>
-          </TooltipTrigger>
-          <TooltipContent>
-            {channel.label}: {channel.granted ? "Opted In" : "Not Opted In"}
-          </TooltipContent>
-        </Tooltip>
-      ))}
-    </div>
+    <Badge variant="outline" className={cn(BADGE_TONE_STYLES[tone], className)}>
+      {label}
+    </Badge>
   );
 }
 
-export function getCustomerColumns(): ColumnDef<CustomerRecord>[] {
+/** "Today", "1 day ago", "58 days ago". */
+export function daysAgo(days: number) {
+  if (days <= 0) return "Today";
+  return days === 1 ? "1 day ago" : `${days} days ago`;
+}
+
+/** Whole days from an ISO date to now. */
+function daysSince(value: string) {
+  return Math.floor((Date.now() - new Date(value).getTime()) / 86_400_000);
+}
+
+function plural(count: number, noun: string) {
+  return `${count} ${noun}${count === 1 ? "" : "s"}`;
+}
+
+function Muted({ children }: { children: React.ReactNode }) {
+  return <Typography variant="muted">{children}</Typography>;
+}
+
+// Columns past the customer and lifetime value hide on smaller screens: the
+// tablet keeps last order, the phone keeps just the two.
+const FROM_TABLET = "max-md:hidden";
+const FROM_DESKTOP = "max-xl:hidden";
+// The number columns share one width and alignment, so the gaps between
+// them are even; the customer column takes the rest.
+const NUMBER_COLUMN = "w-36 text-right";
+
+export function getCustomerColumns({
+  currency,
+  tab,
+}: {
+  currency: string;
+  /** The open tab; its own badge is not repeated on every row. */
+  tab: CustomerTab;
+}): ColumnDef<CustomerListRow>[] {
   return [
     {
-      accessorKey: "first_name",
+      id: "customer",
       header: "Customer",
       cell: ({ row }) => {
         const customer = row.original;
         const name = customerDisplayName(customer);
-        // Identity in one column: Shopify drops the raw email into the name
-        // slot when a shopper has no name, which reads as a different kind
-        // of row. Here the email is always the second line, so the column
-        // has one shape whether or not a name exists.
+        // The open tab's own badge is not repeated on every row.
+        const badge =
+          customer.badge && customer.badge !== tab ? customer.badge : null;
         return (
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-3">
             <CustomerAvatar name={name} size="size-8" />
-            <div className="min-w-0">
-              <Typography variant="small" as="p" className="truncate">
-                {name}
-              </Typography>
-              <div className="flex items-center gap-1">
-                <Typography variant="muted" className="truncate">
-                  {customer.email || "—"}
+            {/* Capped on a phone so a long name truncates instead of pushing
+                the lifetime value off the screen. */}
+            <div className="min-w-0 max-md:max-w-44">
+              <div className="flex items-center gap-1.5">
+                <Typography variant="small" as="p" className="truncate">
+                  {name}
                 </Typography>
-                {customer.is_email_verified ? (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <IconRosetteDiscountCheck className="size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                    </TooltipTrigger>
-                    <TooltipContent>Email Verified</TooltipContent>
-                  </Tooltip>
+                {badge ? (
+                  <CustomerBadgeTag badge={badge} className="shrink-0" />
                 ) : null}
               </div>
+              {/* A phone has no room for the other columns, so the second
+                  line carries their gist instead of the email. */}
+              <Typography variant="muted" className="truncate md:hidden">
+                {plural(customer.order_count, "order")}
+                {customer.last_order_at
+                  ? ` · last ${daysAgo(daysSince(customer.last_order_at)).toLowerCase()}`
+                  : ""}
+              </Typography>
+              <Typography variant="muted" className="truncate max-md:hidden">
+                {customer.email || "—"}
+              </Typography>
             </div>
           </div>
         );
       },
     },
     {
-      accessorKey: "phone",
-      header: "Phone",
-      cell: ({ row }) =>
-        row.original.phone ? (
-          <Typography
-            variant="small"
-            as="span"
-            className="font-mono font-normal"
-          >
-            {row.original.phone}
-          </Typography>
-        ) : (
-          <Typography variant="muted">—</Typography>
-        ),
-    },
-    {
-      id: "location",
-      header: "Location",
+      id: "lifetime_value",
+      header: "Lifetime Value",
+      meta: { headClassName: NUMBER_COLUMN },
       cell: ({ row }) => {
-        const location = customerLocation(row.original);
-        return location ? (
-          <Typography variant="small" as="span" className="font-normal">
-            {location}
-          </Typography>
-        ) : (
-          <Typography variant="muted">—</Typography>
+        const value = Number(row.original.lifetime_value);
+        return (
+          <div className="text-right text-sm font-semibold tabular-nums">
+            {value > 0 ? formatPrice(value, currency) : "—"}
+          </div>
         );
       },
     },
     {
-      id: "consent",
-      header: "Marketing",
-      cell: ({ row }) => <ConsentMarks customer={row.original} />,
-    },
-    {
-      accessorKey: "orders_count",
-      header: () => <div className="text-right">Orders</div>,
+      id: "orders",
+      header: "Orders",
+      meta: {
+        headClassName: `${NUMBER_COLUMN} ${FROM_DESKTOP}`,
+        cellClassName: FROM_DESKTOP,
+      },
       cell: ({ row }) => (
         <div className="text-right tabular-nums">
-          {customerOrderCount(row.original)}
+          {row.original.order_count}
         </div>
       ),
     },
     {
-      accessorKey: "total_spent",
-      header: () => <div className="text-right">Total Spent</div>,
-      cell: ({ row }) => {
-        const { amount: spent, currency } = customerTotalSpent(row.original);
-        return (
-          <div
-            className={cn(
-              "text-right tabular-nums",
-              // A shopper who has never paid is a different kind of row from
-              // one who has; quieting the zeros makes the spenders findable
-              // by eye, which a column of identical "$0.00" does not.
-              spent > 0
-                ? "font-medium text-foreground"
-                : "text-muted-foreground",
-            )}
-          >
-            {formatPrice(spent, currency)}
-          </div>
-        );
+      id: "average_order",
+      header: "Avg Order",
+      meta: {
+        headClassName: `${NUMBER_COLUMN} ${FROM_DESKTOP}`,
+        cellClassName: FROM_DESKTOP,
       },
+      cell: ({ row }) => (
+        <div className="text-right tabular-nums">
+          {row.original.average_order
+            ? formatPrice(row.original.average_order, currency)
+            : "—"}
+        </div>
+      ),
     },
     {
-      accessorKey: "registered_at",
-      header: () => <div className="text-right">Customer Since</div>,
-      cell: ({ row }) => {
-        const since = customerSince(row.original);
-        if (!since.value) {
-          return (
-            <div className="text-right">
-              <Typography variant="muted">—</Typography>
-            </div>
-          );
-        }
-
-        return (
-          <div className="text-right">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Badge variant="outline" className="font-normal">
-                  {formatRelativeDateTime(since.value)}
-                </Badge>
-              </TooltipTrigger>
-              {/* Which question the date answers. Most synced shoppers have
-                  no registration date on the platform, and showing when we
-                  first saw them as though it were one would misdate them. */}
-              <TooltipContent>
-                {since.registered
-                  ? "Registered with the store"
-                  : "First seen — the store sent no registration date"}
-              </TooltipContent>
-            </Tooltip>
-          </div>
-        );
+      id: "last_order",
+      header: "Last Order",
+      meta: {
+        headClassName: `${NUMBER_COLUMN} ${FROM_TABLET}`,
+        cellClassName: `text-right ${FROM_TABLET}`,
       },
+      cell: ({ row }) =>
+        row.original.last_order_at ? (
+          daysAgo(daysSince(row.original.last_order_at))
+        ) : (
+          <Muted>—</Muted>
+        ),
     },
   ];
 }

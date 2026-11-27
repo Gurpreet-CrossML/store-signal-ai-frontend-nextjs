@@ -74,7 +74,7 @@ export function LocationSelect({
             }
           />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent position="popper" className="max-h-72">
           {options.map((option) => (
             <SelectItem key={option.id} value={String(option.id)}>
               {option.name}

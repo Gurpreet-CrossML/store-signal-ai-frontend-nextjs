@@ -62,8 +62,16 @@ type RichTextAreaProps = {
   marksSource?: string;
 };
 
-/** A place in the text to mark, and how many things point at it. */
-export type TextMark = { start: number; end: number; count: number };
+/**
+ * A place in the text to mark, and how many things point at it. `active`
+ * draws it stronger, with a short flash, for the one the user picked.
+ */
+export type TextMark = {
+  start: number;
+  end: number;
+  count: number;
+  active?: boolean;
+};
 
 // The places to mark and their drawn marks, in the editor's state.
 type MarkState = {
@@ -123,7 +131,9 @@ function markDecorations(
           place.pos + from - place.at,
           place.pos + to - place.at,
           {
-            class: "rich-text-flag",
+            class: mark.active
+              ? "rich-text-flag rich-text-flag-active"
+              : "rich-text-flag",
             "data-mark": String(mark.start),
           },
         ),
