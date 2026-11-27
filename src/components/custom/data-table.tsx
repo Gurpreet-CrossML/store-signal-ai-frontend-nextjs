@@ -168,12 +168,15 @@ export function DataTable<TData, TValue>({
         </Table>
       </div>
 
-      <DataTablePagination
-        table={table}
-        totalCount={totalCount}
-        noun={noun}
-        nounPlural={nounPlural}
-      />
+      {/* Nothing to page through: the empty state says it all. */}
+      {totalCount > 0 && (
+        <DataTablePagination
+          table={table}
+          totalCount={totalCount}
+          noun={noun}
+          nounPlural={nounPlural}
+        />
+      )}
     </div>
   );
 }
