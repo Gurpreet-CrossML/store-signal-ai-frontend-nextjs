@@ -221,9 +221,15 @@ export const ENDPOINTS = {
   // The sample customer questions a store owner can try on their AI, with how
   // the store's AI did on each, and the questions the AI couldn't answer. Django.
   fetchTestQuestions: () => `/knowledge/test-questions/`,
+  // How many of the test questions the store's AI answered (answered over the
+  // ones asked), and how many were never asked. Django.
+  fetchTestCoverage: () => `/knowledge/test-questions/coverage/`,
   // PATCH a good/bad rating on the AI's latest answer to a test question.
   testQuestionFeedback: (id: string) =>
     `/knowledge/test-questions/${id}/feedback/`,
+  // How many customer questions the AI answered over a period, the change
+  // since the period before, and the questions it couldn't answer most often. Django.
+  fetchAnswerCoverage: () => `/chat/answer-coverage/`,
   fetchUnansweredQuestions: () => `/chat/unanswered-questions/`,
   // The workflows that left customer questions unanswered, with how many each left.
   fetchUnansweredWorkflows: () => `/chat/unanswered-questions/workflows/`,
@@ -932,6 +938,10 @@ export const ARTICLE_BODY_MAX_LENGTH = 30_000;
 // `KNOWLEDGE_UNCATEGORIZED_FILTER`), and the name it goes by in the page URL
 // (/knowledge/categories/uncategorized).
 export const KNOWLEDGE_UNCATEGORIZED_FILTER = "none";
+// How a category's coverage (0-1) is coloured: at least this much is good
+// (green), at least the lower one is middling (amber), below it is poor (red).
+export const COVERAGE_GOOD_AT = 0.8;
+export const COVERAGE_MIDDLING_AT = 0.5;
 export const KNOWLEDGE_UNCATEGORIZED_ROUTE = "uncategorized";
 
 // The list of all the store's knowledge, whatever its category

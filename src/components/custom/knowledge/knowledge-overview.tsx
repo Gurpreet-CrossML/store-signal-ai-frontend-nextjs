@@ -2,11 +2,11 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
-import { IconArrowRight } from "@tabler/icons-react";
 
 import { PageHeading } from "@/components/custom/page-heading";
 import { KnowledgeCategoriesGrid } from "@/components/custom/knowledge/knowledge-categories-grid";
 import { KnowledgeEmptyState } from "@/components/custom/knowledge/knowledge-empty-state";
+import { KnowledgeCoverageCard } from "@/components/custom/knowledge/knowledge-coverage-card";
 import { KnowledgeHeadingActions } from "@/components/custom/knowledge/knowledge-heading-actions";
 import { KnowledgeStorageCard } from "@/components/custom/knowledge/knowledge-storage-card";
 import { KnowledgeStorageNotice } from "@/components/custom/knowledge/knowledge-storage-notice";
@@ -110,12 +110,12 @@ export default function KnowledgeOverview() {
           <KnowledgeEmptyState />
         ) : (
           <>
+            {!isEmptyLibrary && <KnowledgeCoverageCard />}
             <Link
               href={`/knowledge/categories/${KNOWLEDGE_ALL_ROUTE}`}
               className="inline-flex items-center gap-1 self-end text-xs font-medium text-primary hover:underline"
             >
               View All
-              <IconArrowRight className="size-3.5" />
             </Link>
             <KnowledgeCategoriesGrid
               data={categories}

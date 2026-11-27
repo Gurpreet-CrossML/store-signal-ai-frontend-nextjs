@@ -376,3 +376,12 @@ export function getApiErrorMessage(
 ) {
   return data?.non_field_errors;
 }
+
+/**
+ * A 0-1 share as a percentage, not rounded to a whole number: up to two
+ * decimals, none when there is nothing after the point (0.75 -> 75,
+ * 2/7 -> 28.57).
+ */
+export function formatPercent(share: number): number {
+  return Number((share * 100).toFixed(2));
+}
