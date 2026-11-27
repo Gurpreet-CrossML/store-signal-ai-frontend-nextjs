@@ -1,7 +1,6 @@
 "use client";
 
 import { type ColumnDef } from "@tanstack/react-table";
-import { IconLifebuoy } from "@tabler/icons-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Typography } from "@/components/ui/typography";
@@ -32,8 +31,7 @@ const CUSTOMER_BADGES: Record<
   Exclude<CustomerBadge, "vip">,
   { label: string; tone: BadgeTone }
 > = {
-  at_risk: { label: "At risk", tone: "danger" },
-  new: { label: "New", tone: "info" },
+  at_risk: { label: "At Risk", tone: "danger" },
 };
 
 /**
@@ -164,7 +162,7 @@ export function getCustomerColumns({
     },
     {
       id: "lifetime_value",
-      header: () => <div className="text-right">Lifetime value</div>,
+      header: () => <div className="text-right">Lifetime Value</div>,
       cell: ({ row }) => {
         const value = Number(row.original.lifetime_value);
         return (
@@ -186,7 +184,7 @@ export function getCustomerColumns({
     },
     {
       id: "average_order",
-      header: () => <div className="text-right">Avg order</div>,
+      header: () => <div className="text-right">Avg Order</div>,
       meta: { headClassName: FROM_DESKTOP, cellClassName: FROM_DESKTOP },
       cell: ({ row }) => (
         <div className="text-right tabular-nums">
@@ -198,7 +196,7 @@ export function getCustomerColumns({
     },
     {
       id: "last_order",
-      header: "Last order",
+      header: "Last Order",
       meta: { headClassName: FROM_TABLET, cellClassName: FROM_TABLET },
       cell: ({ row }) =>
         row.original.last_order_at ? (
@@ -209,29 +207,11 @@ export function getCustomerColumns({
     },
     {
       id: "buying_rhythm",
-      header: "Buying rhythm",
+      header: "Buying Rhythm",
       meta: { headClassName: FROM_TABLET, cellClassName: FROM_TABLET },
       cell: ({ row }) => {
         const { text, className } = rhythmText(row.original.buying_rhythm);
         return <span className={className}>{text}</span>;
-      },
-    },
-    {
-      id: "help_desk",
-      header: "Help desk",
-      meta: { headClassName: FROM_DESKTOP, cellClassName: FROM_DESKTOP },
-      cell: ({ row }) => {
-        const open = row.original.open_tickets;
-        if (!open) return <Muted>—</Muted>;
-        return (
-          <Badge
-            variant="outline"
-            className={cn("font-normal", BADGE_TONE_STYLES.danger)}
-          >
-            <IconLifebuoy />
-            {open} open
-          </Badge>
-        );
       },
     },
   ];

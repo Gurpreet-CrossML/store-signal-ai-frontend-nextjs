@@ -294,6 +294,10 @@ export const ENDPOINTS = {
   // NOTE: pending confirmation from the backend team.
   createCustomer: () => createAPIUrl("/chat/customers/", "django"),
   fetchOrders: () => createAPIUrl("/chat/orders/", "django"),
+  fetchOrderTable: () => createAPIUrl("/chat/orders/table/", "django"),
+  fetchOrderSummary: () => createAPIUrl("/chat/orders/summary/", "django"),
+  fetchOrderProfile: (orderId: number) =>
+    createAPIUrl(`/chat/orders/${orderId}/profile/`, "django"),
   // One customer's stored orders. Read-only — it never calls the commerce
   // platform, so it is the cheap one to reach for.
   fetchCustomerOrders: (customerId: number) =>
