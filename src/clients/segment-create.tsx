@@ -84,10 +84,10 @@ const DEFAULT_FORM = {
 };
 
 function valueColumnLabel(
-  categoryById: Map<number, SegmentCategory>,
+  categoryById: Map<string, SegmentCategory>,
   categoryId: string,
 ) {
-  const category = categoryById.get(Number(categoryId));
+  const category = categoryById.get(categoryId);
   switch (category?.slug) {
     case "total-spent":
       return "Total Spent";
@@ -183,7 +183,7 @@ export default function SegmentCreate({
   useEffect(() => {
     if (!segmentId || !storeCode) return;
     let cancelled = false;
-    dispatch(fetchSegmentDetail({ storeCode, segmentId: Number(segmentId) }))
+    dispatch(fetchSegmentDetail({ storeCode, segmentId }))
       .unwrap()
       .then((segment) => {
         if (cancelled) return;
@@ -236,7 +236,7 @@ export default function SegmentCreate({
   });
 
   const isAbandonedCart =
-    categoryById.get(Number(form.category))?.slug ===
+    categoryById.get(form.category)?.slug ===
     SEGMENT_CATEGORY_ABANDONED_CART_SLUG;
   const previewKey = `${form.category}|${form.time_period}|${form.min_price}`;
   const debouncedPreviewKey = useDebounce(previewKey, 400);
@@ -251,7 +251,7 @@ export default function SegmentCreate({
 
   useEffect(() => {
     if (!storeCode) return;
-    const categoryId = Number(form.category);
+    const categoryId = form.category;
     const timePeriod = Number(form.time_period);
     if (!categoryId || !timePeriod || timePeriod < 1) {
       setPreviewCount(null);
@@ -326,7 +326,7 @@ export default function SegmentCreate({
 
     const payload: SegmentWritePayload = {
       name: form.name.trim(),
-      category: Number(form.category),
+      category: form.category,
       time_period: Number(form.time_period),
       min_price: form.min_price ? Number(form.min_price) : 0,
       is_active: form.is_active,
@@ -336,7 +336,7 @@ export default function SegmentCreate({
     try {
       if (isEditMode && segmentId) {
         await dispatch(
-          updateSegment({ storeCode, segmentId: Number(segmentId), payload }),
+          updateSegment({ storeCode, segmentId, payload }),
         ).unwrap();
         toast.success("Segment updated");
       } else {
@@ -455,7 +455,7 @@ export default function SegmentCreate({
               <Select
                 value={form.category}
                 onValueChange={(value) => {
-                  const picked = categoryById.get(Number(value));
+                  const picked = categoryById.get(value);
                   setForm({
                     ...form,
                     category: value,

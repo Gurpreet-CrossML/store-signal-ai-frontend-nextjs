@@ -19,15 +19,15 @@ export type CompanyProfile = {
   phone: string | null;
   street: string | null;
   // The API returns location primary keys, not nested objects.
-  city: number | null;
-  state: number | null;
-  country: number | null;
+  city: string | null;
+  state: string | null;
+  country: string | null;
   is_active: boolean;
 };
 
 /** A plain staff user; company admins are not listed or managed here. */
 export type StaffMember = {
-  id: number;
+  id: string;
   email: string;
   first_name: string;
   last_name: string;
@@ -41,14 +41,14 @@ export type CompanyProfileUpdate = {
   email?: string;
   phone?: string;
   street?: string;
-  city?: number | null;
-  state?: number | null;
-  country?: number | null;
+  city?: string | null;
+  state?: string | null;
+  country?: string | null;
   logo?: File | null;
 };
 
 export type LocationOption = {
-  id: number;
+  id: string;
   name: string;
 };
 
@@ -134,7 +134,7 @@ export const FetchCountries = createAsyncThunk(
 
 export const FetchStates = createAsyncThunk(
   "tenancy/FetchStates",
-  async (countryId: number, thunkAPI) => {
+  async (countryId: string, thunkAPI) => {
     try {
       const res = await axiosInstance.get(ENDPOINTS.fetchStates(countryId), {
         useBackend: true,
@@ -148,7 +148,7 @@ export const FetchStates = createAsyncThunk(
 
 export const FetchCities = createAsyncThunk(
   "tenancy/FetchCities",
-  async (stateId: number, thunkAPI) => {
+  async (stateId: string, thunkAPI) => {
     try {
       const res = await axiosInstance.get(ENDPOINTS.fetchCities(stateId), {
         useBackend: true,
@@ -209,7 +209,7 @@ export const CreateStaff = createAsyncThunk(
     try {
       const res = await axiosInstance.post(ENDPOINTS.createStaff(), payload);
       const data = res.data.data as {
-        id: number;
+        id: string;
         email: string;
         credentials_emailed: boolean;
       };
@@ -234,7 +234,7 @@ export const CreateStaff = createAsyncThunk(
 export const UpdateStaff = createAsyncThunk(
   "tenancy/UpdateStaff",
   async (
-    payload: { id: number; is_active?: boolean; role?: StaffRole },
+    payload: { id: string; is_active?: boolean; role?: StaffRole },
     thunkAPI,
   ) => {
     const { id, ...changes } = payload;
@@ -259,7 +259,7 @@ export const UpdateStaff = createAsyncThunk(
 
 export const ResetStaffPassword = createAsyncThunk(
   "tenancy/ResetStaffPassword",
-  async (payload: { id: number; email: string }, thunkAPI) => {
+  async (payload: { id: string; email: string }, thunkAPI) => {
     try {
       const res = await axiosInstance.post(
         ENDPOINTS.resetStaffPassword(payload.id),

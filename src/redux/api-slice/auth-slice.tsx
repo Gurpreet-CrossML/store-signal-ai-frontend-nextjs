@@ -15,7 +15,7 @@ export type RegisterCompanyPayload = {
 };
 
 export type RegisteredCompany = {
-  id: number;
+  id: string;
   name: string;
   /** Permanent company identifier, derived from `name`. */
   code: string;

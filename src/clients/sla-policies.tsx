@@ -374,7 +374,7 @@ export default function SlaPolicies() {
       } else {
         const createPayload: SlaPolicyCreatePayload = {
           ...payload,
-          tags: values.tags.map(Number),
+          tags: values.tags,
           apply_to_existing_tickets: values.applyToExisting,
         };
         const created = await dispatch(

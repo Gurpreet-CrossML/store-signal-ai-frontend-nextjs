@@ -15,8 +15,8 @@ export type EmailTemplateDetailRow = {
 // cta_label -> button_label, cta_url_token -> button_url — one vocabulary
 // shared with WhatsApp/SMS templates now, instead of Email's own names.
 export type EmailTemplate = {
-  id: number;
-  store: number;
+  id: string;
+  store: string;
   name: string;
   subject: string;
   preheader: string;
@@ -108,7 +108,7 @@ export const updateEmailTemplate = createAsyncThunk(
       payload,
     }: {
       storeCode: string;
-      templateId: number;
+      templateId: string;
       payload: Partial<EmailTemplateWritePayload>;
     },
     thunkAPI,
@@ -134,7 +134,7 @@ export const updateEmailTemplate = createAsyncThunk(
 export const deleteEmailTemplate = createAsyncThunk(
   "deleteEmailTemplate",
   async (
-    { storeCode, templateId }: { storeCode: string; templateId: number },
+    { storeCode, templateId }: { storeCode: string; templateId: string },
     thunkAPI,
   ) => {
     try {
@@ -162,7 +162,7 @@ export const deleteEmailTemplate = createAsyncThunk(
 
 // core.SegmentCategory — shared by every tenant, so no store_code on the URL.
 export type SegmentCategory = {
-  id: number;
+  id: string;
   name: string;
   slug: string;
 };
@@ -172,10 +172,10 @@ export type SegmentCategory = {
 export const SEGMENT_CATEGORY_ABANDONED_CART_SLUG = "abandoned-cart";
 
 export type Segment = {
-  id: number;
-  store: number;
+  id: string;
+  store: string;
   name: string;
-  category: number;
+  category: string;
   time_period: number;
   min_price: string;
   is_active: boolean;
@@ -185,7 +185,7 @@ export type Segment = {
 
 export type SegmentWritePayload = {
   name: string;
-  category: number;
+  category: string;
   time_period: number;
   min_price?: number | string;
   is_active?: boolean;
@@ -245,7 +245,7 @@ export const fetchSegments = createAsyncThunk(
 // null for abandoned-cart (no computable cart total — see
 // campaign.helpers.compile_abandoned_cart on the backend).
 export type SegmentPreviewCustomer = {
-  id: number;
+  id: string;
   first_name: string;
   last_name: string;
   email: string;
@@ -269,7 +269,7 @@ export const previewSegmentCount = createAsyncThunk(
       page_size = 25,
     }: {
       storeCode: string;
-      category: number;
+      category: string;
       time_period: number;
       min_price?: number | string;
       page?: number;
@@ -337,7 +337,7 @@ export const createSegment = createAsyncThunk(
 export const fetchSegmentDetail = createAsyncThunk(
   "fetchSegmentDetail",
   async (
-    { storeCode, segmentId }: { storeCode: string; segmentId: number },
+    { storeCode, segmentId }: { storeCode: string; segmentId: string },
     thunkAPI,
   ) => {
     try {
@@ -364,7 +364,7 @@ export const updateSegment = createAsyncThunk(
       storeCode,
       segmentId,
       payload,
-    }: { storeCode: string; segmentId: number; payload: SegmentWritePayload },
+    }: { storeCode: string; segmentId: string; payload: SegmentWritePayload },
     thunkAPI,
   ) => {
     try {
@@ -388,7 +388,7 @@ export const updateSegment = createAsyncThunk(
 export const deleteSegment = createAsyncThunk(
   "deleteSegment",
   async (
-    { storeCode, segmentId }: { storeCode: string; segmentId: number },
+    { storeCode, segmentId }: { storeCode: string; segmentId: string },
     thunkAPI,
   ) => {
     try {
@@ -415,7 +415,7 @@ export const updateSegmentStatus = createAsyncThunk(
       storeCode,
       segmentId,
       isActive,
-    }: { storeCode: string; segmentId: number; isActive: boolean },
+    }: { storeCode: string; segmentId: string; isActive: boolean },
     thunkAPI,
   ) => {
     try {
@@ -446,9 +446,9 @@ export const updateSegmentStatus = createAsyncThunk(
 export const CAMPAIGN_TIME_ZONE = "Asia/Kolkata";
 
 export type CampaignSequenceStep = {
-  id?: number;
-  whatsapp_template: number | null;
-  email_template: number | null;
+  id?: string;
+  whatsapp_template: string | null;
+  email_template: string | null;
   start_time: string;
   delay_value: number | null;
   step_order: number;
@@ -457,13 +457,13 @@ export type CampaignSequenceStep = {
 };
 
 export type Campaign = {
-  id: number;
-  store: number;
+  id: string;
+  store: string;
   name: string;
   status: "draft" | "published";
   is_active: boolean;
   start_time: string;
-  segment: number;
+  segment: string;
   continuous_entry: boolean;
   sequence_steps: CampaignSequenceStep[];
   created_at: string;
@@ -480,7 +480,7 @@ export type CampaignScheduleResult = {
   campaign: string;
   scheduled: {
     step_order: number;
-    sequence_step_id: number;
+    sequence_step_id: string;
     schedule_name: string;
     cron: string;
   }[];
@@ -490,7 +490,7 @@ export type CampaignScheduleResult = {
 // The steps endpoint's response: which campaign the steps belong to, plus
 // the steps in ``step_order``.
 export type CampaignSequenceSteps = {
-  campaign_id: number;
+  campaign_id: string;
   name: string;
   status: "draft" | "published";
   is_active: boolean;
@@ -502,7 +502,7 @@ export type CampaignWritePayload = {
   status?: "draft" | "published";
   is_active?: boolean;
   start_time: string;
-  segment: number;
+  segment: string;
   continuous_entry?: boolean;
   sequence_steps: Omit<CampaignSequenceStep, "id" | "has_runs">[];
 };
@@ -536,7 +536,7 @@ export const fetchCampaigns = createAsyncThunk(
 export const fetchCampaignDetail = createAsyncThunk(
   "fetchCampaignDetail",
   async (
-    { storeCode, campaignId }: { storeCode: string; campaignId: number },
+    { storeCode, campaignId }: { storeCode: string; campaignId: string },
     thunkAPI,
   ) => {
     try {
@@ -559,7 +559,7 @@ export const fetchCampaignDetail = createAsyncThunk(
 export const fetchCampaignSequenceSteps = createAsyncThunk(
   "fetchCampaignSequenceSteps",
   async (
-    { storeCode, campaignId }: { storeCode: string; campaignId: number },
+    { storeCode, campaignId }: { storeCode: string; campaignId: string },
     thunkAPI,
   ) => {
     try {
@@ -618,7 +618,7 @@ export const updateCampaignStatus = createAsyncThunk(
       isActive,
     }: {
       storeCode: string;
-      campaignId: number;
+      campaignId: string;
       status?: "draft" | "published";
       isActive?: boolean;
     },
@@ -651,7 +651,7 @@ export const updateCampaign = createAsyncThunk(
       storeCode,
       campaignId,
       payload,
-    }: { storeCode: string; campaignId: number; payload: CampaignWritePayload },
+    }: { storeCode: string; campaignId: string; payload: CampaignWritePayload },
     thunkAPI,
   ) => {
     try {
@@ -680,7 +680,7 @@ export const updateCampaign = createAsyncThunk(
 export const scheduleCampaign = createAsyncThunk(
   "scheduleCampaign",
   async (
-    { storeCode, campaignId }: { storeCode: string; campaignId: number },
+    { storeCode, campaignId }: { storeCode: string; campaignId: string },
     thunkAPI,
   ) => {
     try {
@@ -720,7 +720,7 @@ export const activateCampaign = createAsyncThunk(
       storeCode,
       campaignId,
       publish = false,
-    }: { storeCode: string; campaignId: number; publish?: boolean },
+    }: { storeCode: string; campaignId: string; publish?: boolean },
     thunkAPI,
   ) => {
     try {
@@ -747,7 +747,7 @@ export const activateCampaign = createAsyncThunk(
 export const deleteCampaign = createAsyncThunk(
   "deleteCampaign",
   async (
-    { storeCode, campaignId }: { storeCode: string; campaignId: number },
+    { storeCode, campaignId }: { storeCode: string; campaignId: string },
     thunkAPI,
   ) => {
     try {
@@ -770,7 +770,7 @@ export const deleteCampaign = createAsyncThunk(
 export const fetchEmailTemplateDetail = createAsyncThunk(
   "fetchEmailTemplateDetail",
   async (
-    { storeCode, templateId }: { storeCode: string; templateId: number },
+    { storeCode, templateId }: { storeCode: string; templateId: string },
     thunkAPI,
   ) => {
     try {

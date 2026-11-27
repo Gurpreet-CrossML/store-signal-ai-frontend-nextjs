@@ -10,9 +10,9 @@ import type { SupportTicketTagData } from "@/redux/api-slice/support-ticket-slic
 
 /** The SLA a ticket tag puts on the tickets that carry it. */
 export type SlaPolicy = {
-  id: number;
+  id: string;
   /** The tag the policy belongs to; fixed once the policy exists. */
-  tag: number;
+  tag: string;
   tag_name: string;
   tag_color: string;
   tag_is_predefined: boolean;
@@ -37,7 +37,7 @@ export type SlaPolicyPayload = {
 
 /** A new policy: the same targets, given to each of the tags. */
 export type SlaPolicyCreatePayload = SlaPolicyPayload & {
-  tags: number[];
+  tags: string[];
   /** Count old tickets from their history (overdue at once) or from now. */
   apply_to_existing_tickets: boolean;
 };
@@ -124,7 +124,7 @@ export const SlaPolicyUpdate = createAsyncThunk(
       payload,
     }: {
       storeCode: string;
-      policyId: number;
+      policyId: string;
       payload: Partial<SlaPolicyPayload>;
     },
     thunkAPI,
@@ -152,7 +152,7 @@ export const SlaPolicyUpdate = createAsyncThunk(
 export const SlaPolicyDelete = createAsyncThunk(
   "SlaPolicyDelete",
   async (
-    { storeCode, policyId }: { storeCode: string; policyId: number },
+    { storeCode, policyId }: { storeCode: string; policyId: string },
     thunkAPI,
   ) => {
     try {

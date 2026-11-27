@@ -445,7 +445,7 @@ function TagsSection({
   const exists = availableTags.some(
     (tag) => tag.name.toLowerCase() === search.toLowerCase(),
   );
-  const assigned = (id?: number) => ticket.tags.some((tag) => tag.id === id);
+  const assigned = (id?: string) => ticket.tags.some((tag) => tag.id === id);
   // On the phone page a tag comes off by unticking it in Add Tag.
   const phone = useContext(PhoneLayout);
   const removable = !isClosed && !phone;
@@ -822,9 +822,9 @@ type TagProps = {
   onLoadMoreTags: () => void;
   tagSearch: string;
   onTagSearchChange: (value: string) => void;
-  onAddTag: (tagId: number) => void;
+  onAddTag: (tagId: string) => void;
   /** Asks first: taking a tag off can change the ticket's SLA. */
-  onRequestTagRemoval: (tagId: number) => void;
+  onRequestTagRemoval: (tagId: string) => void;
   onCreateTag: (name: string, color: string) => void;
 };
 
@@ -833,7 +833,7 @@ export type TicketDetailsProps = TagProps & {
   /** Adds the Copilot tab; left out when no store is selected. */
   copilot?: {
     storeCode: string;
-    ticketId: number;
+    ticketId: string;
     /** Changes whenever the ticket does, so Copilot re-checks its buttons. */
     refreshKey: string;
     onInsertDraft: (text: string) => void;
@@ -847,7 +847,7 @@ export type TicketDetailsProps = TagProps & {
   onPriorityChange: (priority: SupportTicketPriority) => void;
   staff: StaffMember[];
   canAssign: boolean;
-  onAssign: (staffId: number | null) => void;
+  onAssign: (staffId: string | null) => void;
   /** Set for a support agent: takes an unassigned ticket for themselves. */
   onTake?: () => void;
   onLanguageSentimentChange: (payload: {
@@ -863,7 +863,7 @@ export type TicketDetailsProps = TagProps & {
   otherTickets: ThreadTicketData[];
   otherTicketsLoading?: boolean;
   onLinkCustomer: () => void;
-  onOpenTicket: (ticketId: number) => void;
+  onOpenTicket: (ticketId: string) => void;
   activity: SupportTicketActivityItem[];
   activityLoading?: boolean;
 };

@@ -63,7 +63,7 @@ function formatDelay(minutes: number | null | undefined): string {
   return rem === 0 ? `wait ${hours}h` : `wait ${hours}h ${rem}m`;
 }
 
-export default function CampaignDetail({ campaignId }: { campaignId: number }) {
+export default function CampaignDetail({ campaignId }: { campaignId: string }) {
   const dispatch = useAppDispatch();
   const router = useRouter();
   const storeCode = useAppSelector(

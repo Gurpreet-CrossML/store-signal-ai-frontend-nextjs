@@ -9,7 +9,7 @@ import { axiosInstance } from "../axios-config";
 
 /** The shopper as the order endpoints nest them — an identity, not a full record. */
 export type OrderCustomerSummary = {
-  id: number;
+  id: string;
   first_name: string;
   last_name: string;
   email: string;
@@ -25,9 +25,9 @@ export type OrderCustomerSummary = {
  * render a confident zero.
  */
 export type OrderListRow = {
-  id: number;
+  id: string;
   /** Nested object in practice; a bare id is tolerated. Read via `orderCustomer`. */
-  customer: OrderCustomerSummary | number | null;
+  customer: OrderCustomerSummary | string | null;
   order_id: string;
   order_number: string;
   /** Display label from the platform, e.g. "#1001". */
@@ -112,7 +112,7 @@ export type OrderFilters = {
   /** True keeps only cancelled orders; false excludes them. */
   cancelled?: boolean;
   /** Narrow to one shopper — how the customer screen drills through. */
-  customer?: number;
+  customer?: string;
   /** Sort key, e.g. "-created_at" — leading "-" is descending. */
   ordering?: string;
 };
@@ -137,7 +137,7 @@ export function orderCustomer(order: OrderListRow) {
 
   return {
     id:
-      typeof order.customer === "number"
+      typeof order.customer === "string"
         ? order.customer
         : (nested?.id ?? null),
     name: nested
@@ -234,7 +234,7 @@ export const FetchCustomerOrders = createAsyncThunk(
       filters = {},
     }: {
       storeCode: string;
-      customerId: number;
+      customerId: string;
       page?: number;
       limit?: number;
       filters?: OrderFilters;
@@ -272,7 +272,7 @@ export const FetchCustomerOrders = createAsyncThunk(
 export const SyncCustomerOrders = createAsyncThunk(
   "SyncCustomerOrders",
   async (
-    { storeCode, customerId }: { storeCode: string; customerId: number },
+    { storeCode, customerId }: { storeCode: string; customerId: string },
     thunkAPI,
   ) => {
     try {
@@ -296,7 +296,7 @@ export const SyncCustomerOrders = createAsyncThunk(
 export const FetchOrderDetails = createAsyncThunk(
   "FetchOrderDetails",
   async (
-    { storeCode, orderId }: { storeCode: string; orderId: number },
+    { storeCode, orderId }: { storeCode: string; orderId: string },
     thunkAPI,
   ) => {
     try {

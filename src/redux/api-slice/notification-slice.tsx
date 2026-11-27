@@ -16,12 +16,12 @@ export type NotificationType =
   | "chat_message";
 
 export type AgentNotification = {
-  id: number;
+  id: string;
   notification_type: NotificationType;
   title: string;
   message: string;
   /** Set for ticket notifications; opens `/helpdesk?ticket=<id>`. */
-  ticket: number | null;
+  ticket: string | null;
   /** Set for live chat notifications; opens `/support?chat=<id>`. */
   thread: string | null;
   store_code: string;
@@ -145,7 +145,7 @@ export const FetchNotificationCounts = createAsyncThunk(
 
 export const MarkNotificationRead = createAsyncThunk(
   "MarkNotificationRead",
-  async ({ storeCode, id }: { storeCode: string; id: number }, thunkAPI) => {
+  async ({ storeCode, id }: { storeCode: string; id: string }, thunkAPI) => {
     try {
       const response = await axiosInstance.put(
         `${ENDPOINTS.notificationMarkRead(id)}?store_code=${storeCode}`,

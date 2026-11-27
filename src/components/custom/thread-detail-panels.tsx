@@ -504,7 +504,7 @@ export function OrdersCard({
   }, null);
   const { visible: visibleOrders, hiddenCount: hiddenOrderCount } =
     useCollapsibleList(orderList);
-  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   // Opening a row loads that order from /chat/orders/{id}/.
   //
@@ -526,7 +526,7 @@ export function OrdersCard({
   // The two figures that used to sit in a card of their own above this
   // one. They are a fact about these orders, so they belong to the section
   // that lists them — and the pane gets a whole card's height back.
-  const toggleOrder = (id: number) => {
+  const toggleOrder = (id: string) => {
     setExpandedId((prev) => {
       if (prev === id) return null;
       if (storeCode) dispatch(FetchOrderDetails({ storeCode, orderId: id }));

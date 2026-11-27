@@ -42,7 +42,7 @@ export type Identity = {
   /** What the role allows (see `can` in access-rules). */
   permissions: PermissionMap;
   /** The user's id; an agent sends it to take a ticket for themselves. */
-  user_id: number | null;
+  user_id: string | null;
   /** Staff roles this user may give on the team page (empty: none). */
   managed_roles: StaffRole[];
   /** Support agent: sees only their own chats and tickets plus the queue. */

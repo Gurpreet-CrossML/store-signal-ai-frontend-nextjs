@@ -1319,7 +1319,12 @@ export async function get_user_metadata(
   };
 }
 
-export async function get_order_data(thread_id: string): Promise<OrderData[]> {
+/** An order as stored: its `id` reaches the client as a token (lib/public-ids). */
+type OrderDataRow = Omit<OrderData, "id"> & { id: number };
+
+export async function get_order_data(
+  thread_id: string,
+): Promise<OrderDataRow[]> {
   const db = getDb();
 
   // Scoped like every thread lookup: the caller's stores, and for a support

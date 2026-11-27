@@ -128,7 +128,7 @@ export function CustomerDetailsPanel({
    */
   copilot?: {
     storeCode: string;
-    ticketId: number;
+    ticketId: string;
     /** Changes whenever the ticket does, so Copilot re-checks its buttons. */
     refreshKey: string;
     onInsertDraft: (text: string) => void;

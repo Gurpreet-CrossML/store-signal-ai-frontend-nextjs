@@ -222,7 +222,7 @@ export function TicketActivityDrawer({
   className,
 }: {
   storeCode: string;
-  ticketId: number;
+  ticketId: string;
   className?: string;
 }) {
   const dispatch = useAppDispatch();

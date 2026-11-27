@@ -1,4 +1,3 @@
-import { notFound } from "next/navigation";
 import CampaignCreate from "@/clients/campaign-create";
 
 export const metadata = {
@@ -11,7 +10,6 @@ export default async function Page({
   params: Promise<{ campaignId: string }>;
 }) {
   const { campaignId } = await params;
-  const parsed = Number(campaignId);
-  if (!Number.isInteger(parsed) || parsed <= 0) notFound();
+  // proxy.ts lets only a valid token reach this page (lib/public-ids).
   return <CampaignCreate campaignId={campaignId} />;
 }

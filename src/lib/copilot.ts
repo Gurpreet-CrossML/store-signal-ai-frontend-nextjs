@@ -30,7 +30,8 @@ export type CopilotSource = {
 };
 
 export type CopilotCitation = {
-  knowledge_id: number;
+  /** The knowledge item's public id (a token). */
+  knowledge_id: string;
   title: string;
   url: string | null;
   scope: string;
@@ -39,7 +40,8 @@ export type CopilotCitation = {
 };
 
 export type CopilotSimilarTicket = {
-  id: number;
+  /** The ticket's public id (a token). */
+  id: string;
   ticket_id: string;
   subject: string;
   status: string;
@@ -68,7 +70,7 @@ export type CopilotMetadata = {
 };
 
 export type CopilotMessage = {
-  id: number;
+  id: string;
   sender: CopilotSender;
   action: CopilotAction;
   message: string;

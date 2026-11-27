@@ -161,7 +161,7 @@ export default function CompanyProfileForm({
     // A state or city from the previous country is no longer valid.
     formik.setValues({
       ...formik.values,
-      country: Number(country),
+      country,
       state: null,
       city: null,
     });
@@ -169,11 +169,11 @@ export default function CompanyProfileForm({
 
   const handleStateChange = (state: string) => {
     // A city from the previous state is no longer valid.
-    formik.setValues({ ...formik.values, state: Number(state), city: null });
+    formik.setValues({ ...formik.values, state, city: null });
   };
 
   const handleCityChange = (city: string) => {
-    formik.setFieldValue("city", Number(city));
+    formik.setFieldValue("city", city);
   };
 
   // Loading until a fetch has finished (not just while it is in flight), so the

@@ -14,8 +14,8 @@ type LocationSelectProps = {
   id: string;
   label: string;
   /** Selected id, or null when nothing is chosen. */
-  value: number | null;
-  options: { id: number; name: string }[];
+  value: string | null;
+  options: { id: string; name: string }[];
   onChange: (id: string) => void;
   /** Options are still being fetched. */
   loading: boolean;

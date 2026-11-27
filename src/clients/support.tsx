@@ -1048,9 +1048,9 @@ const useNotificationSound = (soundUrl: string = "/notification_sound.mp3") => {
   return play;
 };
 
-/** chat_thread.id is a uuid; anything else cannot be a thread. */
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** A thread's id reaches the dashboard as a token (lib/public-ids);
+ *  anything else cannot be a thread. */
+const THREAD_ID_PATTERN = /^id_[A-Za-z0-9_-]+$/;
 
 export default function Support() {
   const dispatch = useAppDispatch();
@@ -1398,13 +1398,13 @@ export default function Support() {
   const selectedThreadStillExists =
     desiredThreadId !== null &&
     filterScopedThreads.some((thread) => thread.id === desiredThreadId);
-  // chat_thread.id is a uuid column, so anything else — a stale ?chat=
-  // value, a ticket number pasted into the URL — makes every thread-scoped
-  // query fail in Postgres and come back as a 500. Refusing it here turns
-  // seven failing requests into none, and the screen falls back to "no
-  // conversation selected" rather than a pane of broken cards.
+  // A thread's id is a thread token, so anything else — a stale ?chat=
+  // value, a ticket number pasted into the URL — would make every
+  // thread-scoped request fail. Refusing it here turns seven failing
+  // requests into none, and the screen falls back to "no conversation
+  // selected" rather than a pane of broken cards.
   const activeThreadId =
-    selectedThreadStillExists && UUID_PATTERN.test(desiredThreadId)
+    selectedThreadStillExists && THREAD_ID_PATTERN.test(desiredThreadId)
       ? desiredThreadId
       : null;
 

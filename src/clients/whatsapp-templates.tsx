@@ -129,7 +129,7 @@ export default function WhatsAppTemplates() {
   // Switching off asks first; switching on doesn't.
   const [templateToDeactivate, setTemplateToDeactivate] =
     useState<WhatsAppTemplate | null>(null);
-  const [togglingId, setTogglingId] = useState<number | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const [templateToResubmit, setTemplateToResubmit] =
     useState<WhatsAppTemplate | null>(null);
@@ -198,7 +198,7 @@ export default function WhatsAppTemplates() {
           updateWhatsAppTemplate({
             storeCode,
             accountId: String(account.id),
-            templateId: Number(template.id),
+            templateId: template.id,
             payload: { name: newName },
           }),
         ).unwrap();
@@ -255,7 +255,7 @@ export default function WhatsAppTemplates() {
         updateWhatsAppTemplate({
           storeCode,
           accountId: String(account.id),
-          templateId: Number(templateToResubmit.id),
+          templateId: templateToResubmit.id,
           payload: { name: resubmitName },
         }),
       ).unwrap();
@@ -338,7 +338,7 @@ export default function WhatsAppTemplates() {
         deleteWhatsAppTemplate({
           storeCode,
           accountId: String(account.id),
-          templateId: Number(templateToDelete.id),
+          templateId: templateToDelete.id,
         }),
       ).unwrap();
       toast.success("Template deleted", {

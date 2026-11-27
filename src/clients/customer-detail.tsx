@@ -158,7 +158,7 @@ function AddressCard({ address }: { address: CustomerAddress }) {
   );
 }
 
-export default function CustomerDetail({ customerId }: { customerId: number }) {
+export default function CustomerDetail({ customerId }: { customerId: string }) {
   const dispatch = useAppDispatch();
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,

@@ -5,13 +5,13 @@ import { toast } from "sonner";
 import { isAxiosError } from "axios";
 
 export type WidgetQuickAction = {
-  id?: number;
+  id?: string;
   name: string;
   message: string;
 };
 
 export type WidgetQuickLink = {
-  id?: number;
+  id?: string;
   name: string;
   url: string;
   priority: number;
@@ -24,7 +24,7 @@ export type AiDisclaimer = {
 };
 
 export type UpdateWidgetCustomizationPayload = {
-  store?: number;
+  store?: string;
   primary_color?: string;
   secondary_color?: string;
   tertiary_color?: string;
@@ -38,8 +38,8 @@ export type UpdateWidgetCustomizationPayload = {
 };
 
 export type WidgetCustomizationDataResponse = {
-  id: number;
-  store: number;
+  id: string;
+  store: string;
   primary_color: string | null;
   secondary_color: string | null;
   tertiary_color: string | null;
@@ -56,7 +56,7 @@ export type WidgetCustomizationDataResponse = {
 
 export const FetchWidgetCustomization = createAsyncThunk(
   "customization/fetchWidgetCustomization",
-  async (storeId: number, thunkAPI) => {
+  async (storeId: string, thunkAPI) => {
     try {
       // Widget customization is not ported to the Next.js API — read it
       // from the Django backend.
@@ -97,7 +97,7 @@ export const UpdateWidgetCustomization = createAsyncThunk(
     {
       storeId,
       payload,
-    }: { storeId: number; payload: UpdateWidgetCustomizationPayload },
+    }: { storeId: string; payload: UpdateWidgetCustomizationPayload },
     thunkAPI,
   ) => {
     try {
@@ -134,7 +134,7 @@ export const UpdateWidgetCustomizationWithImage = createAsyncThunk(
       payload,
       logoFile,
     }: {
-      storeId: number;
+      storeId: string;
       payload: UpdateWidgetCustomizationPayload;
       logoFile: File;
     },

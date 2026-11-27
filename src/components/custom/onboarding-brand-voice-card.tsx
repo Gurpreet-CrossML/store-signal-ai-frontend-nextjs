@@ -48,7 +48,8 @@ const validationSchema = z.object({
       `Agent name must not exceed ${AGENT_NAME_MAX_LENGTH} characters.`,
     )
     .regex(/^[\p{L} ]+$/u, "Agent name can contain only letters and spaces."),
-  preset: z.number().int().positive("Pick a starting voice"),
+  // The preset's id: an encrypted token, as the API sends it.
+  preset: z.string().min(1, "Pick a starting voice"),
 });
 
 /**
@@ -90,7 +91,7 @@ export function OnboardingBrandVoiceCard() {
 
   const formik = useFormik({
     enableReinitialize: true,
-    initialValues: { name: "", preset: presets[0]?.id ?? 0 },
+    initialValues: { name: "", preset: String(presets[0]?.id ?? "") },
     validate: (values) => {
       const result = validationSchema.safeParse(values);
       if (result.success) return {};

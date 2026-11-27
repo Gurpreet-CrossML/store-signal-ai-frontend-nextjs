@@ -12,6 +12,12 @@ import {
 } from "@/lib/access-rules";
 import type { Permission } from "@/lib/tenant-types";
 import { isSessionActive } from "@/lib/session-verify";
+import {
+  decodeQuery,
+  encodeData,
+  InvalidToken,
+  toRawId,
+} from "@/lib/public-ids";
 
 /**
  * Wrap a Pages-Router API handler so it runs inside its session's tenant scope.
@@ -69,13 +75,29 @@ export function withTenantRoute(
         .json(createAPIResponse(false, "No tenant for this session.", null));
     }
 
+    // Record ids travel as tokens (lib/public-ids): the handler gets the real
+    // ids, and what it sends back carries tokens again.
+    try {
+      req.query = decodeQuery(req.query);
+    } catch (err) {
+      if (!(err instanceof InvalidToken)) throw err;
+      return res.status(404).json(createAPIResponse(false, "Not found.", null));
+    }
+    const json = res.json.bind(res);
+    res.json = (body) => json(encodeData(body));
+
     // Central backstop: any error escaping the handler (or the tenant
     // transaction) is logged server-side and returned as a generic 500 — never
     // the raw DB error, which would leak the SQL + params.
     try {
       return await runWithTenant(
         companyCode,
-        buildAccess(session.user),
+        // The session holds the user's id as a token (it came from Django);
+        // the queue filter compares it with database rows, so use the id.
+        buildAccess({
+          ...session.user,
+          user_id: toRawId(session.user?.user_id ?? null) as number | null,
+        }),
         async () => {
           await handler(req, res);
         },

@@ -129,9 +129,9 @@ const QUICK_REACTIONS = ["❤️", "😆", "😮", "😢", "😠", "👍"];
  * delivered — see the reconciliation note in the component.
  */
 type PendingDm = PendingSend & {
-  targetMessageId: number;
+  targetMessageId: string;
   isExplicitReply: boolean;
-  conversationId: number;
+  conversationId: string;
   expectedCount: number;
   files: File[];
 };
@@ -186,7 +186,7 @@ function DmMessageBubble({
 }: {
   msg: SocialDm;
   storeCode: string;
-  userId: number;
+  userId: string;
   contactName: string;
   // First attachment of the message this one replies to, when that parent
   // is in the loaded thread.
@@ -499,7 +499,7 @@ export default function DmsInbox({
     null,
   );
   const [selectedConversation, setSelectedConversation] = useState<
-    number | null
+    string | null
   >(null);
   const [isCreateTicketOpen, setIsCreateTicketOpen] = useState(false);
   const [isLinkCustomerOpen, setIsLinkCustomerOpen] = useState(false);
@@ -518,25 +518,25 @@ export default function DmsInbox({
   // Conversations that received a customer message while they weren't the
   // open one — the whole point of subscribing from the moment the inbox
   // loads rather than when a chat is opened.
-  const [unreadConversationIds, setUnreadConversationIds] = useState<number[]>(
+  const [unreadConversationIds, setUnreadConversationIds] = useState<string[]>(
     [],
   );
   // Contacts whose pending DM draft was handled here — has_pending_dm_draft
   // is a snapshot from the list fetch, so hide the badge and pinned draft
   // locally instead of refetching the whole list.
-  const [resolvedDraftUserIds, setResolvedDraftUserIds] = useState<number[]>(
+  const [resolvedDraftUserIds, setResolvedDraftUserIds] = useState<string[]>(
     [],
   );
   const [socketStatus, setSocketStatus] =
     useState<SocialSocketStatus>("connecting");
   // Messages the socket delivered before their attachments existed — shown
   // as a media placeholder until the re-read fills them in.
-  const [awaitingMediaIds, setAwaitingMediaIds] = useState<number[]>([]);
+  const [awaitingMediaIds, setAwaitingMediaIds] = useState<string[]>([]);
   // What the last message in a conversation was, when it was media. The
   // conversations endpoint only returns message *text*, so this is the only
   // way the list can say "Photo" instead of a generic "Attachment".
   const [lastAttachmentKinds, setLastAttachmentKinds] = useState<
-    Record<number, AttachmentKind>
+    Record<string, AttachmentKind>
   >({});
 
   const router = useRouter();
@@ -995,9 +995,9 @@ export default function DmsInbox({
    */
   const sendReply = async (
     pending: PendingDm,
-    targetMessageId: number,
+    targetMessageId: string,
     isExplicitReply: boolean,
-    conversationId: number,
+    conversationId: string,
   ) => {
     if (!storeCode) return;
     try {
@@ -1190,7 +1190,7 @@ export default function DmsInbox({
     }
   };
 
-  const handleSelectConversation = (userId: number) => {
+  const handleSelectConversation = (userId: string) => {
     setSelectedConversation(userId);
     setReplyingToMessage(null);
     setUnreadConversationIds((prev) => prev.filter((id) => id !== userId));

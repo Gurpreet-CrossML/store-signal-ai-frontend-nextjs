@@ -36,7 +36,7 @@ type ThreadFilters = {
  * takes either without a conversion.
  */
 export type ThreadTagData = {
-  id?: number;
+  id?: string;
   name: string;
   color: string;
   description: string;
@@ -46,7 +46,7 @@ export type ThreadTagData = {
 export type ThreadTagOption = Required<ThreadTagData> & { count: number };
 
 export type FeedbackEntry = {
-  id: number;
+  id: string;
   rating: string;
   feedback_message: string | null;
   created_at: string;
@@ -66,7 +66,7 @@ type GetThreadsArgs = {
 
 export type Customer = {
   // Null for a guest — decides which tickets endpoint the UI calls.
-  id: number | null;
+  id: string | null;
   name: string;
   email: string;
   phone?: string | null;
@@ -77,7 +77,7 @@ export type Customer = {
 };
 
 export type ThreadHandlerUser = {
-  id: number;
+  id: string;
   name: string;
   email: string;
 };
@@ -232,7 +232,7 @@ export type HandlerEvent = {
   from_agent_email?: string | null;
   to_agent_email?: string | null;
   assigned_by_email?: string | null;
-  after_message_id?: number | null;
+  after_message_id?: string | null;
   created_at: string;
 };
 
@@ -304,11 +304,11 @@ export type ThreadVerdict = {
 export type ThreadDetails = {
   id: string;
   name: string | null;
-  store: number;
+  store: string;
   customer_name: string | null;
   customer_email: string | null;
   /** Identity, plus the phone and past-thread count the side panel shows. */
-  customer: { id: number; phone: string; past_threads_count: number } | null;
+  customer: { id: string; phone: string; past_threads_count: number } | null;
   is_active: boolean;
   close_reason?: ThreadCloseReason | null;
   closed_by_type?: ThreadClosedByType | null;
@@ -399,7 +399,7 @@ export type TicketStatus =
 export type TicketPriority = "low" | "normal" | "high" | "urgent";
 
 export type ThreadTicketData = {
-  id: number;
+  id: string;
   ticket_id: string;
   subject: string;
   description: string;
@@ -452,7 +452,7 @@ export type OrderShippingAddress = {
 };
 
 export type OrderData = {
-  id: number;
+  id: string;
   order_id: string;
   order_number: string;
   created_at: string;
@@ -852,7 +852,7 @@ export const FetchFreshdeskTicketId = createAsyncThunk(
       threadId,
       customerId,
       storeCode,
-    }: { threadId: string; customerId?: number | null; storeCode: string },
+    }: { threadId: string; customerId?: string | null; storeCode: string },
     thunkAPI,
   ) => {
     try {

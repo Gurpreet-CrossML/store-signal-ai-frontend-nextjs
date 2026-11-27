@@ -24,7 +24,7 @@ export function CrmLinkButton({
   customerId,
   onLinkCustomer,
 }: {
-  customerId?: number | null;
+  customerId?: string | null;
   /** Offered when there is no customer to open. */
   onLinkCustomer?: () => void;
 }) {

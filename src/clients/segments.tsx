@@ -62,9 +62,9 @@ import {
 } from "@/redux/api-slice/campaign-slice";
 
 function getColumns(
-  categoryById: Map<number, SegmentCategory>,
+  categoryById: Map<string, SegmentCategory>,
   onToggleActive: (segment: Segment, checked: boolean) => void,
-  toggling: number | null,
+  toggling: string | null,
   onEdit: (segment: Segment) => void,
   onDelete: (segment: Segment) => void,
 ): ColumnDef<Segment>[] {
@@ -243,7 +243,7 @@ export default function Segments() {
     [segments, pagination],
   );
 
-  const [togglingId, setTogglingId] = useState<number | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
   const handleToggleActive = useCallback(
     async (segment: Segment, checked: boolean) => {
       if (!storeCode) return;

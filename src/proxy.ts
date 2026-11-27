@@ -4,6 +4,7 @@ import { getToken } from "next-auth/jwt";
 
 import { isPublicRoute, isSignedOutRoute } from "@/lib/auth-routes";
 import { isDisabledRoute } from "@/lib/disabled-routes";
+import { checkPageUrl } from "@/lib/public-ids";
 
 // Next.js 16 renamed Middleware → Proxy (see node_modules/next/dist/docs/.../proxy.md).
 // Proxy runs on the Node.js runtime and is meant for FAST, optimistic checks —
@@ -64,6 +65,17 @@ export async function proxy(req: NextRequest) {
   // Switched-off screens can't be opened by typing the URL either.
   if (isDisabledRoute(pathname)) {
     return NextResponse.redirect(new URL("/", req.url));
+  }
+
+  // Record ids in page URLs are tokens (lib/public-ids): a real id (an email
+  // link's) is swapped for its token, a tampered token in the path is not
+  // found, and one in a query param is dropped.
+  const ids = checkPageUrl(pathname, req.nextUrl.searchParams);
+  if (ids === "not-found") {
+    return NextResponse.rewrite(new URL("/_not-found", req.url));
+  }
+  if (ids !== "ok") {
+    return NextResponse.redirect(new URL(ids.redirect, req.url));
   }
 
   // Otherwise, allow the request to continue

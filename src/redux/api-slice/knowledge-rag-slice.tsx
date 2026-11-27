@@ -146,7 +146,7 @@ export type ProductOption = {
 
 /** A knowledge category as shown on an item. */
 export type KnowledgeCategoryRef = {
-  id: number;
+  id: string;
   name: string;
   slug: string;
 };
@@ -208,7 +208,7 @@ export type KnowledgeCounts = {
 
 /** A user who has added knowledge, for the "Added by" filter. */
 export type KnowledgeCreator = {
-  id: number;
+  id: string;
   name: string;
 };
 
@@ -239,7 +239,7 @@ export type KnowledgeItemListResponse = {
 // `file_size` are. `product` is the product's name string (or null), not its
 // id — the id isn't exposed on read either.
 type ApiKnowledgeItem = {
-  id: number;
+  id: string;
   type: KnowledgeType;
   source: KnowledgeSource;
   title: string;
@@ -321,7 +321,7 @@ type KnowledgeItemWritableInput = {
   collectionIds?: string[];
   /** Ids of the knowledge categories (shipping, returns, …) the item is filed
    * under. Left out when unset, so an edit that doesn't touch them keeps them. */
-  knowledgeCategoryIds?: number[];
+  knowledgeCategoryIds?: string[];
 };
 
 /** Builds a multipart body when a file is attached, otherwise a plain JSON body.
@@ -515,7 +515,7 @@ export type BulkKnowledgeItemContent = {
   /** An article's HTML body. */
   content?: string;
   /** Knowledge categories for this item alone, instead of the request's. */
-  knowledge_categories?: number[];
+  knowledge_categories?: string[];
 };
 
 /** How long the bulk create may take before the browser gives up. */
@@ -547,12 +547,12 @@ export const CreateKnowledgeItemsBulk = createAsyncThunk(
       categoryIds?: string[];
       collectionIds?: string[];
       /** Knowledge categories every item of the request is filed under. */
-      knowledgeCategoryIds?: number[];
+      knowledgeCategoryIds?: string[];
       items?: BulkKnowledgeItemContent[];
       files?: File[];
       /** For `files`, each one's own knowledge categories, in the same order;
        * an empty entry falls back to `knowledgeCategoryIds`. */
-      fileKnowledgeCategoryIds?: number[][];
+      fileKnowledgeCategoryIds?: string[][];
       /** Send the batch for processing now instead of saving it as drafts. */
       publish?: boolean;
       /** Skip the success toast, for a save the user didn't ask for by name. */
@@ -656,7 +656,7 @@ export type DiscoveredPage = {
   hasEnoughContent: boolean;
   /** Ids of the knowledge categories the page's address matches, to file it
    * under by default. */
-  categoryIds: number[];
+  categoryIds: string[];
 };
 
 type ApiDiscoveredPage = {
@@ -665,7 +665,7 @@ type ApiDiscoveredPage = {
   word_count?: number | null;
   already_added?: boolean;
   has_enough_content?: boolean;
-  knowledge_category_ids?: number[];
+  knowledge_category_ids?: string[];
 };
 
 /** The most specific message in a failed scan response: the `url` field error
@@ -797,7 +797,7 @@ export const FetchKnowledgeItem = createAsyncThunk(
   async ({ id, storeCode }: { id: string; storeCode: string }, thunkAPI) => {
     try {
       const response = await axiosInstance.get(
-        `${ENDPOINTS.knowledgeItemDetail(Number(id))}?store_code=${storeCode}`,
+        `${ENDPOINTS.knowledgeItemDetail(id)}?store_code=${storeCode}`,
         { useBackend: true },
       );
       return mapApiKnowledgeItem(response.data?.data as ApiKnowledgeItem);
@@ -830,7 +830,7 @@ export const UpdateKnowledgeItem = createAsyncThunk(
     try {
       const payload = buildKnowledgeItemPayload(patch);
       const response = await axiosInstance.patch(
-        `${ENDPOINTS.knowledgeItemDetail(Number(id))}?store_code=${storeCode}`,
+        `${ENDPOINTS.knowledgeItemDetail(id)}?store_code=${storeCode}`,
         payload,
         payload instanceof FormData
           ? { headers: { "Content-Type": "multipart/form-data" } }
@@ -858,7 +858,7 @@ export const DeleteKnowledgeItem = createAsyncThunk(
   async ({ id, storeCode }: { id: string; storeCode: string }, thunkAPI) => {
     try {
       const response = await axiosInstance.delete(
-        `${ENDPOINTS.knowledgeItemDetail(Number(id))}?store_code=${storeCode}`,
+        `${ENDPOINTS.knowledgeItemDetail(id)}?store_code=${storeCode}`,
       );
       toast.success(
         response?.data?.message || "Knowledge deleted successfully!",
@@ -889,7 +889,7 @@ export const DeleteKnowledgeItems = createAsyncThunk(
     for (const id of ids) {
       try {
         await axiosInstance.delete(
-          `${ENDPOINTS.knowledgeItemDetail(Number(id))}?store_code=${storeCode}`,
+          `${ENDPOINTS.knowledgeItemDetail(id)}?store_code=${storeCode}`,
         );
         deletedIds.push(id);
       } catch {
@@ -930,7 +930,7 @@ export const PublishKnowledgeItems = createAsyncThunk(
     for (const [index, id] of ids.entries()) {
       try {
         await axiosInstance.post(
-          `${ENDPOINTS.knowledgeItemPublish(Number(id))}?store_code=${storeCode}`,
+          `${ENDPOINTS.knowledgeItemPublish(id)}?store_code=${storeCode}`,
         );
         publishedIds.push(id);
       } catch (error) {

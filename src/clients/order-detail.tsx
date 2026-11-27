@@ -79,7 +79,7 @@ function MoneyTile({
   );
 }
 
-export default function OrderDetail({ orderId }: { orderId: number }) {
+export default function OrderDetail({ orderId }: { orderId: string }) {
   const dispatch = useAppDispatch();
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,

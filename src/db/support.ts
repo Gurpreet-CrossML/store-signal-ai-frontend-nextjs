@@ -18,7 +18,8 @@ export async function list_thread_tickets(thread_id: string) {
       id: supportTicket.id,
       thread: supportTicket.threadId,
       customer: supportTicket.customerId,
-      ticket_id: supportTicket.id,
+      // The display number ("BLU-10034"), as the serializer sends it.
+      ticket_id: supportTicket.ticketId,
       subject: supportTicket.subject,
       description: supportTicket.description,
       created_at: supportTicket.createdAt,

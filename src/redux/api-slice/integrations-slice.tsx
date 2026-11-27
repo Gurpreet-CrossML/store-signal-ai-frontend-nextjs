@@ -5,13 +5,13 @@ import { toast } from "sonner";
 import { ENDPOINTS } from "@/lib/config";
 
 export type IntegrationCategory = {
-  id: number;
+  id: string;
   name: string;
   description: string;
 };
 
 export type Integration = {
-  id: number;
+  id: string;
   name: string;
   description: string;
   category: IntegrationCategory;
@@ -69,7 +69,7 @@ export type StoreIntegrationAttribute = {
 // attributes the selected integration defines.
 export type ConnectStoreIntegrationPayload = {
   store_code: string;
-  integration: number;
+  integration: string;
   attribute: StoreIntegrationAttribute[];
 };
 
@@ -117,8 +117,8 @@ export const ConnectStoreIntegration = createAsyncThunk(
 );
 
 export type ConnectedStoreIntegration = {
-  id: number;
-  integration: number;
+  id: string;
+  integration: string;
   attribute: StoreIntegrationAttribute[];
 };
 
@@ -155,7 +155,7 @@ export const DisconnectStoreIntegration = createAsyncThunk(
   async (
     // `id` is the StoreIntegration object id (from the connected list), NOT
     // the integration catalog id — the backend deletes by its own pk.
-    { store_code, id }: { store_code: string; id: number },
+    { store_code, id }: { store_code: string; id: string },
     thunkAPI,
   ) => {
     try {

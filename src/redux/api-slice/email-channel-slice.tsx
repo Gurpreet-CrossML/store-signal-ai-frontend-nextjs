@@ -14,7 +14,7 @@ export type EmailChannelStatus =
   | "verified";
 
 export type EmailChannel = {
-  id: number;
+  id: string;
   email: string;
   /** The address the merchant's mailbox must forward to. */
   forwarding_address: string;

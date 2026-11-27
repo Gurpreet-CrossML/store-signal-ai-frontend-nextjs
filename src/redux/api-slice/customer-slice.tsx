@@ -9,7 +9,7 @@ import { axiosInstance } from "../axios-config";
 
 /** A billing/shipping address belonging to a customer. */
 export type CustomerAddress = {
-  id: number;
+  id: string;
   external_id: string;
   first_name: string;
   last_name: string;
@@ -48,7 +48,7 @@ export type CustomerSegment =
   | "";
 
 export type CustomerRecord = {
-  id: number;
+  id: string;
   first_name: string;
   last_name: string;
   email: string;
@@ -183,7 +183,7 @@ export const FetchCustomers = createAsyncThunk(
 export const FetchCustomerDetails = createAsyncThunk(
   "FetchCustomerDetails",
   async (
-    { storeCode, customerId }: { storeCode: string; customerId: number },
+    { storeCode, customerId }: { storeCode: string; customerId: string },
     thunkAPI,
   ) => {
     try {

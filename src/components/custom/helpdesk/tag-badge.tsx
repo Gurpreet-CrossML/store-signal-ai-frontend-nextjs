@@ -102,7 +102,7 @@ export function HiddenTagsBadge({
 }: {
   tags: SupportTicketTagData[];
   label: string;
-  onRemoveTag?: (tagId: number) => void;
+  onRemoveTag?: (tagId: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   return (

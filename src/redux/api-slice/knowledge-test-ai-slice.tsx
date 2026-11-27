@@ -23,7 +23,7 @@ export type TestFeedback = "good" | "bad";
 /** A sample customer question as it stands for the selected store. */
 export type TestQuestion = {
   /** The store's own row for the question (not the shared question's id). */
-  id: number;
+  id: string;
   question: string;
   category: { id: number; name: string; slug: string } | null;
   /** Null until the question has been asked. */
@@ -35,7 +35,7 @@ export type TestQuestion = {
 };
 
 type ApiTestQuestion = {
-  id: number;
+  id: string;
   question: string;
   category: TestQuestion["category"];
   status: TestQuestionStatus | null;
@@ -139,7 +139,7 @@ export type UnansweredWorkflow = {
 
 /** A customer question the AI couldn't answer. */
 export type UnansweredQuestion = {
-  id: number;
+  id: string;
   question: string;
   /** Code of the workflow that couldn't answer it. */
   workflow: string | null;
@@ -150,7 +150,7 @@ export type UnansweredQuestion = {
 };
 
 type ApiUnansweredQuestion = {
-  id: number;
+  id: string;
   question: string;
   workflow: string | null;
   thread_id: string;
@@ -172,7 +172,7 @@ export type TestMessage = {
   /** AI messages only: the knowledge the answer was based on. */
   citations: {
     /** The knowledge item the passage came from. */
-    id: number | null;
+    id: string | null;
     title: string | null;
     url: string | null;
   }[];
@@ -189,7 +189,7 @@ export type TestMessage = {
    * to rate it with. Null when the question was typed, not one of the test
    * questions.
    */
-  testQuestionId: number | null;
+  testQuestionId: string | null;
   /** AI messages only: the rating the user gave this answer. */
   feedback: TestFeedback | null;
 };
@@ -200,7 +200,7 @@ type ApiTestAnswer = {
   citations: TestMessage["citations"];
   products: ProductData[];
   confidence: number | null;
-  test_question_id: number | null;
+  test_question_id: string | null;
 };
 
 export type UnansweredQuestionList = {
@@ -535,7 +535,7 @@ export const SetTestAnswerFeedback = createAsyncThunk(
       storeCode: string;
       /** The chat message the rating is shown on. */
       messageId: string;
-      testQuestionId: number;
+      testQuestionId: string;
       feedback: TestFeedback | null;
       /** The rating before this one, to go back to if saving fails. */
       previous: TestFeedback | null;
@@ -568,7 +568,7 @@ function setAnswerFeedback(
       FetchTestQuestionsData: TestQuestionList | null;
     };
   },
-  target: { messageId: string; testQuestionId: number },
+  target: { messageId: string; testQuestionId: string },
   feedback: TestFeedback | null,
 ) {
   const message = state.TestChatState.TestChatItems.find(

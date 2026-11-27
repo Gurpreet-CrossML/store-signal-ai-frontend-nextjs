@@ -75,7 +75,7 @@ const contentKey = (
   title: string,
   html: string,
   scope: KnowledgeScope,
-  categories: number[],
+  categories: string[],
 ) => JSON.stringify([title.trim(), html, scope, categories]);
 
 const formatDate = (value: string) =>
@@ -109,7 +109,7 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
   const [html, setHtml] = useState("");
   const [scope, setScope] = useState<KnowledgeScope>(DEFAULT_KNOWLEDGE_SCOPE);
   // The knowledge categories (shipping, returns, …) the article is filed under.
-  const [knowledgeCategories, setKnowledgeCategories] = useState<number[]>([]);
+  const [knowledgeCategories, setKnowledgeCategories] = useState<string[]>([]);
   const { options: categoryOptions, isLoading: categoriesLoading } =
     useKnowledgeCategoryOptions();
   const [meta, setMeta] = useState<Pick<

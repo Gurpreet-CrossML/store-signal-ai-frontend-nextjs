@@ -103,7 +103,7 @@ const customizationValidationSchema = z
     ),
     quick_actions: z.array(
       z.object({
-        id: z.number().optional(),
+        id: z.string().optional(),
         name: z
           .string()
           .trim()
@@ -167,7 +167,7 @@ export default function Customization() {
   );
 
   const store = stores.find((item) => item.code === storeCode);
-  const storeId = store ? Number(store.id) : null;
+  const storeId = store ? String(store.id) : null;
   const storeLabel = store?.name ?? "Selected store";
 
   const [savingAll, setSavingAll] = useState(false);

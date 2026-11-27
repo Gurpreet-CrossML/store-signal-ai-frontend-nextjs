@@ -39,7 +39,7 @@ export function getWhatsAppTemplateColumns(
   onResubmit: (template: WhatsAppTemplate) => void,
   onResubmitAsNew: (template: WhatsAppTemplate) => void,
   onToggleActive: (template: WhatsAppTemplate, value: boolean) => void,
-  togglingId: number | null,
+  togglingId: string | null,
 ): ColumnDef<WhatsAppTemplate>[] {
   return [
     {
