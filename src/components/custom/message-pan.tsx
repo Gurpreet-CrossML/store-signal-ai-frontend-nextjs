@@ -861,7 +861,15 @@ export function MessagePan({
                         }
                       >
                         <TooltipTrigger asChild>
-                          <div className="mt-2 flex w-fit cursor-help items-center gap-1 text-xs font-medium text-primary">
+                          <div
+                            className={cn(
+                              "mt-2 flex w-fit items-center gap-1 text-xs font-medium text-primary",
+                              // The help cursor only where hovering opens the comment.
+                              !hasPositiveFeedback &&
+                                feedbackMessage &&
+                                "cursor-help",
+                            )}
+                          >
                             {hasPositiveFeedback ? (
                               <IconThumbUp
                                 className="size-3.5"
@@ -1391,7 +1399,15 @@ export function LiveMessagePan({
                         }
                       >
                         <TooltipTrigger asChild>
-                          <div className="mt-2 flex w-fit cursor-help items-center gap-1 text-xs font-medium text-primary">
+                          <div
+                            className={cn(
+                              "mt-2 flex w-fit items-center gap-1 text-xs font-medium text-primary",
+                              // The help cursor only where hovering opens the comment.
+                              !hasPositiveFeedback &&
+                                feedbackMessage &&
+                                "cursor-help",
+                            )}
+                          >
                             {hasPositiveFeedback ? (
                               <IconThumbUp
                                 className="size-3.5"
