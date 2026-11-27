@@ -1,32 +1,27 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   IconArrowLeft,
+  IconArrowRight,
   IconBuildingStore,
-  IconCalendarPlus,
-  IconHome,
-  IconMail,
-  IconPhone,
-  IconRosetteDiscountCheck,
-  IconShoppingBag,
-  IconTruck,
-  IconWallet,
+  IconChevronLeft,
+  IconExternalLink,
+  IconLifebuoy,
+  IconMessageChatbot,
+  IconPhoto,
 } from "@tabler/icons-react";
 
 import { CustomerAvatar } from "@/components/custom/customer-avatar";
-import { CustomerSegmentBadge } from "@/components/custom/customer-segment-badge";
 import { LoadingState } from "@/components/custom/loading-state";
+import {
+  CustomerBadgeTag,
+  customerDisplayName,
+} from "@/components/custom/crm/customers-columns";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   Empty,
   EmptyDescription,
@@ -34,127 +29,640 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { Typography } from "@/components/ui/typography";
-import { customerDisplayName } from "@/components/custom/crm/customers-columns";
+import { FulfillmentBadge } from "@/components/ui/status-badge";
 import {
-  customerLocation,
-  customerOrderCount,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
   customerSince,
-  customerTotalSpent,
   latestShippingAddress,
+  primaryAddress,
 } from "@/lib/customer-facts";
-import { BADGE_TONE_STYLES } from "@/lib/badge-tones";
-import { formatDateTime, formatPrice } from "@/lib/helpers";
+import { BADGE_TONE_STYLES, type BadgeTone } from "@/lib/badge-tones";
+import { formatDate, formatPrice } from "@/lib/helpers";
 import { cn } from "@/lib/utils";
 import {
   FetchCustomerDetails,
-  type CustomerAddress,
+  FetchCustomerProfile,
+  type CustomerActivity,
+  type CustomerProfile,
+  type CustomerRecord,
+  type OrderShipping,
 } from "@/redux/api-slice/customer-slice";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 
-/**
- * One headline number. Shopify stacks these as four bordered boxes with the
- * label above the value; here the value leads and the label sits under it,
- * so a row of them scans as a sentence about the shopper rather than four
- * separate widgets.
- */
-function StatTile({
-  icon: Icon,
-  label,
-  value,
-  hint,
-  href,
-}: {
-  icon: typeof IconWallet;
-  label: string;
-  value: string;
-  hint?: string;
-  /** Makes the whole tile a link — used to drill into this shopper's orders. */
-  href?: string;
-}) {
-  const className = cn(
-    "flex flex-col gap-1 bg-background px-4 py-3",
-    href && "transition-colors hover:bg-muted/60",
-  );
-
-  const body = (
-    <>
-      <div className="flex items-center gap-1.5 text-muted-foreground">
-        <Icon className="size-4" />
-        <Typography variant="muted" as="span">
-          {label}
-        </Typography>
-      </div>
-      <Typography variant="h5" as="p" className="truncate tabular-nums">
-        {value}
-      </Typography>
-      {/* Reserved whether or not there's a hint, so tiles in a row stay the
-          same height and their values sit on one baseline. */}
-      <Typography variant="muted" className="min-h-5">
-        {hint ?? ""}
-      </Typography>
-    </>
-  );
-
-  // Branching on the element rather than on a computed component: Link's
-  // `href` is required, so a `Wrapper = href ? Link : "div"` union can't be
-  // typed without lying about it.
-  return href ? (
-    <Link href={href} className={className}>
-      {body}
-    </Link>
-  ) : (
-    <div className={className}>{body}</div>
+/** "shopify" → "Shopify"; the platform name shown on buttons and cards. */
+function platformName(platform: string) {
+  const names: Record<string, string> = {
+    shopify: "Shopify",
+    magento: "Magento",
+  };
+  return (
+    names[platform] ?? platform.charAt(0).toUpperCase() + platform.slice(1)
   );
 }
 
-function AddressCard({ address }: { address: CustomerAddress }) {
-  const recipient =
-    `${address.first_name ?? ""} ${address.last_name ?? ""}`.trim();
-  const lines = [
-    recipient,
-    address.company,
-    ...(address.street ?? []),
-    [address.city, address.region, address.postcode].filter(Boolean).join(" "),
-    address.country_id,
-  ].filter((line): line is string => Boolean(line && line.trim()));
+/** Where a chat or ticket came from, in words. */
+function channelName(channel: string | null) {
+  const names: Record<string, string> = {
+    native: "Web chat",
+    web: "Web chat",
+    whatsapp: "WhatsApp",
+  };
+  if (!channel) return "—";
+  return names[channel] ?? channel.charAt(0).toUpperCase() + channel.slice(1);
+}
+
+/** "<1h", "9h", "1d 6h". */
+function formatHours(hours: number) {
+  if (hours < 1) return "<1h";
+  const days = Math.floor(hours / 24);
+  const rest = hours % 24;
+  if (!days) return `${hours}h`;
+  return rest ? `${days}d ${rest}h` : `${days}d`;
+}
+
+/** "today 2:04 AM", "yesterday 9:12 AM", else the date. */
+function activityTime(value: string) {
+  const date = new Date(value);
+  const time = date.toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  const days = Math.floor(
+    (new Date().setHours(0, 0, 0, 0) - new Date(value).setHours(0, 0, 0, 0)) /
+      86_400_000,
+  );
+  if (days === 0) return `today ${time}`;
+  if (days === 1) return `yesterday ${time}`;
+  return formatDate(value);
+}
+
+/** The "Waiting to ship" cell text and colour. */
+function shippingText(shipping: OrderShipping) {
+  if (shipping.kind === "cancelled") {
+    return { text: "Cancelled", className: "text-muted-foreground" };
+  }
+  if (shipping.kind === "waiting") {
+    return {
+      text: `Waiting ${formatHours(shipping.hours ?? 0)}`,
+      // Over a day without shipping needs a look.
+      className:
+        (shipping.hours ?? 0) >= 24
+          ? "text-amber-600 dark:text-amber-400"
+          : "text-foreground",
+    };
+  }
+  return {
+    text:
+      shipping.hours === null
+        ? "Shipped"
+        : `Shipped in ${formatHours(shipping.hours)}`,
+    className: "text-muted-foreground",
+  };
+}
+
+function TonePill({
+  tone,
+  children,
+}: {
+  tone: BadgeTone;
+  children: React.ReactNode;
+}) {
+  return (
+    <Badge
+      variant="outline"
+      className={cn("font-normal", BADGE_TONE_STYLES[tone])}
+    >
+      {children}
+    </Badge>
+  );
+}
+
+/** A bordered block with a title row, like every card on the page. */
+function Panel({
+  title,
+  action,
+  children,
+  className,
+}: {
+  title: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <section className={cn("overflow-hidden rounded-xl border", className)}>
+      <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
+        <h3 className="text-sm font-medium">{title}</h3>
+        {action}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+/** One label and value line in a side card. */
+function Row({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 text-sm">
+      <span className="shrink-0 text-muted-foreground">{label}</span>
+      <span className="min-w-0 truncate text-right">{children}</span>
+    </div>
+  );
+}
+
+/**
+ * How the customer is doing against their usual gap. Not the last order
+ * date: the orders table already shows that.
+ */
+function scheduleText({ buying_rhythm: rhythm }: CustomerProfile) {
+  const days = rhythm.days ?? 0;
+  switch (rhythm.kind) {
+    case "every":
+      return "On their usual schedule";
+    case "overdue":
+      return `Overdue by ${days} day${days === 1 ? "" : "s"}`;
+    case "lapsed":
+      return "Stopped ordering";
+    // Waiting, one order or none: the orders table and card already say so.
+    default:
+      return "";
+  }
+}
+
+/** The four headline numbers. */
+function KpiStrip({ profile }: { profile: CustomerProfile }) {
+  const { currency } = profile;
+  const ltv = Number(profile.lifetime_value);
+  const reply = profile.median_reply_minutes;
+  const replyText =
+    reply === null
+      ? null
+      : `Median reply ${reply < 60 ? `${reply}m` : formatHours(Math.floor(reply / 60))}`;
+
+  const cards = [
+    {
+      label: "Lifetime value",
+      value: ltv > 0 ? formatPrice(ltv, currency) : "—",
+      detail: ltv > 0 ? "Delivered orders, after tax and shipping" : "",
+    },
+    {
+      label: "Orders",
+      value: profile.order_count.toLocaleString(),
+      detail: profile.average_order
+        ? `Average ${formatPrice(profile.average_order, currency)}`
+        : "No orders yet",
+    },
+    {
+      label: "Orders every",
+      value: profile.usual_gap_days
+        ? `${profile.usual_gap_days} day${profile.usual_gap_days === 1 ? "" : "s"}`
+        : "—",
+      detail: scheduleText(profile),
+    },
+    {
+      label: "Help desk",
+      value: profile.open_tickets ? `${profile.open_tickets} open` : "—",
+      detail: replyText ?? (profile.open_tickets ? "" : "No open tickets"),
+    },
+  ];
 
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-border p-4">
-      {address.default_shipping || address.default_billing ? (
-        <div className="flex flex-wrap items-center gap-1.5">
-          {address.default_shipping ? (
-            <Badge variant="outline" className={BADGE_TONE_STYLES.accent}>
-              <IconTruck />
-              Default Shipping
-            </Badge>
-          ) : null}
-          {address.default_billing ? (
-            <Badge variant="outline" className={BADGE_TONE_STYLES.accent}>
-              <IconWallet />
-              Default Billing
-            </Badge>
-          ) : null}
+    <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border md:grid-cols-4">
+      {cards.map((card) => (
+        <div
+          key={card.label}
+          className="flex flex-col gap-1 bg-background px-4 py-3"
+        >
+          <p className="text-sm text-muted-foreground">{card.label}</p>
+          <p className="text-xl font-semibold tabular-nums">{card.value}</p>
+          <p className="text-xs text-muted-foreground">{card.detail}</p>
         </div>
-      ) : null}
-
-      <address className="text-sm leading-6 text-foreground not-italic">
-        {lines.map((line, index) => (
-          <span key={`${line}-${index}`} className="block">
-            {line}
-          </span>
-        ))}
-      </address>
-
-      {address.telephone ? (
-        <div className="flex items-center gap-1.5 text-muted-foreground">
-          <IconPhone className="size-3.5" />
-          <Typography variant="muted" as="span" className="font-mono">
-            {address.telephone}
-          </Typography>
-        </div>
-      ) : null}
+      ))}
     </div>
+  );
+}
+
+/**
+ * Whether a chat helped place the order, or a dash. An open ticket on it is
+ * not flagged here: Activity already lists the ticket.
+ */
+function OrderSignals({
+  order,
+}: {
+  order: CustomerProfile["recent_orders"][number];
+}) {
+  if (!order.chat_assisted) {
+    return <span className="text-muted-foreground">—</span>;
+  }
+  return (
+    <TonePill tone="topic">
+      <IconMessageChatbot />
+      Chat-assisted
+    </TonePill>
+  );
+}
+
+function OrdersPanel({
+  profile,
+  customerId,
+}: {
+  profile: CustomerProfile;
+  customerId: number;
+}) {
+  const router = useRouter();
+  const orders = profile.recent_orders;
+  const openOrder = (id: number) => router.push(`/crm/orders/${id}`);
+
+  return (
+    <Panel
+      title="Orders"
+      action={
+        profile.order_count > 0 ? (
+          <Link
+            href={`/crm/orders?customer=${customerId}`}
+            className="flex items-center gap-1 text-sm text-primary hover:underline"
+          >
+            All orders
+            <IconArrowRight className="size-3.5" />
+          </Link>
+        ) : null
+      }
+    >
+      {orders.length === 0 ? (
+        <p className="px-4 py-6 text-center text-sm text-muted-foreground">
+          No orders yet.
+        </p>
+      ) : (
+        <>
+          {/* Tablet and up: the table. Placed and items need a desktop. */}
+          <Table className="max-md:hidden">
+            <TableHeader>
+              <TableRow className="bg-muted/50">
+                <TableHead>Order</TableHead>
+                <TableHead className="max-xl:hidden">Placed</TableHead>
+                <TableHead className="text-right max-xl:hidden">
+                  Items
+                </TableHead>
+                <TableHead className="text-right">Total</TableHead>
+                <TableHead>Fulfillment</TableHead>
+                <TableHead>Waiting to ship</TableHead>
+                <TableHead>Signals</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {orders.map((order) => {
+                const shipping = shippingText(order.shipping);
+                return (
+                  <TableRow
+                    key={order.id}
+                    onClick={() => openOrder(order.id)}
+                    className="cursor-pointer hover:bg-accent/50"
+                  >
+                    <TableCell className="font-medium">{order.label}</TableCell>
+                    <TableCell className="text-muted-foreground max-xl:hidden">
+                      {activityTime(order.created_at)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums max-xl:hidden">
+                      {order.items}
+                    </TableCell>
+                    <TableCell className="text-right font-medium tabular-nums">
+                      {formatPrice(order.total_price, profile.currency)}
+                    </TableCell>
+                    <TableCell>
+                      <FulfillmentBadge status={order.fulfillment_status} />
+                    </TableCell>
+                    <TableCell className={shipping.className}>
+                      {shipping.text}
+                    </TableCell>
+                    <TableCell>
+                      <OrderSignals order={order} />
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+
+          {/* Phone: one compact line per order. */}
+          <ul className="divide-y md:hidden">
+            {orders.map((order) => {
+              const shipping = shippingText(order.shipping);
+              return (
+                <li key={order.id}>
+                  <Link
+                    href={`/crm/orders/${order.id}`}
+                    className="flex flex-col gap-1 px-4 py-3"
+                  >
+                    <span className="font-medium">{order.label}</span>
+                    <span className="text-sm text-muted-foreground">
+                      <span className={shipping.className}>
+                        {shipping.text}
+                      </span>
+                      {" · "}
+                      {formatPrice(order.total_price, profile.currency)}
+                    </span>
+                    {order.chat_assisted ? (
+                      <OrderSignals order={order} />
+                    ) : null}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </>
+      )}
+    </Panel>
+  );
+}
+
+type ActivityTab = "all" | CustomerActivity["kind"];
+
+const ACTIVITY_TABS: { value: ActivityTab; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "chat", label: "Chats" },
+  { value: "ticket", label: "Tickets" },
+];
+
+/** How many events the feed shows at once. */
+const ACTIVITY_SHOWN = 20;
+
+/** A ticket's status as a coloured pill. */
+function TicketStatus({ status }: { status: string }) {
+  const statuses: Record<string, { label: string; tone: BadgeTone }> = {
+    open: { label: "Open", tone: "danger" },
+    reopen: { label: "Reopened", tone: "danger" },
+    snoozed: { label: "Snoozed", tone: "warning" },
+    resolved: { label: "Resolved", tone: "success" },
+    closed: { label: "Closed", tone: "neutral" },
+  };
+  const known = statuses[status] ?? { label: status, tone: "neutral" };
+  return <TonePill tone={known.tone}>{known.label}</TonePill>;
+}
+
+/** One feed line: what happened, where, and when — linked to the record. */
+function ActivityItem({ event }: { event: CustomerActivity }) {
+  const when = activityTime(event.at);
+  const item =
+    event.kind === "chat"
+      ? {
+          href: `/threads/${event.id}`,
+          icon: IconMessageChatbot,
+          iconClass:
+            "bg-violet-50 text-violet-600 dark:bg-violet-950 dark:text-violet-300",
+          title:
+            event.handler === "ai"
+              ? "Chatted with the AI"
+              : "Chatted with your team",
+          detail: `${event.title || "Chat"} · ${when}`,
+          status: null,
+        }
+      : {
+          href: `/helpdesk?ticket=${event.id}`,
+          icon: IconLifebuoy,
+          iconClass:
+            "bg-rose-50 text-rose-600 dark:bg-rose-950 dark:text-rose-300",
+          title: event.title,
+          detail: `${channelName(event.channel)} → ticket #${event.ticket_id} · ${when}`,
+          status: <TicketStatus status={event.status} />,
+        };
+  const Icon = item.icon;
+
+  return (
+    <li>
+      <Link
+        href={item.href}
+        className="flex items-start gap-3 rounded-md px-2 py-2 hover:bg-muted/60"
+      >
+        <span
+          className={cn(
+            "mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full",
+            item.iconClass,
+          )}
+        >
+          <Icon className="size-3.5" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="flex flex-wrap items-center gap-1.5 text-sm font-medium">
+            <span className="min-w-0 truncate">{item.title}</span>
+            {item.status}
+          </span>
+          <span className="block truncate text-xs text-muted-foreground">
+            {item.detail}
+          </span>
+        </span>
+      </Link>
+    </li>
+  );
+}
+
+function ActivityPanel({ profile }: { profile: CustomerProfile }) {
+  const [tab, setTab] = useState<ActivityTab>("all");
+  const events = profile.activity
+    .filter((event) => tab === "all" || event.kind === tab)
+    .slice(0, ACTIVITY_SHOWN);
+
+  return (
+    <Panel
+      title="Activity"
+      action={
+        <div className="flex rounded-md bg-muted p-0.5">
+          {ACTIVITY_TABS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              aria-pressed={tab === option.value}
+              onClick={() => setTab(option.value)}
+              className={cn(
+                "rounded px-2 py-0.5 text-xs transition-colors",
+                tab === option.value
+                  ? "bg-background font-medium shadow-xs"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      }
+    >
+      {events.length === 0 ? (
+        <p className="px-4 py-6 text-center text-sm text-muted-foreground">
+          Nothing here yet.
+        </p>
+      ) : (
+        <ul className="flex flex-col p-2">
+          {events.map((event) => (
+            <ActivityItem key={`${event.kind}-${event.id}`} event={event} />
+          ))}
+        </ul>
+      )}
+    </Panel>
+  );
+}
+
+function TopProductsPanel({
+  profile,
+  firstName,
+}: {
+  profile: CustomerProfile;
+  firstName: string;
+}) {
+  if (!profile.top_products.length) return null;
+  return (
+    <Panel
+      title={`What ${firstName} buys`}
+      action={
+        <span className="text-xs text-muted-foreground">
+          By units, all time
+        </span>
+      }
+    >
+      <ul className="divide-y">
+        {profile.top_products.map((product) => (
+          <li key={product.title} className="flex items-center gap-3 px-4 py-3">
+            <span className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted text-muted-foreground">
+              {product.image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={product.image}
+                  alt=""
+                  className="size-full object-cover"
+                />
+              ) : (
+                <IconPhoto className="size-4" />
+              )}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-medium">
+                {product.title}
+              </span>
+              {product.usual_variant ? (
+                <span className="block truncate text-xs text-muted-foreground">
+                  Usually {product.usual_variant}
+                </span>
+              ) : null}
+            </span>
+            <span className="shrink-0 text-sm font-medium tabular-nums">
+              {product.units} unit{product.units === 1 ? "" : "s"}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </Panel>
+  );
+}
+
+/** The address book's default, else where their latest order shipped. */
+function AddressPanel({
+  customer,
+  name,
+}: {
+  customer: CustomerRecord;
+  name: string;
+}) {
+  const saved = primaryAddress(customer);
+  const shipped = latestShippingAddress(customer);
+  const lines = saved
+    ? [
+        `${saved.first_name ?? ""} ${saved.last_name ?? ""}`.trim(),
+        saved.company,
+        ...(saved.street ?? []),
+        [saved.city, saved.region, saved.postcode].filter(Boolean).join(" "),
+        saved.country_id,
+      ]
+    : shipped
+      ? [
+          shipped.name,
+          shipped.address1,
+          shipped.address2,
+          [shipped.city, shipped.province, shipped.zip]
+            .filter(Boolean)
+            .join(" "),
+          shipped.country,
+        ]
+      : [];
+  // The recipient is left out when it is the customer, whose name heads the page.
+  const shown = lines.filter(
+    (line): line is string =>
+      Boolean(line && String(line).trim()) &&
+      String(line).trim().toLowerCase() !== name.toLowerCase(),
+  );
+
+  return (
+    <Panel
+      title="Default address"
+      action={
+        !saved && shipped ? (
+          <span className="text-xs text-muted-foreground">
+            From their latest order
+          </span>
+        ) : null
+      }
+    >
+      <address className="px-4 py-3 text-sm leading-6 not-italic">
+        {shown.length ? (
+          shown.map((line, index) => (
+            <span key={`${line}-${index}`} className="block">
+              {line}
+            </span>
+          ))
+        ) : (
+          <span className="text-muted-foreground">No address on file.</span>
+        )}
+      </address>
+    </Panel>
+  );
+}
+
+/** Only the platform fields the store actually sent are listed. */
+function PlatformPanel({
+  customer,
+  profile,
+}: {
+  customer: CustomerRecord;
+  profile: CustomerProfile | null;
+}) {
+  const metadata = customer.metadata ?? {};
+  const has = (key: string) => key in metadata;
+  const text = (key: string) => {
+    const value = metadata[key];
+    return typeof value === "string" && value.trim() ? value : "—";
+  };
+
+  return (
+    <Panel
+      title={`From ${platformName(profile?.platform ?? "store")}`}
+      action={
+        <span className="text-xs text-muted-foreground">
+          Synced {activityTime(customer.updated_at)}
+        </span>
+      }
+    >
+      <div className="flex flex-col gap-2.5 px-4 py-3">
+        <Row label="Customer ID">
+          <span className="font-mono">{customer.customer_id || "—"}</span>
+        </Row>
+        <Row label="Store">{profile?.store_name ?? customer.store ?? "—"}</Row>
+        {has("tags") ? <Row label="Tags">{text("tags")}</Row> : null}
+        {has("tax_exempt") ? (
+          <Row label="Tax exempt">{metadata.tax_exempt ? "Yes" : "No"}</Row>
+        ) : null}
+        {has("note") ? <Row label="Note">{text("note")}</Row> : null}
+      </div>
+    </Panel>
   );
 }
 
@@ -167,9 +675,16 @@ export default function CustomerDetail({ customerId }: { customerId: number }) {
     useAppSelector(
       (state) => state.GetCustomerReducer.FetchCustomerDetailsState,
     );
+  const profile = useAppSelector(
+    (state) =>
+      state.GetCustomerReducer.FetchCustomerProfileState
+        .FetchCustomerProfileData,
+  );
 
   useEffect(() => {
-    if (storeCode) dispatch(FetchCustomerDetails({ storeCode, customerId }));
+    if (!storeCode) return;
+    dispatch(FetchCustomerDetails({ storeCode, customerId }));
+    dispatch(FetchCustomerProfile({ storeCode, customerId }));
   }, [dispatch, storeCode, customerId]);
 
   if (FetchCustomerDetailsIsLoading) {
@@ -200,213 +715,103 @@ export default function CustomerDetail({ customerId }: { customerId: number }) {
   }
 
   const name = customerDisplayName(customer);
-  const addresses = customer.addresses ?? [];
-
-  // Shared with the listing: the same shopper must not read differently
-  // depending on whether you are looking at the table or the record. The
-  // fallbacks these apply — and why the platform's own figures need them —
-  // are documented in customer-facts.
-  const orders = customerOrderCount(customer);
-  const latestShipping = latestShippingAddress(customer);
-  const { amount: spent, currency } = customerTotalSpent(customer);
-  const location = customerLocation(customer);
+  const firstName = customer.first_name || name;
+  // The profile belongs to this customer only once it has loaded for them.
+  const numbers = profile && profile.id === customerId ? profile : null;
+  const badge = numbers?.badge ?? null;
   const since = customerSince(customer);
+  const facts = [
+    customer.email !== name ? customer.email : null,
+    customer.phone,
+    `customer since ${formatDate(since.value)}`,
+  ].filter(Boolean);
 
   return (
-    <div className="flex flex-col gap-6">
-      <Button variant="ghost" size="sm" className="-ml-2 self-start" asChild>
-        <Link href="/crm/customers">
-          <IconArrowLeft />
-          All Customers
+    <div className="flex flex-col gap-4">
+      {/* Back to the list, as on Thread details: an arrow and the page name
+          on smaller screens, a "Customers" link on desktop. The customer's
+          name is the heading below, so it is not repeated here. */}
+      <div className="flex items-center gap-3 lg:hidden">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Back to Customers"
+          asChild
+        >
+          <Link href="/crm/customers">
+            <IconArrowLeft />
+          </Link>
+        </Button>
+        <h1 className="text-xl font-bold">Customer</h1>
+      </div>
+      <nav aria-label="Breadcrumb" className="hidden text-sm lg:flex">
+        <Link
+          href="/crm/customers"
+          className="flex items-center gap-1 text-muted-foreground hover:text-foreground"
+        >
+          <IconChevronLeft className="size-4" />
+          Customers
         </Link>
-      </Button>
+      </nav>
 
-      {/* Identity leads, and is the page's only heading — the shell used to
-          print a generic "Customer" title directly above this name.
-          Shopify splits the two, putting the name in a breadcrumb and the
-          contact details in a right-hand box, so the two things you came
-          for sit at opposite corners of the screen. */}
-      <div className="flex flex-wrap items-center gap-4">
-        <CustomerAvatar name={name} size="size-14" />
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <Typography variant="h4" as="h2" className="truncate">
-              {name}
-            </Typography>
-            {customer.is_email_verified ? (
-              <Badge variant="outline" className={BADGE_TONE_STYLES.success}>
-                <IconRosetteDiscountCheck />
-                Verified
-              </Badge>
-            ) : null}
-            <CustomerSegmentBadge segment={customer.segment} />
-          </div>
-          <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1">
-            {customer.email ? (
-              <a
-                href={`mailto:${customer.email}`}
-                className="flex items-center gap-1.5 text-sm text-primary hover:underline"
-              >
-                <IconMail className="size-4" />
-                {customer.email}
-              </a>
-            ) : null}
-            {customer.phone ? (
-              <a
-                href={`tel:${customer.phone}`}
-                className="flex items-center gap-1.5 font-mono text-sm text-primary hover:underline"
-              >
-                <IconPhone className="size-4" />
-                {customer.phone}
-              </a>
-            ) : null}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <CustomerAvatar name={name} size="size-12" />
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="truncate text-xl font-semibold">{name}</h2>
+              {badge ? <CustomerBadgeTag badge={badge} /> : null}
+            </div>
+            <p className="text-sm break-all text-muted-foreground">
+              {facts.join(" · ")}
+            </p>
           </div>
         </div>
+        {numbers?.admin_url ? (
+          <Button size="sm" asChild>
+            <a href={numbers.admin_url} target="_blank" rel="noreferrer">
+              <IconExternalLink />
+              Open in {platformName(numbers.platform)}
+            </a>
+          </Button>
+        ) : null}
       </div>
 
-      {/* One bordered strip, not four boxes — the numbers belong together. */}
-      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-4">
-        <StatTile
-          icon={IconWallet}
-          label="Total Spent"
-          value={formatPrice(spent, currency)}
-          hint={
-            orders > 0
-              ? `${formatPrice(spent / orders, currency)} Per Order`
-              : undefined
-          }
-        />
-        <StatTile
-          icon={IconShoppingBag}
-          label="Orders"
-          value={String(orders)}
-          hint={orders === 0 ? "Never ordered" : undefined}
-          href={orders > 0 ? `/crm/orders?customer=${customer.id}` : undefined}
-        />
-        {/* The platform's own registration date when it sent one; failing
-            that, when we first saw them, said plainly rather than passed
-            off as the same thing. */}
-        <StatTile
-          icon={IconCalendarPlus}
-          label={since.registered ? "Customer Since" : "First Seen"}
-          value={formatDateTime(since.value)}
-        />
-        <StatTile icon={IconHome} label="Location" value={location ?? "—"} />
-      </div>
+      {numbers ? (
+        <KpiStrip profile={numbers} />
+      ) : (
+        <LoadingState label="Loading numbers…" />
+      )}
 
-      <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
-        <Card size="sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <IconHome className="size-4" />
-              Addresses
-            </CardTitle>
-            <CardDescription>
-              Where this customer bills and ships, as their store sent it.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {addresses.length === 0 ? (
-              latestShipping ? (
-                // Not in the address book, but they shipped somewhere —
-                // labelled as coming from an order so nobody mistakes it
-                // for a saved address they can rely on.
-                <div className="flex flex-col gap-2 rounded-lg border border-border p-4">
-                  <Badge
-                    variant="outline"
-                    className={BADGE_TONE_STYLES.neutral}
-                  >
-                    From Their Latest Order
-                  </Badge>
-                  <address className="text-sm leading-6 text-foreground not-italic">
-                    {[
-                      latestShipping.name,
-                      latestShipping.address1,
-                      latestShipping.address2,
-                      [
-                        latestShipping.city,
-                        latestShipping.province,
-                        latestShipping.zip,
-                      ]
-                        .filter(Boolean)
-                        .join(" "),
-                      latestShipping.country,
-                    ]
-                      .filter(Boolean)
-                      .map((line, index) => (
-                        <span key={`${line}-${index}`} className="block">
-                          {line}
-                        </span>
-                      ))}
-                  </address>
-                </div>
-              ) : (
-                <Typography variant="muted">
-                  No addresses on file for this customer.
-                </Typography>
-              )
-            ) : (
-              <div className="grid gap-3 sm:grid-cols-2">
-                {addresses.map((address) => (
-                  <AddressCard key={address.id} address={address} />
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <div className="flex flex-col gap-6">
-          <Card size="sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <IconBuildingStore className="size-4" />
-                Store Record
-              </CardTitle>
-              <CardDescription>
-                How this customer is identified on your platform.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-3">
-              {[
-                {
-                  label: "Customer ID",
-                  value: customer.customer_id || "—",
-                  mono: true,
-                },
-                {
-                  label: "Registered",
-                  value: customer.registered_at
-                    ? formatDateTime(customer.registered_at)
-                    : "—",
-                },
-                {
-                  label: "Last Changed",
-                  value: customer.modified_at
-                    ? formatDateTime(customer.modified_at)
-                    : "—",
-                },
-              ].map((row) => (
-                <div
-                  key={row.label}
-                  className="flex items-baseline justify-between gap-4"
-                >
-                  <Typography variant="muted" as="span" className="shrink-0">
-                    {row.label}
-                  </Typography>
-                  <Typography
-                    variant="small"
-                    as="span"
-                    className={cn(
-                      "min-w-0 truncate text-right font-normal",
-                      row.mono && "font-mono",
-                    )}
-                  >
-                    {row.value}
-                  </Typography>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <div className="flex min-w-0 flex-col gap-4">
+          {numbers ? (
+            <>
+              <OrdersPanel profile={numbers} customerId={customerId} />
+              <ActivityPanel profile={numbers} />
+            </>
+          ) : null}
+        </div>
+        <div className="flex min-w-0 flex-col gap-4">
+          {numbers ? (
+            <TopProductsPanel profile={numbers} firstName={firstName} />
+          ) : null}
+          <Panel title="Contact">
+            <div className="flex flex-col gap-2.5 px-4 py-3">
+              <Row label="Email verified">
+                {customer.is_email_verified ? (
+                  <TonePill tone="success">Verified</TonePill>
+                ) : (
+                  <TonePill tone="neutral">Not verified</TonePill>
+                )}
+              </Row>
+              <Row label="Preferred channel">
+                {channelName(numbers?.preferred_channel ?? null)}
+              </Row>
+            </div>
+          </Panel>
+          <AddressPanel customer={customer} name={name} />
+          <PlatformPanel customer={customer} profile={numbers} />
         </div>
       </div>
     </div>
