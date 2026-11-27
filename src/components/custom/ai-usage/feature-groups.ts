@@ -84,16 +84,6 @@ export const FEATURE_GROUPS: {
       },
     },
   },
-  {
-    title: "Workflow Policies",
-    features: {
-      policy_compile: {
-        name: "Policy Setup",
-        description:
-          "Turns a workflow policy you write into rules the AI follows",
-      },
-    },
-  },
 ];
 
 /** Every feature's display info, keyed by feature code. */
