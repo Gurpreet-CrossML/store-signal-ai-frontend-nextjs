@@ -144,7 +144,7 @@ export default function Customers() {
             onChange={(event) => setSearchInput(event.target.value)}
             placeholder="Search name, email, phone or customer ID…"
             aria-label="Search customers"
-            className={cn("pl-9", searchInput && ACTIVE_FILTER_STYLE)}
+            className={cn("h-8 pl-9", searchInput && ACTIVE_FILTER_STYLE)}
           />
           {searchInput ? (
             <button
@@ -166,6 +166,7 @@ export default function Customers() {
           }}
         >
           <SelectTrigger
+            size="sm"
             // A sort order is always applied, including the default.
             className={cn("w-44", ACTIVE_FILTER_STYLE)}
             aria-label="Sort customers"

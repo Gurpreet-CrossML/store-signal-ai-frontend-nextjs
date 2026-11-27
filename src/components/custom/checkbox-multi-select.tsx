@@ -30,7 +30,8 @@ const SHOWN_LABELS = 2;
 /**
  * A button that opens a list of checkboxes. The button shows the first two
  * chosen labels and "+N" for the rest; the list has "N Chosen" and Clear on
- * top. Used for knowledge categories and the live chat assignee filter.
+ * top. Used for knowledge categories, the live chat assignee filter and the
+ * order status filters.
  */
 export function CheckboxMultiSelect({
   options,
@@ -39,18 +40,29 @@ export function CheckboxMultiSelect({
   placeholder,
   emptyMessage,
   searchPlaceholder = "Search",
+  searchable = true,
   isLoading = false,
   disabled = false,
+  size,
+  ariaLabel,
+  className,
 }: {
-  options: CheckboxOption[];
+  options: readonly CheckboxOption[];
   value: string[];
   onChange: (next: string[]) => void;
   placeholder: string;
   emptyMessage: string;
   /** Filters the list by label and hint. */
   searchPlaceholder?: string;
+  /** Off for a short, fixed list where a search box is only in the way. */
+  searchable?: boolean;
   isLoading?: boolean;
   disabled?: boolean;
+  /** "sm" matches the other controls in a filter row. */
+  size?: "default" | "sm";
+  ariaLabel?: string;
+  /** Merged onto the trigger, e.g. to size it or mark it active. */
+  className?: string;
 }) {
   // In the order they were chosen.
   const selected = useMemo(
@@ -82,9 +94,14 @@ export function CheckboxMultiSelect({
         <Button
           type="button"
           variant="outline"
+          size={size}
           disabled={disabled}
+          aria-label={ariaLabel}
           title={selected.map((option) => option.label).join(", ") || undefined}
-          className="w-full min-w-0 justify-between gap-2 font-normal"
+          className={cn(
+            "w-full min-w-0 justify-between gap-2 font-normal",
+            className,
+          )}
         >
           <span
             className={cn(
@@ -111,12 +128,14 @@ export function CheckboxMultiSelect({
         align="start"
         className="w-(--radix-popover-trigger-width) min-w-56 gap-2 p-2"
       >
-        <SearchInput
-          value={query}
-          onChange={setQuery}
-          placeholder={searchPlaceholder}
-          label={searchPlaceholder}
-        />
+        {searchable && (
+          <SearchInput
+            value={query}
+            onChange={setQuery}
+            placeholder={searchPlaceholder}
+            label={searchPlaceholder}
+          />
+        )}
         <div className="flex items-center justify-between px-1.5 text-xs">
           <span className="text-muted-foreground">
             {selected.length === 0

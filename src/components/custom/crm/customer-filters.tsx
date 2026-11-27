@@ -63,7 +63,7 @@ function RangeRow({
         inputMode="numeric"
         value={min}
         placeholder={`Min ${label.toLowerCase()}`}
-        className={cn("w-36", min && ACTIVE_FILTER_STYLE)}
+        className={cn("h-8 w-36", min && ACTIVE_FILTER_STYLE)}
         aria-label={`${label} minimum`}
         onChange={(event) => onChange({ min: event.target.value, max })}
       />
@@ -74,7 +74,7 @@ function RangeRow({
         inputMode="numeric"
         value={max}
         placeholder={`Max ${label.toLowerCase()}`}
-        className={cn("w-36", max && ACTIVE_FILTER_STYLE)}
+        className={cn("h-8 w-36", max && ACTIVE_FILTER_STYLE)}
         aria-label={`${label} maximum`}
         onChange={(event) => onChange({ min, max: event.target.value })}
       />

@@ -2,18 +2,17 @@
 
 import { IconX } from "@tabler/icons-react";
 
+import { CheckboxMultiSelect } from "@/components/custom/checkbox-multi-select";
 import { DateRangePicker } from "@/components/custom/date-range-picker";
 import { FilterSelect } from "@/components/custom/thread-filteration";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Typography } from "@/components/ui/typography";
 import { ACTIVE_FILTER_STYLE } from "@/lib/config";
 import { cn } from "@/lib/utils";
 
 /**
  * Shopify's own `financial_status` values. Matches the set StatusBadge
- * already knows how to colour, so a filter chip and the badge it selects
+ * already knows how to colour, so a filter option and the badge it selects
  * for can't disagree.
  */
 export const FINANCIAL_STATUSES = [
@@ -72,41 +71,35 @@ export function countActiveOrderFilters(filters: OrderFilterSelection) {
 }
 
 /**
- * Statuses as toggling chips rather than a multi-select: there are only a
- * handful, they all fit, and seeing which are on takes no interaction.
+ * A status filter as a checkbox dropdown sized for the search row. Any
+ * number of statuses can be on at once; none on means no filter.
  */
-function StatusChips({
+function StatusMultiSelect({
+  placeholder,
   options,
   selected,
-  onToggle,
+  onChange,
 }: {
+  placeholder: string;
   options: readonly { value: string; label: string }[];
   selected: string[];
-  onToggle: (value: string) => void;
+  onChange: (next: string[]) => void;
 }) {
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {options.map((option) => {
-        const isOn = selected.includes(option.value);
-        return (
-          <button
-            key={option.value}
-            type="button"
-            onClick={() => onToggle(option.value)}
-          >
-            <Badge
-              variant="outline"
-              className={cn(
-                "cursor-pointer",
-                isOn && "border-primary/20 bg-primary/10 text-primary",
-              )}
-            >
-              {option.label}
-            </Badge>
-          </button>
-        );
-      })}
-    </div>
+    <CheckboxMultiSelect
+      size="sm"
+      searchable={false}
+      ariaLabel={`Filter by ${placeholder.toLowerCase()}`}
+      placeholder={placeholder}
+      emptyMessage="No statuses."
+      options={options}
+      value={selected}
+      onChange={onChange}
+      className={cn(
+        "w-fit max-w-60",
+        selected.length > 0 && ACTIVE_FILTER_STYLE,
+      )}
+    />
   );
 }
 
@@ -129,7 +122,7 @@ function RangeRow({
         inputMode="decimal"
         value={min}
         placeholder={`Min ${label.toLowerCase()}`}
-        className={cn("w-36", min && ACTIVE_FILTER_STYLE)}
+        className={cn("h-8 w-36", min && ACTIVE_FILTER_STYLE)}
         aria-label={`${label} minimum`}
         onChange={(event) => onChange({ min: event.target.value, max })}
       />
@@ -140,7 +133,7 @@ function RangeRow({
         inputMode="decimal"
         value={max}
         placeholder={`Max ${label.toLowerCase()}`}
-        className={cn("w-36", max && ACTIVE_FILTER_STYLE)}
+        className={cn("h-8 w-36", max && ACTIVE_FILTER_STYLE)}
         aria-label={`${label} maximum`}
         onChange={(event) => onChange({ min, max: event.target.value })}
       />
@@ -149,9 +142,8 @@ function RangeRow({
 }
 
 /**
- * The same inline filters as the Threads page: selects in the search row,
- * chips beneath. Renders as a fragment so the controls wrap in the screen's
- * own search row.
+ * The same inline filters as the Threads page. Renders as a fragment so the
+ * controls wrap in the screen's own search row.
  */
 export function OrderFilterBar({
   filters,
@@ -164,15 +156,6 @@ export function OrderFilterBar({
   onClear: () => void;
   activeCount: number;
 }) {
-  const toggle =
-    (key: "financialStatuses" | "fulfillmentStatuses") => (value: string) =>
-      onChange({
-        ...filters,
-        [key]: filters[key].includes(value)
-          ? filters[key].filter((entry) => entry !== value)
-          : [...filters[key], value],
-      });
-
   return (
     <>
       <DateRangePicker
@@ -181,6 +164,24 @@ export function OrderFilterBar({
         disabled={{ after: new Date() }}
         onRangeChange={(createdFrom, createdTo) =>
           onChange({ ...filters, createdFrom, createdTo })
+        }
+      />
+
+      <StatusMultiSelect
+        placeholder="Payment Status"
+        options={FINANCIAL_STATUSES}
+        selected={filters.financialStatuses}
+        onChange={(financialStatuses) =>
+          onChange({ ...filters, financialStatuses })
+        }
+      />
+
+      <StatusMultiSelect
+        placeholder="Delivery Status"
+        options={FULFILLMENT_STATUSES}
+        selected={filters.fulfillmentStatuses}
+        onChange={(fulfillmentStatuses) =>
+          onChange({ ...filters, fulfillmentStatuses })
         }
       />
 
@@ -243,28 +244,6 @@ export function OrderFilterBar({
           Clear
         </Button>
       )}
-
-      <div className="flex basis-full flex-wrap items-center gap-2">
-        <Typography variant="muted" as="span">
-          Payment Status
-        </Typography>
-        <StatusChips
-          options={FINANCIAL_STATUSES}
-          selected={filters.financialStatuses}
-          onToggle={toggle("financialStatuses")}
-        />
-      </div>
-
-      <div className="flex basis-full flex-wrap items-center gap-2">
-        <Typography variant="muted" as="span">
-          Delivery Status
-        </Typography>
-        <StatusChips
-          options={FULFILLMENT_STATUSES}
-          selected={filters.fulfillmentStatuses}
-          onToggle={toggle("fulfillmentStatuses")}
-        />
-      </div>
     </>
   );
 }
