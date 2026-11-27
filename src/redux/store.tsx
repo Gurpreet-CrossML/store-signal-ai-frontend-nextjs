@@ -13,6 +13,7 @@ import IntegrationSlice from "@/redux/api-slice/integrations-slice";
 import SupportTicketsSlice from "@/redux/api-slice/support-ticket-slice";
 import SocialAISlice from "@/redux/api-slice/social-ai-slice";
 import AIUsageSlice from "@/redux/api-slice/ai-usage-slice";
+import BillingSlice from "@/redux/api-slice/billing-slice";
 import StoreSettingsSlice from "@/redux/api-slice/store-settings-slice";
 import CustomerSlice from "@/redux/api-slice/customer-slice";
 import OrderSlice from "@/redux/api-slice/order-slice";
@@ -41,6 +42,7 @@ const store = configureStore({
     GetSupportTicketsReducer: SupportTicketsSlice,
     GetSocialAIReducer: SocialAISlice,
     GetAIUsageReducer: AIUsageSlice,
+    GetBillingReducer: BillingSlice,
     GetCampaignReducer: CampaignSlice,
     GetNotificationReducer: NotificationSlice,
     GetSlaPolicyReducer: SlaPolicySlice,

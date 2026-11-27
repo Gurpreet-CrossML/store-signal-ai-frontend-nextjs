@@ -93,6 +93,7 @@ export type CreditStatus = {
   plan: { code: string; name: string } | null;
   monthly_credits: number | null;
   billing_cycle: string | null;
+  is_free: boolean | null;
   start_date: string | null;
   end_date: string | null;
 };

@@ -38,6 +38,7 @@ import {
   IconVolume,
   type Icon,
   IconChartBar,
+  IconCreditCard,
   IconPackage,
 } from "@tabler/icons-react";
 
@@ -228,6 +229,15 @@ export const NAV_AREAS = {
         pageDescription:
           "AI credit usage for this store by day and capability.",
         icon: IconChartBar,
+        ownerOnly: true,
+      },
+      {
+        href: "/settings/billing",
+        title: "Plans & Billing",
+        description: "Your plan, upgrades and downgrades, and payments.",
+        pageDescription:
+          "Your current plan, every plan you can move to, extra credits and past payments. Payments are handled securely by Razorpay.",
+        icon: IconCreditCard,
         ownerOnly: true,
       },
       {

@@ -159,6 +159,15 @@ export const ENDPOINTS = {
   fetchAIUsageCreditDaily: () => "/usage/ai-usage/daily/",
   fetchAIUsageByFeature: () => "/usage/ai-usage/by-feature/",
   fetchCreditStatus: () => "/billing/credits/",
+  // Razorpay plan payments and credit top-ups (Django billing app; owner only).
+  fetchBillingPlans: () => "/billing/plans/",
+  fetchTopUpPacks: () => "/billing/top-up-packs/",
+  fetchBillingOverview: () => "/billing/payments/overview/",
+  createBillingCheckout: () => "/billing/payments/checkout/",
+  verifyBillingPayment: () => "/billing/payments/verify/",
+  cancelAutoRenew: () => "/billing/payments/cancel-auto-renew/",
+  fetchPaymentInvoice: (paymentId: number) =>
+    `/billing/payments/${paymentId}/invoice/`,
 
   // Geography (Django Cities Light). Countries is intentionally limited to
   // India by the backend; states and cities are dependent lists.

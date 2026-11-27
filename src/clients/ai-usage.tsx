@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { addDays, differenceInCalendarDays, format, parseISO } from "date-fns";
 
 import CreditGroups from "@/components/custom/ai-usage/credit-bars";
@@ -144,6 +145,7 @@ export default function AIUsage({
               daysLeft !== null ? `, renews in ${daysLeft} days` : ""
             }`
           : "No plan month is running",
+      link: { href: "/settings/billing", label: "Manage plan" },
     },
     {
       label: "Plan Allowance",
@@ -173,7 +175,7 @@ export default function AIUsage({
       />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {metrics.map(({ label, value, note, danger }) => (
+        {metrics.map(({ label, value, note, danger, link }) => (
           <Card key={label} size="sm">
             <CardHeader>
               <CardTitle>
@@ -191,6 +193,14 @@ export default function AIUsage({
               >
                 {note}
               </p>
+              {link && (
+                <Link
+                  href={link.href}
+                  className="mt-2 inline-block text-xs font-medium text-primary hover:underline"
+                >
+                  {link.label} →
+                </Link>
+              )}
             </CardContent>
           </Card>
         ))}
