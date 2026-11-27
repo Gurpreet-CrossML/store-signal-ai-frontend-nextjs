@@ -1,5 +1,6 @@
 "use client";
 
+import { IconChevronRight } from "@tabler/icons-react";
 import { Sankey } from "recharts";
 import type { TooltipContentProps } from "recharts";
 
@@ -73,27 +74,48 @@ function shareOf(value: number, total: number) {
 }
 
 /**
- * Drops nodes no link touches (a step nobody reached) and re-indexes links.
- * Recharts would otherwise stack those zero-height nodes in the first column,
- * on top of "Chat started". The step row below the chart still lists them.
- * The API always sends "Dropped" as the last node.
+ * Reshapes the API's Sankey so each step's drop-off peels off right after it,
+ * under the next step, instead of every drop-off crossing the whole chart to
+ * one "Dropped" node at the far right. Steps come first so they stack on top
+ * as one straight band. Steps nobody reached are left out (the step row below
+ * the chart still lists them). The API always sends "Dropped" as the last node.
  */
-function withoutUnlinkedNodes(sankey?: ChatOrderFunnelResponse["sankey"]) {
+function funnelFlow(
+  sankey: ChatOrderFunnelResponse["sankey"] | undefined,
+  checkoutLabel: string | undefined,
+) {
   const rawNodes = sankey?.nodes ?? [];
   const rawLinks = sankey?.links ?? [];
-  const linked = new Set(rawLinks.flatMap((l) => [l.source, l.target]));
-  const kept = rawNodes.map((_, i) => i).filter((i) => linked.has(i));
-  const newIndex = new Map(kept.map((oldIndex, i) => [oldIndex, i]));
+  const droppedIndex = rawNodes.length - 1;
+  const drops = rawLinks.filter((l) => l.target === droppedIndex);
+  const forward = rawLinks.filter((l) => l.target !== droppedIndex);
+  // Counts never grow step to step, so the reached steps are the first ones.
+  const stepCount = rawLinks.length
+    ? Math.max(
+        ...rawLinks.map((l) => l.source),
+        ...forward.map((l) => l.target),
+      ) + 1
+    : 0;
 
-  return {
-    nodes: kept.map((i) => rawNodes[i]),
-    links: rawLinks.map((l) => ({
-      ...l,
-      source: newIndex.get(l.source) ?? 0,
-      target: newIndex.get(l.target) ?? 0,
+  const nodes = [
+    ...rawNodes.slice(0, stepCount),
+    ...drops.map((l) => ({
+      name:
+        rawNodes[l.source]?.name === checkoutLabel
+          ? "Left at checkout"
+          : "Dropped",
     })),
-    droppedIndex: newIndex.get(rawNodes.length - 1) ?? -1,
-  };
+  ];
+  const links = [
+    ...forward,
+    ...drops.map((l, n) => ({ ...l, target: stepCount + n })),
+  ];
+  // Step n sits in column n; a drop-off one column after its step.
+  const columnOf = (index: number) =>
+    index < stepCount ? index : (drops[index - stepCount]?.source ?? 0) + 1;
+  const lastColumn = Math.max(0, ...nodes.map((_, i) => columnOf(i)));
+
+  return { nodes, links, stepCount, columnOf, lastColumn };
 }
 
 /** Renders the chat-to-order funnel as a Sankey with AI-assisted revenue above it. */
@@ -107,16 +129,21 @@ export function ChatOrderFunnelSankey({
   periodLabel: string;
 }) {
   const totalChats = data?.funnel.chat_started.count ?? 0;
-  const { nodes, links, droppedIndex } = withoutUnlinkedNodes(data?.sankey);
-  // Nodes with no outgoing link sit in the last column; label them on their left.
-  const isSink = (index: number) => !links.some((l) => l.source === index);
+  const { nodes, links, stepCount, columnOf, lastColumn } = funnelFlow(
+    data?.sankey,
+    data?.funnel.checkout_link.label,
+  );
   const colorByName = new Map(
     FUNNEL_STEP_KEYS.map((key) => [data?.funnel[key].label, STEP_COLORS[key]]),
   );
-  const nodeColor = (index: number) =>
-    index === droppedIndex
-      ? "var(--color-dropped)"
-      : (colorByName.get(nodes[index]?.name) ?? "var(--color-step)");
+  const nodeColor = (index: number) => {
+    if (index < stepCount) {
+      return colorByName.get(nodes[index]?.name) ?? "var(--color-step)";
+    }
+    return nodes[index]?.name === "Left at checkout"
+      ? "var(--color-leftAtCheckout)"
+      : "var(--color-dropped)";
+  };
 
   const revenueLine = data?.ai_revenue.length
     ? data.ai_revenue.map((row) => row.display).join(" + ")
@@ -130,10 +157,23 @@ export function ChatOrderFunnelSankey({
     index,
     payload,
   }: SankeyNodeShapeProps) => {
-    const labelOnLeft = isSink(index);
-    const textX = labelOnLeft ? x - 8 : x + width + 8;
-    const textAnchor = labelOnLeft ? "end" : "start";
-    const centerY = y + height / 2;
+    // Labels sit outside every band: steps above their node (one row read
+    // left to right), drop-offs below theirs.
+    const isDrop = index >= stepCount;
+    const column = columnOf(index);
+    const textAnchor =
+      column === lastColumn
+        ? "end"
+        : column === 0 || isDrop
+          ? "start"
+          : "middle";
+    const textX =
+      textAnchor === "end"
+        ? x + width
+        : textAnchor === "middle"
+          ? x + width / 2
+          : x;
+    const nameY = isDrop ? y + Math.max(height, 2) + 14 : y - 20;
     return (
       <g key={`node-${index}`}>
         <rect
@@ -146,7 +186,7 @@ export function ChatOrderFunnelSankey({
         />
         <text
           x={textX}
-          y={centerY - 3}
+          y={nameY}
           textAnchor={textAnchor}
           className="fill-foreground text-xs font-medium"
         >
@@ -154,7 +194,7 @@ export function ChatOrderFunnelSankey({
         </text>
         <text
           x={textX}
-          y={centerY + 11}
+          y={nameY + 13}
           textAnchor={textAnchor}
           className="fill-muted-foreground text-[11px]"
         >
@@ -175,23 +215,34 @@ export function ChatOrderFunnelSankey({
     linkWidth,
     index,
   }: SankeyLinkShapeProps) => {
-    const target = links[index]?.target;
-    const isDrop = target === droppedIndex;
-    const leftAtCheckout =
-      isDrop &&
-      nodes[links[index].source]?.name === data?.funnel.checkout_link.label;
+    const { source = 0, target = 0 } = links[index] ?? {};
+    // Each band fades from its step's colour into the next, so the forward
+    // flow reads as one continuous stream.
+    const gradientId = `funnel-link-${index}`;
     return (
-      <path
-        key={`link-${index}`}
-        d={`M${sourceX},${sourceY} C${sourceControlX},${sourceY} ${targetControlX},${targetY} ${targetX},${targetY}`}
-        fill="none"
-        stroke={
-          leftAtCheckout ? "var(--color-leftAtCheckout)" : nodeColor(target)
-        }
-        strokeOpacity={isDrop && !leftAtCheckout ? 0.15 : 0.35}
-        strokeWidth={Math.max(linkWidth, 1)}
-        className="transition-[stroke-opacity] hover:stroke-opacity-60"
-      />
+      <g key={`link-${index}`}>
+        <defs>
+          <linearGradient
+            id={gradientId}
+            gradientUnits="userSpaceOnUse"
+            x1={sourceX}
+            x2={targetX}
+            y1={0}
+            y2={0}
+          >
+            <stop offset="0%" style={{ stopColor: nodeColor(source) }} />
+            <stop offset="100%" style={{ stopColor: nodeColor(target) }} />
+          </linearGradient>
+        </defs>
+        <path
+          d={`M${sourceX},${sourceY} C${sourceControlX},${sourceY} ${targetControlX},${targetY} ${targetX},${targetY}`}
+          fill="none"
+          stroke={`url(#${gradientId})`}
+          strokeOpacity={target >= stepCount ? 0.25 : 0.45}
+          strokeWidth={Math.max(linkWidth, 1)}
+          className="transition-[stroke-opacity] hover:stroke-opacity-70"
+        />
+      </g>
     );
   };
 
@@ -250,8 +301,14 @@ export function ChatOrderFunnelSankey({
                   node={renderNode}
                   link={renderLink}
                   nodeWidth={10}
-                  nodePadding={48}
-                  margin={{ top: 8, right: 8, bottom: 8, left: 8 }}
+                  nodePadding={24}
+                  // Keep drop-offs next to their step and in data order, so
+                  // the steps form one straight band along the top.
+                  align="left"
+                  verticalAlign="top"
+                  sort={false}
+                  // Room for the step labels above and drop-off labels below.
+                  margin={{ top: 36, right: 8, bottom: 36, left: 8 }}
                 >
                   <ChartTooltip content={renderTooltip} />
                 </Sankey>
@@ -263,11 +320,14 @@ export function ChatOrderFunnelSankey({
             )}
 
             <dl className="grid grid-cols-2 gap-4 border-t pt-4 sm:grid-cols-3 lg:grid-cols-5">
-              {FUNNEL_STEP_KEYS.map((key) => {
+              {FUNNEL_STEP_KEYS.map((key, index) => {
                 const step = data.funnel[key];
                 return (
                   <div key={key} className="flex flex-col gap-1">
-                    <dt className="text-sm text-muted-foreground">
+                    <dt className="flex items-center gap-1 text-sm text-muted-foreground">
+                      {index > 0 && (
+                        <IconChevronRight className="size-3.5" aria-hidden />
+                      )}
                       {step.label}
                     </dt>
                     <dd className="flex items-baseline gap-2">
