@@ -193,6 +193,21 @@ function Divider() {
   return <span className="mx-1 h-5 w-px shrink-0 bg-border" aria-hidden />;
 }
 
+/** The hint shown over a link on hover: the key is Cmd on a Mac, else Ctrl. */
+function linkHint() {
+  const isMac =
+    typeof navigator !== "undefined" &&
+    /mac|iphone|ipad/i.test(navigator.userAgent);
+  return `${isMac ? "⌘" : "Ctrl"} + click to open`;
+}
+
+/** Opens a link address in a new tab; only web, mail and phone addresses. */
+function openLink(href: string | null | undefined) {
+  const value = href?.trim();
+  if (!value || !/^(https?:\/\/|mailto:|tel:)/i.test(value)) return;
+  window.open(value, "_blank", "noopener,noreferrer");
+}
+
 function LinkButton({ editor }: { editor: Editor }) {
   const [open, setOpen] = useState(false);
   const [href, setHref] = useState("");
@@ -473,6 +488,16 @@ export function ArticleEditor({
         role: "textbox",
         "aria-multiline": "true",
         "aria-label": "Article body",
+        // Read by the link hover hint in globals.css.
+        style: `--link-hint: "${linkHint()}"`,
+      },
+      // Ctrl/Cmd + click on a link opens it, so it can be checked while editing.
+      handleClick: (_view, _pos, event) => {
+        if (!event.ctrlKey && !event.metaKey) return false;
+        const link = (event.target as HTMLElement).closest("a");
+        if (!link) return false;
+        openLink(link.getAttribute("href"));
+        return true;
       },
       handleKeyDown: (_view, event) => {
         const menu = slashRef.current;

@@ -719,7 +719,7 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
               {isLive ? (
                 <>
                   Your assistant switches to this version of{" "}
-                  <strong className="font-semibold break-words text-foreground">
+                  <strong className="font-semibold text-foreground [overflow-wrap:anywhere]">
                     {title.trim() || "Untitled Article"}
                   </strong>{" "}
                   as soon as it&apos;s published. Until then it keeps using the
@@ -728,7 +728,7 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
               ) : (
                 <>
                   Your assistant starts answering from{" "}
-                  <strong className="font-semibold break-words text-foreground">
+                  <strong className="font-semibold text-foreground [overflow-wrap:anywhere]">
                     {title.trim() || "Untitled Article"}
                   </strong>{" "}
                   as soon as it&apos;s published.
