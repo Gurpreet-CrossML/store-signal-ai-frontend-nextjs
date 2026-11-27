@@ -17,7 +17,7 @@ const NON_FIELD_KEYS = new Set([
 ]);
 
 /** The first usable message out of whatever the server put under a key. */
-function firstMessage(value: unknown): string | null {
+export function firstMessage(value: unknown): string | null {
   if (typeof value === "string") return value.trim() || null;
   if (Array.isArray(value)) {
     for (const entry of value) {

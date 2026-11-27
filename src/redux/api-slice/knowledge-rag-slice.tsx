@@ -5,6 +5,7 @@ import { isAxiosError } from "axios";
 import { axiosInstance } from "@/redux/axios-config";
 import { ENDPOINTS } from "@/lib/config";
 import { toPaginatedList } from "@/lib/helpers";
+import { firstMessage } from "@/lib/form-errors";
 
 // --- Types ------------------------------------------------------------
 // Kept flat (rather than a discriminated union) because the Add/Edit form
@@ -668,16 +669,19 @@ type ApiDiscoveredPage = {
   knowledge_category_ids?: number[];
 };
 
-/** The most specific message in a failed scan response: the `url` field error
- * (e.g. "can't be scanned" / "couldn't reach this website"), else the
- * envelope's `message`. */
+/** The most specific message in a failed scan response: the `url` or `urls`
+ * field error (e.g. "can't be scanned", "private links aren't allowed"), else
+ * any other error in `data`, else the envelope's `message`. The server may
+ * send a field's error as a string or a list. */
 function discoveryErrorMessage(payload: unknown): string | undefined {
   const body = payload as
-    | { message?: string; data?: { url?: unknown } }
+    | { message?: string; data?: Record<string, unknown> | null }
     | undefined;
-  const urlError = body?.data?.url;
+  const data = body?.data;
   return (
-    (Array.isArray(urlError) ? String(urlError[0]) : undefined) ||
+    firstMessage(data?.url) ||
+    firstMessage(data?.urls) ||
+    firstMessage(data) ||
     body?.message ||
     undefined
   );
@@ -741,9 +745,15 @@ export const DiscoverWebsiteUrls = createAsyncThunk(
 
       const response = isAxiosError(error) ? error.response : undefined;
       const data = response?.data;
-      toast.error("Couldn't scan the website.", {
-        description: discoveryErrorMessage(data) || "Please try again later.",
-      });
+      // A problem with the address is shown under the input, so it isn't
+      // toasted a second time; anything else (a server error) still is.
+      const fields = (data as { data?: { url?: unknown; urls?: unknown } })
+        ?.data;
+      if (!firstMessage(fields?.url) && !firstMessage(fields?.urls)) {
+        toast.error("Couldn't scan the website.", {
+          description: discoveryErrorMessage(data) || "Please try again later.",
+        });
+      }
       return thunkAPI.rejectWithValue(data || "Couldn't scan the website.");
     }
   },
