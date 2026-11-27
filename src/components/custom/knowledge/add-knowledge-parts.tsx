@@ -236,6 +236,7 @@ export function ContentLayout({
   tone,
   onChangeSource,
   changeSourceDisabled = false,
+  locked = false,
   side,
   children,
 }: {
@@ -245,6 +246,9 @@ export function ContentLayout({
   onChangeSource: () => void;
   /** Off while something is being saved. */
   changeSourceDisabled?: boolean;
+  /** Turns off every field and button in the form and the side panel, e.g.
+   * while what was entered is being saved. */
+  locked?: boolean;
   side: React.ReactNode;
   children: React.ReactNode;
 }) {
@@ -274,9 +278,17 @@ export function ContentLayout({
             Change Source
           </Button>
         </div>
-        {children}
+        {/* `contents` keeps the layout as it is; `disabled` switches off every
+            control inside, however its component draws it. */}
+        <fieldset disabled={locked} className="contents">
+          {children}
+        </fieldset>
       </section>
-      <div className="flex flex-col gap-4">{side}</div>
+      <div className="flex flex-col gap-4">
+        <fieldset disabled={locked} className="contents">
+          {side}
+        </fieldset>
+      </div>
     </div>
   );
 }

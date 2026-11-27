@@ -1015,6 +1015,12 @@ export const KNOWLEDGE_WEBSITE_URL_CAP = 20;
 // Specific pages that can be listed in the field at once.
 export const KNOWLEDGE_SPECIFIC_PAGE_CAP = 20;
 export const KNOWLEDGE_FILE_CAP = 15;
+// Documents go up in groups, so one request never runs longer than the browser
+// waits for it (15 files of 20 MB take about 5 minutes in one request, and a
+// group of this size about 30 seconds). A group ends at whichever limit it
+// reaches first; one file bigger than the byte limit goes up alone.
+export const KNOWLEDGE_FILE_BATCH_MAX_FILES = 5;
+export const KNOWLEDGE_FILE_BATCH_MAX_BYTES = 40 * 1024 * 1024;
 // Per-file limits for uploaded documents. They mirror the backend's
 // `KNOWLEDGE_MAX_FILE_SIZE`, `KNOWLEDGE_MAX_PAGES` and `KNOWLEDGE_MAX_RECORDS`,
 // which enforce them; the dropzone only shows them.
