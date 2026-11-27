@@ -226,7 +226,9 @@ export function getOrderColumns(): ColumnDef<OrderListRow>[] {
       header: () => <div className="text-right">Total</div>,
       cell: ({ row }) => {
         const order = row.original;
-        return (
+        const refunded = Number(order.total_refunded ?? 0);
+        const netTotal = Math.max(0, Number(order.total_price) - refunded);
+        const total = (
           <div
             className={cn(
               "text-right tabular-nums",
@@ -235,8 +237,20 @@ export function getOrderColumns(): ColumnDef<OrderListRow>[] {
                 : "font-medium text-foreground",
             )}
           >
-            {formatPrice(order.total_price, order.currency)}
+            {formatPrice(netTotal, order.currency)}
           </div>
+        );
+
+        if (refunded <= 0) return total;
+
+        return (
+          <Tooltip>
+            <TooltipTrigger asChild>{total}</TooltipTrigger>
+            <TooltipContent className="tabular-nums">
+              <p>Original: {formatPrice(order.total_price, order.currency)}</p>
+              <p>Refunded: {formatPrice(refunded, order.currency)}</p>
+            </TooltipContent>
+          </Tooltip>
         );
       },
     },
