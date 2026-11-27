@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState , useRef } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table";
 import { toast } from "sonner";
 import { IconPlus } from "@tabler/icons-react";
@@ -84,7 +84,7 @@ export default function SettingsStore() {
     return () => clearTimeout(handle);
   }, [searchInput]);
 
-   useEffect(() => {
+  useEffect(() => {
     if (!connectOpen) return;
     const warnBeforeUnload = (event: BeforeUnloadEvent) => {
       if (!hasEnteredData(connectRef.current)) return;
@@ -198,7 +198,12 @@ export default function SettingsStore() {
         }
       />
 
-      <Dialog open={connectOpen} onOpenChange={(open) => open ? setConnectOpen(true) : requestCloseConnect()}>
+      <Dialog
+        open={connectOpen}
+        onOpenChange={(open) =>
+          open ? setConnectOpen(true) : requestCloseConnect()
+        }
+      >
         <DialogContent
           ref={connectRef}
           onInteractOutside={(e) => e.preventDefault()}
@@ -232,7 +237,7 @@ export default function SettingsStore() {
                 setConnectOpen(false);
               }}
             >
-              Discard 
+              Discard
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
