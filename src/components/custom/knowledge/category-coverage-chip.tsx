@@ -25,9 +25,9 @@ const chipClassName =
 
 /**
  * How well the knowledge answers the customer questions of one category over
- * the period on the page: a coloured percentage with a small bar, "not enough
- * data" while the category has too few questions to say, or a warning when
- * the category has no knowledge in it at all.
+ * the period on the page: a coloured percentage with a small bar, a warning
+ * when the category has no knowledge in it at all, or nothing while the
+ * category has too few questions to say.
  */
 export function CategoryCoverageChip({
   entry,
@@ -47,13 +47,8 @@ export function CategoryCoverageChip({
     );
   }
 
-  if (!entry || entry.coverage === null) {
-    return (
-      <span className={cn(chipClassName, BADGE_TONE_STYLES.neutral)}>
-        Coverage: Not Enough Data
-      </span>
-    );
-  }
+  // Nothing is shown until the category has enough questions to say.
+  if (!entry || entry.coverage === null) return null;
 
   const tone = toneOf(entry.coverage);
   const percent = formatPercent(entry.coverage);
