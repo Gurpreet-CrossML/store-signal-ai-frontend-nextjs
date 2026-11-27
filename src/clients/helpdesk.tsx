@@ -1842,7 +1842,7 @@ function ConversationPanel({
                         ? `Translated To ${translatedLanguage.name}`
                         : "Translate"}
                       <span className="text-xs font-normal text-destructive">
-                        1 credit
+                        1 AI credit
                       </span>
                     </Button>,
                   )}
