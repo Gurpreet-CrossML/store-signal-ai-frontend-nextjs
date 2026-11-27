@@ -7,12 +7,16 @@ import z from "zod";
  * messages.
  */
 
-// Same limits as the `Company` columns and `tenancy/constants.py`.
+// Same limits as the `Company` columns and the backend's `core/constants.py`.
 export const EMAIL_MAX_LENGTH = 254;
-export const PHONE_MAX_LENGTH = 20;
-export const PHONE_MIN_DIGITS = 7;
 export const PHONE_MAX_DIGITS = 15;
 export const STREET_MAX_LENGTH = 255;
+
+// Same as the backend's `LOGO_ALLOWED_EXTENSIONS` and `MAX_LOGO_SIZE_BYTES`.
+const LOGO_EXTENSIONS = [".png", ".jpg", ".jpeg", ".svg"];
+const LOGO_MAX_SIZE_MB = 8;
+export const LOGO_ACCEPT = LOGO_EXTENSIONS.join(",");
+export const LOGO_HINT = `PNG, JPG or SVG, up to ${LOGO_MAX_SIZE_MB} MB.`;
 
 const locationId = z.number().int().positive().nullable();
 
@@ -32,20 +36,14 @@ export const companyProfileSchema = z
     phone: z
       .string()
       .trim()
-      .max(PHONE_MAX_LENGTH, {
-        error: `Phone must be at most ${PHONE_MAX_LENGTH} characters.`,
+      .regex(/^[0-9]*$/, {
+        error: "Phone may only contain digits.",
         abort: true,
       })
-      .refine((val) => !val || /^[+\d()[\]\s-]+$/.test(val), {
-        error: "Phone may only contain digits, spaces, +, -, (, ).",
-        abort: true,
-      })
-      .refine((val) => {
-        if (!val) return true;
-
-        const digitCount = val.replace(/\D/g, "").length;
-        return digitCount >= PHONE_MIN_DIGITS && digitCount <= PHONE_MAX_DIGITS;
-      }, "Enter a valid phone number."),
+      .max(
+        PHONE_MAX_DIGITS,
+        `Phone must be at most ${PHONE_MAX_DIGITS} digits.`,
+      ),
     street: z
       .string()
       .trim()
@@ -76,3 +74,15 @@ export const companyProfileSchema = z
   });
 
 export type CompanyProfileValues = z.infer<typeof companyProfileSchema>;
+
+/** Why `file` can't be the logo, or null. The server also checks its content. */
+export function logoFileError(file: File): string | null {
+  const extension = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
+  if (!LOGO_EXTENSIONS.includes(extension)) {
+    return "Logo must be a PNG, JPG or SVG image.";
+  }
+  if (file.size > LOGO_MAX_SIZE_MB * 1024 * 1024) {
+    return `Logo must be ${LOGO_MAX_SIZE_MB} MB or smaller.`;
+  }
+  return null;
+}
