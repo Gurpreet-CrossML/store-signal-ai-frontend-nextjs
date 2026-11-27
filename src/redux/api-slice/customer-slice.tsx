@@ -35,7 +35,6 @@ export type CustomerAddress = {
  * `chat.models.Customer.Segment`.
  */
 export type CustomerSegment =
-  | "top_vip"
   | "vip"
   | "at_risk_vip"
   | "new"
@@ -79,48 +78,137 @@ export type CustomerRecord = {
   thread_id?: string | null;
 };
 
+/** The one group badge a list row shows; the backend picks it. */
+/** Only the daily analysis's segments get a badge. */
+export type CustomerBadge = "at_risk" | "vip" | "new";
+
+/**
+ * How the customer buys, worked out by the backend. `days` is the usual gap
+ * (every, and lapsed when known), how overdue, or for never_ordered how long
+ * ago they signed up; otherwise null.
+ */
+export type BuyingRhythm = {
+  kind:
+    | "never_ordered"
+    | "unknown"
+    | "waiting"
+    | "lapsed"
+    | "first_order"
+    | "overdue"
+    | "every";
+  days: number | null;
+};
+
+/** One row of the Customers page table (GET /chat/customers/table/). */
+export type CustomerListRow = Pick<
+  CustomerRecord,
+  "id" | "first_name" | "last_name" | "email"
+> & {
+  badge: CustomerBadge | null;
+  order_count: number;
+  /** Decimal strings, in the store's currency. */
+  lifetime_value: string;
+  average_order: string | null;
+  last_order_at: string | null;
+  buying_rhythm: BuyingRhythm;
+  open_tickets: number;
+};
+
 export type CustomerListResponse = {
   count: number;
   next: string | null;
   previous: string | null;
-  results: CustomerRecord[];
+  results: CustomerListRow[];
 };
 
+export type CustomerGroup =
+  | "vip"
+  | "repeat"
+  | "at_risk"
+  | "lapsed"
+  | "never_ordered"
+  | "new";
 /**
  * Everything the list screen can narrow by. All of it resolves server-side —
  * the client only ever holds one page, so filtering here would silently
- * search a fraction of the store.
+ * search a fraction of the store. The filters narrow together.
  */
 export type CustomerFilters = {
   /** Matches name, email, phone and platform customer id. */
   search?: string;
-  accepts_email_marketing?: boolean;
-  accepts_sms_marketing?: boolean;
-  is_email_verified?: boolean;
-  /** Inclusive bounds on lifetime order count. */
-  orders_count_min?: number;
-  orders_count_max?: number;
-  /** Inclusive bounds on lifetime spend. */
-  total_spent_min?: number;
-  total_spent_max?: number;
-  /** ISO instants bounding `registered_at`. */
-  registered_from?: string;
-  registered_to?: string;
-  /** Two/three letter code, matched against the customer's addresses. */
-  country?: string;
-  /** Sort key, e.g. "-total_spent" — leading "-" is descending. */
+  group?: CustomerGroup[];
+  /** ISO instants bounding the last order date. */
+  last_order_from?: string;
+  last_order_to?: string;
+  has_open_tickets?: boolean;
+  /** Sort key, e.g. "-lifetime_value" — leading "-" is descending. */
   ordering?: string;
 };
 
 export type CustomerOrdering =
-  | "-total_spent"
-  | "total_spent"
+  | "-lifetime_value"
   | "-orders_count"
-  | "orders_count"
+  | "-last_order_at"
   | "-registered_at"
-  | "registered_at"
-  | "first_name"
-  | "-first_name";
+  | "first_name";
+
+/** How shipping went for one order; `hours` is null when not known. */
+export type OrderShipping = {
+  kind: "cancelled" | "shipped" | "waiting";
+  hours: number | null;
+};
+
+/** One activity feed event; the extra fields depend on `kind`. */
+export type CustomerActivity =
+  | { kind: "chat"; id: string; title: string; handler: string; at: string }
+  | {
+      kind: "ticket";
+      id: number;
+      ticket_id: string;
+      title: string;
+      status: string;
+      channel: string;
+      at: string;
+    };
+
+/** One customer's page numbers (GET /chat/customers/<id>/profile/). */
+export type CustomerProfile = CustomerListRow & {
+  usual_gap_days: number | null;
+  store_name: string;
+  platform: string;
+  currency: string;
+  admin_url: string | null;
+  recent_orders: {
+    id: number;
+    label: string;
+    created_at: string;
+    items: number;
+    total_price: string;
+    fulfillment_status: string | null;
+    shipping: OrderShipping;
+    chat_assisted: boolean;
+  }[];
+  top_products: {
+    title: string;
+    units: number;
+    usual_variant: string | null;
+    image: string | null;
+  }[];
+  activity: CustomerActivity[];
+  median_reply_minutes: number | null;
+  /** A thread source ("native" is the web chat), or null with no chats. */
+  preferred_channel: string | null;
+};
+
+/** Tab and filter counts (GET /chat/customers/summary/). */
+export type CustomerSummary = {
+  total: number;
+  currency: string;
+  groups: Record<CustomerGroup, number>;
+  open_tickets: number;
+  /** Days without an order before a customer counts as lapsed. */
+  lapsed_days: number;
+};
 
 /** Drop empty values so an untouched filter never reaches the query string. */
 function toQueryParams(
@@ -137,7 +225,12 @@ function toQueryParams(
 
   for (const [key, value] of Object.entries(filters)) {
     if (value === undefined || value === null || value === "") continue;
-    params.set(key, String(value));
+    // A list is sent as the key repeated once per value.
+    if (Array.isArray(value)) {
+      value.forEach((item) => params.append(key, String(item)));
+    } else {
+      params.set(key, String(value));
+    }
   }
 
   return params.toString();
@@ -161,12 +254,12 @@ export const FetchCustomers = createAsyncThunk(
   ) => {
     try {
       const response = await axiosInstance.get(
-        `${ENDPOINTS.fetchCustomerList()}?${toQueryParams(storeCode, page, limit, filters)}`,
+        `${ENDPOINTS.fetchCustomerTable()}?${toQueryParams(storeCode, page, limit, filters)}`,
         { useBackend: true },
       );
       // Accepts the payload wrapped in `data` or returned bare, so a
       // change on the backend shows an empty table rather than crashing.
-      return toPaginatedList<CustomerRecord>(
+      return toPaginatedList<CustomerListRow>(
         response.data?.data ?? response.data,
       );
     } catch (error) {
@@ -176,6 +269,47 @@ export const FetchCustomers = createAsyncThunk(
         description: data?.message || "Please try again later.",
       });
       return thunkAPI.rejectWithValue(data || "Couldn't load customers.");
+    }
+  },
+);
+
+export const FetchCustomerSummary = createAsyncThunk(
+  "FetchCustomerSummary",
+  async ({ storeCode }: { storeCode: string }, thunkAPI) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchCustomerSummary()}?store_code=${storeCode}`,
+        { useBackend: true },
+      );
+      return (response.data?.data ?? null) as CustomerSummary | null;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      // The list still works without the counts, so no toast here.
+      return thunkAPI.rejectWithValue(
+        response?.data || "Couldn't load customer counts.",
+      );
+    }
+  },
+);
+
+export const FetchCustomerProfile = createAsyncThunk(
+  "FetchCustomerProfile",
+  async (
+    { storeCode, customerId }: { storeCode: string; customerId: number },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchCustomerProfile(customerId)}?store_code=${storeCode}`,
+        { useBackend: true },
+      );
+      return (response.data?.data ?? null) as CustomerProfile | null;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      // The page still shows the customer without these numbers.
+      return thunkAPI.rejectWithValue(
+        response?.data || "Couldn't load this customer's numbers.",
+      );
     }
   },
 );
@@ -285,6 +419,14 @@ const CustomerSlice = createSlice({
       FetchCustomersIsError: null as null | string | object,
       FetchCustomersData: emptyList,
     },
+    FetchCustomerProfileState: {
+      FetchCustomerProfileIsLoading: false,
+      FetchCustomerProfileData: null as CustomerProfile | null,
+    },
+    FetchCustomerSummaryState: {
+      FetchCustomerSummaryIsLoading: false,
+      FetchCustomerSummaryData: null as CustomerSummary | null,
+    },
     SearchCustomersState: {
       SearchCustomersIsLoading: false,
       SearchCustomersData: [] as CustomerRecord[],
@@ -318,6 +460,30 @@ const CustomerSlice = createSlice({
         state.FetchCustomersState.FetchCustomersIsError = action.payload as
           | string
           | object;
+      })
+      .addCase(FetchCustomerProfile.pending, (state) => {
+        state.FetchCustomerProfileState.FetchCustomerProfileIsLoading = true;
+        state.FetchCustomerProfileState.FetchCustomerProfileData = null;
+      })
+      .addCase(FetchCustomerProfile.fulfilled, (state, action) => {
+        state.FetchCustomerProfileState.FetchCustomerProfileIsLoading = false;
+        state.FetchCustomerProfileState.FetchCustomerProfileData =
+          action.payload;
+      })
+      .addCase(FetchCustomerProfile.rejected, (state) => {
+        state.FetchCustomerProfileState.FetchCustomerProfileIsLoading = false;
+      })
+      .addCase(FetchCustomerSummary.pending, (state) => {
+        state.FetchCustomerSummaryState.FetchCustomerSummaryIsLoading = true;
+      })
+      .addCase(FetchCustomerSummary.fulfilled, (state, action) => {
+        state.FetchCustomerSummaryState.FetchCustomerSummaryIsLoading = false;
+        state.FetchCustomerSummaryState.FetchCustomerSummaryData =
+          action.payload;
+      })
+      .addCase(FetchCustomerSummary.rejected, (state) => {
+        state.FetchCustomerSummaryState.FetchCustomerSummaryIsLoading = false;
+        state.FetchCustomerSummaryState.FetchCustomerSummaryData = null;
       })
       .addCase(SearchCustomers.pending, (state) => {
         state.SearchCustomersState.SearchCustomersIsLoading = true;
