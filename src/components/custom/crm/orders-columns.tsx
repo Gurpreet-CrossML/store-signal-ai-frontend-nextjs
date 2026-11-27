@@ -1,244 +1,173 @@
 "use client";
 
-import Link from "next/link";
 import { type ColumnDef } from "@tanstack/react-table";
-import { IconTruckDelivery } from "@tabler/icons-react";
 
+import { CustomerAvatar } from "@/components/custom/customer-avatar";
+import { CustomerSegmentBadge } from "@/components/custom/customer-segment-badge";
+import { Badge } from "@/components/ui/badge";
 import { FulfillmentBadge, StatusBadge } from "@/components/ui/status-badge";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { Typography } from "@/components/ui/typography";
-import { formatDate, formatPrice, formatRelativeTime } from "@/lib/helpers";
+import { BADGE_TONE_STYLES } from "@/lib/badge-tones";
+import { formatDate, formatPrice } from "@/lib/helpers";
 import { cn } from "@/lib/utils";
-import {
-  orderCustomer,
-  type OrderListRow,
-} from "@/redux/api-slice/order-slice";
+import type { OrderTableRow } from "@/redux/api-slice/order-slice";
 
 /** "#1001" — the platform's own label, or the number it issued. */
 export function orderLabel(order: { name: string; order_number: string }) {
   return order.name || `#${order.order_number}`;
 }
 
-/**
- * Orders still waiting on the warehouse — where the aging cue belongs.
- * Cancelled orders never age: nobody is going to fulfil them.
- */
-function isAwaitingFulfillment(order: OrderListRow) {
-  if (order.cancelled_at) return false;
-  const status = (order.fulfillment_status ?? "").toLowerCase();
+/** Fulfillment as a badge; a cancelled order reads "Cancelled" instead. */
+export function OrderFulfillment({
+  order,
+}: {
+  order: Pick<OrderTableRow, "cancelled_at" | "fulfillment_status">;
+}) {
+  if (order.cancelled_at) {
+    return (
+      <Badge variant="outline" className={BADGE_TONE_STYLES.danger}>
+        Cancelled
+      </Badge>
+    );
+  }
+  // Platforms send "" or nothing for an order not started.
+  return <FulfillmentBadge status={order.fulfillment_status || null} />;
+}
+
+/** The total; struck through when cancelled or refunded in full. */
+function OrderTotal({ order }: { order: OrderTableRow }) {
+  const total = Number(order.total_price);
+  const refunded = Number(order.total_refunded);
+  const struck =
+    Boolean(order.cancelled_at) || (total > 0 && refunded >= total);
   return (
-    status === "" ||
-    status.includes("unfulfilled") ||
-    status.includes("partial")
+    <div className="text-right tabular-nums">
+      <span
+        className={cn(
+          "text-sm",
+          struck
+            ? "text-muted-foreground line-through"
+            : "font-medium text-foreground",
+        )}
+      >
+        {formatPrice(order.total_price, order.currency)}
+      </span>
+      {refunded > 0 && !struck ? (
+        <Typography variant="muted" as="p" className="text-xs">
+          {formatPrice(refunded, order.currency)} refunded
+        </Typography>
+      ) : null}
+    </div>
   );
 }
 
-export function getOrderColumns(): ColumnDef<OrderListRow>[] {
-  return [
+// The tablet drops placed date, items and payment; the phone keeps only
+// the order and its total.
+const FROM_TABLET = "max-md:hidden";
+const FROM_DESKTOP = "max-xl:hidden";
+
+export function getOrderColumns({
+  showCustomer,
+  showPayment,
+  showFulfillment,
+}: {
+  /** Off when the list is one customer's: their name is above the table. */
+  showCustomer: boolean;
+  /** Off when every row would say the same payment state. */
+  showPayment: boolean;
+  /** Off on a fulfillment tab, for the same reason. */
+  showFulfillment: boolean;
+}): ColumnDef<OrderTableRow>[] {
+  const columns: (ColumnDef<OrderTableRow> | false)[] = [
     {
-      accessorKey: "order_number",
+      id: "order",
       header: "Order",
       cell: ({ row }) => {
         const order = row.original;
-        // Cancelled reads the way ledgers write it — the number struck
-        // through and dimmed — instead of a badge fighting the number for
-        // room. When it happened is one hover away.
-        if (order.cancelled_at) {
-          return (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Typography
-                  variant="small"
-                  as="p"
-                  className="truncate text-muted-foreground line-through"
-                >
-                  {orderLabel(order)}
-                </Typography>
-              </TooltipTrigger>
-              <TooltipContent>
-                Cancelled {formatDate(order.cancelled_at)}
-              </TooltipContent>
-            </Tooltip>
-          );
-        }
         return (
-          <Typography variant="small" as="p" className="truncate">
-            {orderLabel(order)}
-          </Typography>
+          <div className="min-w-0">
+            <Typography variant="small" as="p" className="truncate">
+              {order.label}
+            </Typography>
+            {/* A phone has no other columns, so the row carries their gist. */}
+            <div className="mt-1 flex min-w-0 items-center gap-2 md:hidden">
+              {showCustomer && order.customer ? (
+                <Typography variant="muted" className="truncate">
+                  {order.customer.name}
+                </Typography>
+              ) : (
+                <Typography variant="muted">
+                  {formatDate(order.created_at)}
+                </Typography>
+              )}
+              {showFulfillment ? <OrderFulfillment order={order} /> : null}
+            </div>
+          </div>
         );
       },
     },
     {
-      accessorKey: "created_at",
-      header: "Date",
+      id: "placed",
+      header: "Placed",
+      meta: { headClassName: FROM_DESKTOP, cellClassName: FROM_DESKTOP },
+      cell: ({ row }) => formatDate(row.original.created_at),
+    },
+    showCustomer && {
+      id: "customer",
+      header: "Customer",
+      meta: { headClassName: FROM_TABLET, cellClassName: FROM_TABLET },
+      cell: ({ row }) => {
+        const customer = row.original.customer;
+        if (!customer) return <Typography variant="muted">Guest</Typography>;
+        return (
+          <div className="flex min-w-0 items-center gap-3">
+            <CustomerAvatar name={customer.name} size="size-8" />
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <Typography variant="small" as="p" className="truncate">
+                  {customer.name}
+                </Typography>
+                {customer.vip ? (
+                  <CustomerSegmentBadge segment="vip" className="shrink-0" />
+                ) : null}
+              </div>
+              {customer.email !== customer.name ? (
+                <Typography variant="muted" className="truncate">
+                  {customer.email}
+                </Typography>
+              ) : null}
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      id: "items",
+      header: () => <div className="text-right">Items</div>,
+      meta: { headClassName: FROM_DESKTOP, cellClassName: FROM_DESKTOP },
       cell: ({ row }) => (
-        <Typography variant="small" as="p" className="truncate font-normal">
-          {formatDate(row.original.created_at)}
-        </Typography>
+        <div className="text-right tabular-nums">{row.original.items}</div>
       ),
     },
     {
-      accessorKey: "customer_email",
-      header: "Customer",
-      cell: ({ row }) => {
-        const customer = orderCustomer(row.original);
-        // The name leads when the platform sent one — it is how an agent
-        // recognises a shopper. Contact details drop to the second line.
-        const label = customer.name || customer.email || customer.phone;
-        if (!label) {
-          return <Typography variant="muted">—</Typography>;
-        }
-        const secondary = customer.name
-          ? customer.email || customer.phone
-          : customer.email && customer.phone
-            ? customer.phone
-            : "";
-
-        return (
-          <div className="min-w-0">
-            {/* The email captured at checkout, which the model notes may
-                differ from the account's — so it links to the account
-                rather than pretending they are the same address. Plain
-                text when the order carries no linked customer. */}
-            {customer.id ? (
-              <Link
-                href={`/crm/customers/${customer.id}`}
-                className="block truncate text-sm text-primary hover:underline"
-                onClick={(event) => event.stopPropagation()}
-              >
-                {label}
-              </Link>
-            ) : (
-              <Typography
-                variant="small"
-                as="p"
-                className="truncate font-normal"
-              >
-                {label}
-              </Typography>
-            )}
-            {secondary ? (
-              <Typography variant="muted" className="truncate">
-                {secondary}
-              </Typography>
-            ) : null}
-          </div>
-        );
-      },
-    },
-    {
-      accessorKey: "financial_status",
-      header: "Payment",
-      cell: ({ row }) => {
-        const order = row.original;
-        const status = (order.financial_status ?? "").toLowerCase();
-        const refunded = Number(order.total_refunded ?? 0);
-        const paid = Number(order.total_paid ?? 0);
-        const partiallyPaid =
-          status.includes("partial") && status.includes("paid");
-
-        // The amounts an agent is usually being asked about — what came
-        // back, what has actually been paid — one hover away on the badge
-        // rather than extra lines that made row heights ragged. (Amount
-        // still owed would belong here too, but the list serializer does
-        // not send total_outstanding.)
-        const moneyNotes = [
-          refunded > 0
-            ? `${formatPrice(refunded, order.currency)} Refunded`
-            : null,
-          partiallyPaid && paid > 0
-            ? `${formatPrice(paid, order.currency)} Paid Of ${formatPrice(
-                order.total_price,
-                order.currency,
-              )}`
-            : null,
-        ].filter((note): note is string => note !== null);
-
-        const badge = <StatusBadge status={order.financial_status} />;
-        if (moneyNotes.length === 0) return badge;
-
-        return (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="inline-flex">{badge}</span>
-            </TooltipTrigger>
-            <TooltipContent className="tabular-nums">
-              {moneyNotes.map((note) => (
-                <p key={note}>{note}</p>
-              ))}
-            </TooltipContent>
-          </Tooltip>
-        );
-      },
-    },
-    {
-      accessorKey: "fulfillment_status",
-      header: "Fulfillment",
-      cell: ({ row }) => {
-        const order = row.original;
-        return (
-          <div className="flex flex-col items-start gap-1">
-            <FulfillmentBadge status={order.fulfillment_status} />
-            {/* Shopify's "Fulfill by … days ago" cue, from the data the
-                list does send: how long the order has sat unshipped. */}
-            {isAwaitingFulfillment(order) ? (
-              <Typography
-                variant="caption"
-                as="p"
-                className="text-orange-600 dark:text-orange-400"
-              >
-                {formatRelativeTime(order.created_at)} Waiting
-              </Typography>
-            ) : null}
-          </div>
-        );
-      },
-    },
-    {
-      id: "tracking",
-      header: "Tracking",
-      cell: ({ row }) => {
-        const order = row.original;
-        if (!order.tracking_number) {
-          return <Typography variant="muted">—</Typography>;
-        }
-        return (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                <IconTruckDelivery className="size-3.5" />
-                <span className="max-w-32 truncate font-mono">
-                  {order.tracking_number}
-                </span>
-              </span>
-            </TooltipTrigger>
-            <TooltipContent>{order.tracking_number}</TooltipContent>
-          </Tooltip>
-        );
-      },
-    },
-    {
-      accessorKey: "total_price",
+      id: "total",
       header: () => <div className="text-right">Total</div>,
-      cell: ({ row }) => {
-        const order = row.original;
-        return (
-          <div
-            className={cn(
-              "text-right tabular-nums",
-              order.cancelled_at
-                ? "text-muted-foreground line-through"
-                : "font-medium text-foreground",
-            )}
-          >
-            {formatPrice(order.total_price, order.currency)}
-          </div>
-        );
-      },
+      cell: ({ row }) => <OrderTotal order={row.original} />,
+    },
+    showPayment && {
+      id: "payment",
+      header: "Payment",
+      meta: { headClassName: FROM_DESKTOP, cellClassName: FROM_DESKTOP },
+      cell: ({ row }) => <StatusBadge status={row.original.financial_status} />,
+    },
+    showFulfillment && {
+      id: "fulfillment",
+      header: "Fulfillment",
+      meta: { headClassName: FROM_TABLET, cellClassName: FROM_TABLET },
+      cell: ({ row }) => <OrderFulfillment order={row.original} />,
     },
   ];
+  return columns.filter((column): column is ColumnDef<OrderTableRow> =>
+    Boolean(column),
+  );
 }

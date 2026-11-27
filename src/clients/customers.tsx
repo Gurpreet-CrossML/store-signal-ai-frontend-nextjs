@@ -34,10 +34,10 @@ import {
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 
 const SORT_OPTIONS: { value: CustomerOrdering; label: string }[] = [
-  { value: "-lifetime_value", label: "Lifetime value" },
+  { value: "-lifetime_value", label: "Lifetime Value" },
   { value: "-orders_count", label: "Orders" },
-  { value: "-last_order_at", label: "Last order" },
-  { value: "-registered_at", label: "Newest customers" },
+  { value: "-last_order_at", label: "Last Order" },
+  { value: "-registered_at", label: "Newest Customers" },
   { value: "first_name", label: "Name (A–Z)" },
 ];
 
@@ -55,8 +55,7 @@ function toRequestFilters(
 ): CustomerFilters {
   return {
     ...(search ? { search } : {}),
-    ...(tab === "open_tickets" ? { has_open_tickets: true } : {}),
-    ...(tab !== "all" && tab !== "open_tickets" ? { group: [tab] } : {}),
+    ...(tab !== "all" ? { group: [tab] } : {}),
     // The picker gives whole days; the range covers all of its last one.
     ...(lastOrder.from ? { last_order_from: startOfDay(lastOrder.from) } : {}),
     ...(lastOrder.to ? { last_order_to: endOfDay(lastOrder.to) } : {}),
@@ -166,7 +165,7 @@ export default function Customers() {
         <DateRangePicker
           from={lastOrder.from}
           to={lastOrder.to}
-          placeholder="Last order"
+          placeholder="Last Order"
           disabled={{ after: new Date() }}
           onRangeChange={(from, to) => setLastOrder({ from, to })}
         />

@@ -76,6 +76,23 @@ export type OrderRecord = OrderListRow &
     updated_at: string | null;
   };
 
+/** One row of the Orders page table (GET /chat/orders/table/). */
+export type OrderTableRow = {
+  id: number;
+  /** The platform's own name, e.g. "#1001". */
+  label: string;
+  created_at: string;
+  /** Units in the order. */
+  items: number;
+  total_price: string;
+  total_refunded: string;
+  currency: string;
+  financial_status: string | null;
+  fulfillment_status: string | null;
+  cancelled_at: string | null;
+  customer: { id: number; name: string; email: string; vip: boolean } | null;
+};
+
 export type OrderListResponse = {
   count: number;
   next: string | null;
@@ -83,35 +100,27 @@ export type OrderListResponse = {
   results: OrderListRow[];
 };
 
+export type OrderTableResponse = Omit<OrderListResponse, "results"> & {
+  results: OrderTableRow[];
+};
+
+export type OrderTab = "unfulfilled" | "partial" | "fulfilled" | "cancelled";
+export type OrderPayment = "paid" | "pending" | "refunded";
+
 /**
- * Everything the list screen can narrow by. All of it resolves server-side:
+ * Everything the Orders page can narrow by. All of it resolves server-side:
  * the client holds one page, so filtering here would search a fraction of
  * the store and quietly report it as the whole.
  */
 export type OrderFilters = {
-  /**
-   * Matches order number, display name, platform order id, the email and
-   * phone captured on the order, the confirmation number and the carrier
-   * tracking number.
-   */
+  /** Matches the order number and the customer's name and email. */
   search?: string;
-  /** e.g. ["paid", "pending"] — repeated param or comma-joined. */
-  financial_status?: string[];
-  /** "unfulfilled" stands for the platform's null/blank state. */
-  fulfillment_status?: string[];
-  /** ISO instants bounding the platform's `created_at`. */
-  created_from?: string;
-  created_to?: string;
-  /** Inclusive bounds on `total_price`, in the order's own currency. */
-  total_min?: number;
-  total_max?: number;
-  /** True keeps only orders with a non-zero `total_outstanding`. */
-  has_outstanding?: boolean;
-  /** True keeps only orders with a non-zero `total_refunded`. */
-  has_refund?: boolean;
-  /** True keeps only cancelled orders; false excludes them. */
-  cancelled?: boolean;
-  /** Narrow to one shopper — how the customer screen drills through. */
+  tab?: OrderTab;
+  payment?: OrderPayment;
+  /** ISO instants bounding when the order was placed. */
+  placed_from?: string;
+  placed_to?: string;
+  /** Narrow to one shopper — how the customer page drills through. */
   customer?: number;
   /** Sort key, e.g. "-created_at" — leading "-" is descending. */
   ordering?: string;
@@ -121,9 +130,47 @@ export type OrderOrdering =
   | "-created_at"
   | "created_at"
   | "-total_price"
-  | "total_price"
-  | "order_number"
-  | "-order_number";
+  | "total_price";
+
+/** Tab counts (GET /chat/orders/summary/). */
+export type OrderSummary = {
+  total: number;
+  currency: string;
+  tabs: Record<OrderTab, number>;
+};
+
+/** One order-page event; the extra fields depend on `kind`. */
+export type OrderActivity = {
+  kind: "payment" | "shipped" | "refunded" | "cancelled" | "ticket" | "chat";
+  /** "store" for the platform's events, "help_desk" for tickets and chats. */
+  source: "store" | "help_desk";
+  at: string;
+  title: string;
+  detail?: string;
+  id?: number | string;
+  ticket_id?: string;
+  status?: string;
+  handler?: string;
+};
+
+/** The order page's extra blocks (GET /chat/orders/<id>/profile/). */
+export type OrderProfile = {
+  id: number;
+  customer: {
+    id: number;
+    name: string;
+    email: string;
+    vip: boolean;
+    lifetime_value: string;
+    order_count: number;
+    usual_gap_days: number | null;
+    open_tickets: number;
+  } | null;
+  activity: OrderActivity[];
+  /** { variant id: image URL } */
+  item_images: Record<string, string>;
+  platform: string;
+};
 
 /**
  * The shopper on an order, from whichever shape the serializer used.
@@ -197,12 +244,12 @@ export const FetchOrders = createAsyncThunk(
   ) => {
     try {
       const response = await axiosInstance.get(
-        `${ENDPOINTS.fetchOrders()}?${toQueryParams(storeCode, page, limit, filters)}`,
+        `${ENDPOINTS.fetchOrderTable()}?${toQueryParams(storeCode, page, limit, filters)}`,
         { useBackend: true },
       );
       // Accepts the payload wrapped in `data` or returned bare, so a
       // change on the backend shows an empty table rather than crashing.
-      return toPaginatedList<OrderListRow>(
+      return toPaginatedList<OrderTableRow>(
         response.data?.data ?? response.data,
       );
     } catch (error) {
@@ -293,6 +340,52 @@ export const SyncCustomerOrders = createAsyncThunk(
   },
 );
 
+export const FetchOrderSummary = createAsyncThunk(
+  "FetchOrderSummary",
+  async (
+    { storeCode, customerId }: { storeCode: string; customerId?: number },
+    thunkAPI,
+  ) => {
+    try {
+      // One customer's list counts only their orders.
+      const customer = customerId ? `&customer=${customerId}` : "";
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchOrderSummary()}?store_code=${storeCode}${customer}`,
+        { useBackend: true },
+      );
+      return (response.data?.data ?? null) as OrderSummary | null;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      // The list still works without the counts, so no toast here.
+      return thunkAPI.rejectWithValue(
+        response?.data || "Couldn't load order counts.",
+      );
+    }
+  },
+);
+
+export const FetchOrderProfile = createAsyncThunk(
+  "FetchOrderProfile",
+  async (
+    { storeCode, orderId }: { storeCode: string; orderId: number },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchOrderProfile(orderId)}?store_code=${storeCode}`,
+        { useBackend: true },
+      );
+      return (response.data?.data ?? null) as OrderProfile | null;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      // The page still shows the order without these blocks.
+      return thunkAPI.rejectWithValue(
+        response?.data || "Couldn't load this order's details.",
+      );
+    }
+  },
+);
+
 export const FetchOrderDetails = createAsyncThunk(
   "FetchOrderDetails",
   async (
@@ -330,7 +423,13 @@ const OrderSlice = createSlice({
       FetchOrdersIsLoading: false,
       FetchOrdersIsSuccess: false,
       FetchOrdersIsError: null as null | string | object,
-      FetchOrdersData: emptyList,
+      FetchOrdersData: { ...emptyList, results: [] } as OrderTableResponse,
+    },
+    FetchOrderSummaryState: {
+      FetchOrderSummaryData: null as OrderSummary | null,
+    },
+    FetchOrderProfileState: {
+      FetchOrderProfileData: null as OrderProfile | null,
     },
     FetchCustomerOrdersState: {
       FetchCustomerOrdersIsLoading: false,
@@ -362,7 +461,7 @@ const OrderSlice = createSlice({
       .addCase(FetchOrders.fulfilled, (state, action) => {
         state.FetchOrdersState.FetchOrdersIsLoading = false;
         state.FetchOrdersState.FetchOrdersIsSuccess = true;
-        state.FetchOrdersState.FetchOrdersData = action.payload ?? emptyList;
+        state.FetchOrdersState.FetchOrdersData = action.payload;
       })
       .addCase(FetchOrders.rejected, (state, action) => {
         state.FetchOrdersState.FetchOrdersIsLoading = false;
@@ -401,6 +500,15 @@ const OrderSlice = createSlice({
         state.SyncCustomerOrdersState.SyncCustomerOrdersIsError =
           action.payload as null | string | object;
         state.SyncCustomerOrdersState.SyncCustomerOrdersIsSuccess = false;
+      })
+      .addCase(FetchOrderSummary.fulfilled, (state, action) => {
+        state.FetchOrderSummaryState.FetchOrderSummaryData = action.payload;
+      })
+      .addCase(FetchOrderProfile.pending, (state) => {
+        state.FetchOrderProfileState.FetchOrderProfileData = null;
+      })
+      .addCase(FetchOrderProfile.fulfilled, (state, action) => {
+        state.FetchOrderProfileState.FetchOrderProfileData = action.payload;
       })
       .addCase(FetchOrderDetails.pending, (state) => {
         state.FetchOrderDetailsState.FetchOrderDetailsIsLoading = true;
