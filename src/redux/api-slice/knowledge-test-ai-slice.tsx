@@ -44,6 +44,90 @@ type ApiTestQuestion = {
   feedback: TestFeedback | null;
 };
 
+/** How well the selected store's AI answers the test questions. */
+export type TestCoverage = {
+  /** The store's active test questions. */
+  total: number;
+  answered: number;
+  unanswered: number;
+  /** Never asked yet; left out of `coverage`. */
+  notAsked: number;
+  /** Answered over the ones asked, 0 to 1; null until one has been asked. */
+  coverage: number | null;
+};
+
+type ApiTestCoverage = {
+  total: number;
+  answered: number;
+  unanswered: number;
+  not_asked: number;
+  coverage: number | null;
+};
+
+/** A question customers asked often that the AI couldn't answer. */
+export type TopUnansweredQuestion = {
+  question: string;
+  /** How many times it was asked in the period. */
+  count: number;
+  lastAskedAt: string;
+};
+
+/** How well the knowledge answered the questions of one knowledge category. */
+export type CategoryCoverage = {
+  /** The category's slug; null for the questions that belong to no category. */
+  slug: string | null;
+  answered: number;
+  unanswered: number;
+  total: number;
+  /** Answered over total, 0 to 1; null until the category has enough questions. */
+  coverage: number | null;
+};
+
+/** How well the store's knowledge answered customers over a period. */
+export type AnswerCoverage = {
+  /** The period, as yyyy-MM-dd. */
+  dateFrom: string;
+  dateTo: string;
+  /** Customer questions checked in the period. */
+  total: number;
+  answered: number;
+  /** The ones the AI couldn't answer: gaps in the knowledge. */
+  unanswered: number;
+  /** Answered over total, 0 to 1; null until there are `minQuestions`. */
+  coverage: number | null;
+  /** The same for the period just before; null without enough questions. */
+  previousCoverage: number | null;
+  /** `coverage` minus `previousCoverage`, 0 to 1; null if either is missing. */
+  change: number | null;
+  enoughData: boolean;
+  /** The fewest questions that give a percentage. */
+  minQuestions: number;
+  topUnanswered: TopUnansweredQuestion[];
+  /** The fewest questions that give a category a percentage. */
+  categoryMinQuestions: number;
+  /** Each knowledge category customers asked about. */
+  categories: CategoryCoverage[];
+  /** The questions that belong to no category; null when there are none. */
+  uncategorized: CategoryCoverage | null;
+};
+
+type ApiAnswerCoverage = {
+  date_from: string;
+  date_to: string;
+  total: number;
+  answered: number;
+  unanswered: number;
+  coverage: number | null;
+  previous_coverage: number | null;
+  change: number | null;
+  enough_data: boolean;
+  min_questions: number;
+  top_unanswered: { question: string; count: number; last_asked_at: string }[];
+  category_min_questions: number;
+  categories: CategoryCoverage[];
+  uncategorized: CategoryCoverage | null;
+};
+
 /** A workflow that left customer questions unanswered. */
 export type UnansweredWorkflow = {
   /** The workflow's code, used to list its questions. */
@@ -196,6 +280,90 @@ export const FetchTestQuestions = createAsyncThunk(
   },
 );
 
+/** Reads how many of the store's test questions its AI answers. It also runs
+ * in the background after each try, so a failure is silent: the card keeps
+ * what it last showed. */
+export const FetchTestCoverage = createAsyncThunk(
+  "FetchTestCoverage",
+  async ({ storeCode }: { storeCode: string }, thunkAPI) => {
+    try {
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchTestCoverage()}?store_code=${storeCode}`,
+        { useBackend: true },
+      );
+      const data = response.data?.data as ApiTestCoverage;
+      return {
+        total: data.total,
+        answered: data.answered,
+        unanswered: data.unanswered,
+        notAsked: data.not_asked,
+        coverage: data.coverage,
+      } satisfies TestCoverage;
+    } catch (error) {
+      const response = isAxiosError(error) ? error.response : undefined;
+      return thunkAPI.rejectWithValue(
+        response?.data?.message || "Couldn't load the test coverage.",
+      );
+    }
+  },
+);
+
+/** Reads how well the store's knowledge answered customer questions in a
+ * period (`from`/`to`, yyyy-MM-dd), for the Knowledge screen. Cancelling it
+ * (`promise.abort()`) drops an answer for a period that was changed again. */
+export const FetchAnswerCoverage = createAsyncThunk(
+  "FetchAnswerCoverage",
+  async (
+    {
+      storeCode,
+      dateFrom,
+      dateTo,
+    }: { storeCode: string; dateFrom: string; dateTo: string },
+    thunkAPI,
+  ) => {
+    try {
+      const params = new URLSearchParams({
+        store_code: storeCode,
+        date_from: dateFrom,
+        date_to: dateTo,
+      });
+      const response = await axiosInstance.get(
+        `${ENDPOINTS.fetchAnswerCoverage()}?${params.toString()}`,
+        { useBackend: true, signal: thunkAPI.signal },
+      );
+      const data = response.data?.data as ApiAnswerCoverage;
+      return {
+        dateFrom: data.date_from,
+        dateTo: data.date_to,
+        total: data.total,
+        answered: data.answered,
+        unanswered: data.unanswered,
+        coverage: data.coverage,
+        previousCoverage: data.previous_coverage,
+        change: data.change,
+        enoughData: data.enough_data,
+        minQuestions: data.min_questions,
+        topUnanswered: data.top_unanswered.map(
+          (item): TopUnansweredQuestion => ({
+            question: item.question,
+            count: item.count,
+            lastAskedAt: item.last_asked_at,
+          }),
+        ),
+        categoryMinQuestions: data.category_min_questions,
+        categories: data.categories,
+        uncategorized: data.uncategorized,
+      } satisfies AnswerCoverage;
+    } catch (error) {
+      if (thunkAPI.signal.aborted) return thunkAPI.rejectWithValue(undefined);
+      const response = isAxiosError(error) ? error.response : undefined;
+      return thunkAPI.rejectWithValue(
+        response?.data?.message || "Couldn't load the coverage.",
+      );
+    }
+  },
+);
+
 export const FetchUnansweredWorkflows = createAsyncThunk(
   "FetchUnansweredWorkflows",
   async (
@@ -243,17 +411,20 @@ export const FetchUnansweredQuestions = createAsyncThunk(
       workflow,
       dateFrom,
       dateTo,
+      trackedOnly = false,
     }: {
       storeCode: string;
       page?: number;
       pageSize: number;
       search?: string;
-      /** Code of the workflow whose questions to list. */
-      workflow: string;
+      /** Code of the workflow whose questions to list; every workflow when left out. */
+      workflow?: string;
       /** Only the questions asked on or after this day (yyyy-MM-dd). */
       dateFrom?: string;
       /** Only the questions asked on or before this day (yyyy-MM-dd). */
       dateTo?: string;
+      /** Only the questions KB coverage counts (see `FetchAnswerCoverage`). */
+      trackedOnly?: boolean;
     },
     thunkAPI,
   ) => {
@@ -264,9 +435,10 @@ export const FetchUnansweredQuestions = createAsyncThunk(
         page_size: String(pageSize),
       });
       if (search.trim()) params.set("search", search.trim());
-      params.set("workflow", workflow);
+      if (workflow) params.set("workflow", workflow);
       if (dateFrom) params.set("date_from", dateFrom);
       if (dateTo) params.set("date_to", dateTo);
+      if (trackedOnly) params.set("tracked", "true");
       const response = await axiosInstance.get(
         `${ENDPOINTS.fetchUnansweredQuestions()}?${params.toString()}`,
         { useBackend: true },
@@ -313,6 +485,8 @@ export const AskTestQuestion = createAsyncThunk(
         { question },
       );
       const answer = response.data?.data as ApiTestAnswer;
+      // The try changed that question's status, so the coverage moves too.
+      void thunkAPI.dispatch(FetchTestCoverage({ storeCode }));
       // The question and the answer, as two chat messages.
       return [
         {
@@ -416,6 +590,15 @@ const KnowledgeTestAiSlice = createSlice({
       FetchTestQuestionsIsError: null as null | string | object,
       FetchTestQuestionsData: null as TestQuestionList | null,
     },
+    FetchTestCoverageState: {
+      FetchTestCoverageIsLoading: false,
+      FetchTestCoverageData: null as TestCoverage | null,
+    },
+    FetchAnswerCoverageState: {
+      FetchAnswerCoverageIsLoading: false,
+      FetchAnswerCoverageIsError: false,
+      FetchAnswerCoverageData: null as AnswerCoverage | null,
+    },
     FetchUnansweredWorkflowsState: {
       FetchUnansweredWorkflowsIsLoading: false,
       FetchUnansweredWorkflowsData: null as UnansweredWorkflow[] | null,
@@ -464,6 +647,32 @@ const KnowledgeTestAiSlice = createSlice({
         state.FetchTestQuestionsState.FetchTestQuestionsIsError =
           (action.payload as string | object) ??
           "Couldn't load the test questions.";
+      })
+      // FetchAnswerCoverage
+      .addCase(FetchAnswerCoverage.pending, (state) => {
+        state.FetchAnswerCoverageState.FetchAnswerCoverageIsLoading = true;
+        state.FetchAnswerCoverageState.FetchAnswerCoverageIsError = false;
+      })
+      .addCase(FetchAnswerCoverage.fulfilled, (state, action) => {
+        state.FetchAnswerCoverageState.FetchAnswerCoverageIsLoading = false;
+        state.FetchAnswerCoverageState.FetchAnswerCoverageData = action.payload;
+      })
+      .addCase(FetchAnswerCoverage.rejected, (state, action) => {
+        // Cancelled (the period changed again): a newer request is on its way.
+        if (action.meta.aborted) return;
+        state.FetchAnswerCoverageState.FetchAnswerCoverageIsLoading = false;
+        state.FetchAnswerCoverageState.FetchAnswerCoverageIsError = true;
+      })
+      // FetchTestCoverage
+      .addCase(FetchTestCoverage.pending, (state) => {
+        state.FetchTestCoverageState.FetchTestCoverageIsLoading = true;
+      })
+      .addCase(FetchTestCoverage.fulfilled, (state, action) => {
+        state.FetchTestCoverageState.FetchTestCoverageIsLoading = false;
+        state.FetchTestCoverageState.FetchTestCoverageData = action.payload;
+      })
+      .addCase(FetchTestCoverage.rejected, (state) => {
+        state.FetchTestCoverageState.FetchTestCoverageIsLoading = false;
       })
       // AskTestQuestion
       .addCase(AskTestQuestion.pending, (state, action) => {
