@@ -913,7 +913,13 @@ export default function ThreadDetail({ threadId }: { threadId: string }) {
         {/* Values line up on the left of their column, like Help Desk. */}
         <dl className="grid grid-cols-[auto_1fr] gap-x-5 gap-y-1.5 px-5 py-4 text-sm">
           <dt className="text-muted-foreground">Thread ID</dt>
-          <dd className="truncate font-mono">{threadId}</dd>
+          {/* The id is cut to fit the card; hover shows the full id. */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <dd className="truncate font-mono">{threadId}</dd>
+            </TooltipTrigger>
+            <TooltipContent className="font-mono">{threadId}</TooltipContent>
+          </Tooltip>
           <dt className="text-muted-foreground">Channel</dt>
           <dd>Web Chat</dd>
           <dt className="text-muted-foreground">Started</dt>
