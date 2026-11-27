@@ -172,3 +172,40 @@ export function faqAnswerProblem(value: string): string | undefined {
     return NOT_REAL_ANSWER;
   return undefined;
 }
+
+/** How the server words its refusal of a question that appears more than once
+ * in one request (`knowledge/serializers.py`). */
+const DUPLICATE_IN_REQUEST = /entered more than once/i;
+
+/** A question as the server compares it: trimmed and in lower case. */
+export function normalizeQuestion(question: string): string {
+  return question.trim().toLowerCase();
+}
+
+/**
+ * Takes out the server's "entered more than once" errors that no longer hold.
+ * That refusal belongs to a row only while another row still has the same
+ * question, so once a twin is deleted or reworded, the error on the one left
+ * has to go too. Every other error is left as it was.
+ */
+export function dropStaleDuplicateErrors<
+  Errors extends Record<string, Record<string, unknown>>,
+>(rows: { localId: string; question: string }[], errors: Errors): Errors {
+  const copies = new Map<string, number>();
+  rows.forEach(({ question }) => {
+    const key = normalizeQuestion(question);
+    if (key) copies.set(key, (copies.get(key) ?? 0) + 1);
+  });
+
+  const entries = Object.entries(errors);
+  const kept = entries.filter(([localId, error]) => {
+    if (!DUPLICATE_IN_REQUEST.test(String(error.question ?? ""))) return true;
+    const row = rows.find((candidate) => candidate.localId === localId);
+    return (
+      Boolean(row) && (copies.get(normalizeQuestion(row!.question)) ?? 0) > 1
+    );
+  });
+  return kept.length === entries.length
+    ? errors
+    : (Object.fromEntries(kept) as Errors);
+}

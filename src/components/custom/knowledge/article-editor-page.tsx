@@ -465,8 +465,12 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
     .filter(Boolean)
     .join(", ");
 
+  // While a publish (or a save before leaving) is on its way, nothing on the
+  // page can be changed. Autosave is not counted: it runs as the user types.
+  const isBusy = isPublishing || isSavingToLeave;
+
   const settingsPanel = (
-    <>
+    <fieldset disabled={isBusy} className="contents">
       <KnowledgeCategoriesField
         options={categoryOptions}
         isLoading={categoriesLoading}
@@ -517,7 +521,7 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
           </section>
         </>
       )}
-    </>
+    </fieldset>
   );
 
   return (
@@ -529,7 +533,7 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
           size="sm"
           className="-ml-2"
           // Not while a save is on its way: leaving would cut it short.
-          disabled={saveState === "saving" || isSavingToLeave}
+          disabled={saveState === "saving" || isBusy}
           onClick={goBack}
         >
           {isSavingToLeave ? (
@@ -561,6 +565,7 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
           {belowLg && (
             <KnowledgeSettingsButton
               invalid={showErrors && hasScopeError}
+              disabled={isBusy}
               onClick={() => setSettingsOpen(true)}
             />
           )}
@@ -575,7 +580,7 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
               !html ||
               overLimit ||
               cannotPublish ||
-              isPublishing ||
+              isBusy ||
               (isLive && !isDirty && !hasUnpublishedChanges)
             }
             onClick={requestPublish}
@@ -613,7 +618,7 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
                 onKeyDown={(event) => {
                   if (event.key === "Enter") event.preventDefault();
                 }}
-                disabled={isLocked}
+                disabled={isLocked || isBusy}
                 placeholder="Article Title"
                 aria-label="Article title"
                 maxLength={KNOWLEDGE_TITLE_MAX_LENGTH}
@@ -628,9 +633,7 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
                   variant="link"
                   size="sm"
                   className="mt-2 h-auto shrink-0 p-0"
-                  disabled={
-                    saveState === "saving" || isSavingToLeave || isPublishing
-                  }
+                  disabled={saveState === "saving" || isBusy}
                   onClick={changeSource}
                 >
                   Change Source
@@ -659,7 +662,7 @@ export function ArticleEditorPage({ articleId }: { articleId?: string }) {
 
           <ArticleEditor
             initialHtml={initialHtml}
-            disabled={isLocked}
+            disabled={isLocked || isBusy}
             onChange={(next) => {
               setHtml(next);
             }}

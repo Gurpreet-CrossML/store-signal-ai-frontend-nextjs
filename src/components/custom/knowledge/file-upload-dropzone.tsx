@@ -2,10 +2,14 @@
 
 import { useRef, useState, type ReactNode } from "react";
 import {
+  IconCheck,
+  IconCircleX,
+  IconClock,
   IconCloudUpload,
   IconFileTypeDocx,
   IconFileTypePdf,
   IconFileTypeTxt,
+  IconInfoCircle,
   IconPhoto,
   IconX,
 } from "@tabler/icons-react";
@@ -13,12 +17,15 @@ import {
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { Typography } from "@/components/ui/typography";
+import { BADGE_TONE_STYLES, type BadgeTone } from "@/lib/badge-tones";
 import {
   KNOWLEDGE_FILE_MAX_PAGES,
   KNOWLEDGE_FILE_MAX_RECORDS,
   KNOWLEDGE_FILE_MAX_SIZE_BYTES,
 } from "@/lib/config";
+import type { RowStatus } from "@/lib/knowledge-upload";
 import { cn } from "@/lib/utils";
 
 function FileTypeIcon({
@@ -42,6 +49,52 @@ function FileTypeIcon({
     return <IconPhoto className={className} />;
   }
   return <IconFileTypeTxt className={className} />;
+}
+
+const STATUS_LABEL: Record<RowStatus["status"], string> = {
+  uploading: "Adding",
+  waiting: "Waiting to be added",
+  added: "Added",
+  failed: "Failed",
+  skipped: "Skipped",
+  notSent: "Not sent",
+};
+
+/** The tone a status's message is shown in. */
+const DETAIL_TONE: Partial<Record<RowStatus["status"], BadgeTone>> = {
+  failed: "danger",
+  skipped: "info",
+  notSent: "warning",
+};
+
+/** What stands in a file's row where the remove button is once an upload is
+ * going or done: a spinner for a file with no answer yet, else its result. */
+function RowStatusIcon({ status }: { status: RowStatus["status"] }) {
+  const label = STATUS_LABEL[status];
+  const className = "size-5";
+  return (
+    <span
+      role="img"
+      aria-label={label}
+      title={label}
+      className="flex size-8 shrink-0 items-center justify-center"
+    >
+      {status === "uploading" || status === "waiting" ? (
+        <Spinner className={cn(className, "text-primary")} />
+      ) : status === "added" ? (
+        // Solid in the theme colour with a white tick, so it reads at a glance.
+        <span className="flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+          <IconCheck className="size-3.5" stroke={3} />
+        </span>
+      ) : status === "failed" ? (
+        <IconCircleX className={cn(className, "text-destructive")} />
+      ) : status === "skipped" ? (
+        <IconInfoCircle className={cn(className, "text-sky-500")} />
+      ) : (
+        <IconClock className={cn(className, "text-amber-500")} />
+      )}
+    </span>
+  );
 }
 
 export function formatBytes(bytes: number): string {
@@ -69,6 +122,8 @@ export function MultiFileUploadDropzone({
   maxFiles,
   maxFileSizeBytes = KNOWLEDGE_FILE_MAX_SIZE_BYTES,
   renderFileExtra,
+  disabled = false,
+  rowStatus,
 }: {
   files: File[];
   onFilesSelected: (files: File[]) => void;
@@ -79,7 +134,15 @@ export function MultiFileUploadDropzone({
   maxFileSizeBytes?: number;
   /** Something to show in each selected file's row, e.g. a field of its own. */
   renderFileExtra?: (file: File, index: number) => ReactNode;
+  /** Nothing can be added or removed, e.g. while the files are being saved. */
+  disabled?: boolean;
+  /** How each file stands in an upload that is running or done. A file with a
+   * status shows it where the remove button would be, and its detail under
+   * its name. Once any file has one, no files can be added or removed. */
+  rowStatus?: (RowStatus | undefined)[];
 }) {
+  const inUpload = Boolean(rowStatus?.some(Boolean));
+  const locked = disabled || inUpload;
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
 
@@ -131,7 +194,8 @@ export function MultiFileUploadDropzone({
 
   return (
     <div className="flex flex-col gap-2">
-      {typeof maxFiles === "number" && files.length >= maxFiles ? (
+      {inUpload ? null : typeof maxFiles === "number" &&
+        files.length >= maxFiles ? (
         <div className="flex cursor-not-allowed flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed px-6 py-6 text-center bg-muted/20">
           <IconCloudUpload className="size-7 text-muted-foreground" />
           <Typography variant="small" as="p">
@@ -144,8 +208,10 @@ export function MultiFileUploadDropzone({
       ) : (
         <div
           role="button"
-          tabIndex={0}
+          tabIndex={locked ? -1 : 0}
+          aria-disabled={locked}
           onDragOver={(event) => {
+            if (locked) return;
             event.preventDefault();
             setDragOver(true);
           }}
@@ -153,18 +219,25 @@ export function MultiFileUploadDropzone({
           onDrop={(event) => {
             event.preventDefault();
             setDragOver(false);
-            handleFileList(event.dataTransfer.files);
+            if (!locked) handleFileList(event.dataTransfer.files);
           }}
-          onClick={() => inputRef.current?.click()}
+          onClick={() => {
+            if (!locked) inputRef.current?.click();
+          }}
           onKeyDown={(event) => {
+            if (locked) return;
             if (event.key === "Enter" || event.key === " ")
               inputRef.current?.click();
           }}
           className={cn(
-            "flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed px-6 py-6 text-center transition-colors",
-            dragOver
+            "flex flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed px-6 py-6 text-center transition-colors",
+            locked ? "cursor-not-allowed opacity-60" : "cursor-pointer",
+            dragOver && !locked
               ? "border-primary bg-primary/5"
-              : "border-border hover:border-primary/40 hover:bg-muted/50",
+              : cn(
+                  "border-border",
+                  !locked && "hover:border-primary/40 hover:bg-muted/50",
+                ),
           )}
         >
           <IconCloudUpload
@@ -241,18 +314,35 @@ export function MultiFileUploadDropzone({
                     {renderFileExtra(file, index)}
                   </div>
                 )}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={() => onRemoveFile(index)}
-                  aria-label={`Remove ${file.name}`}
-                >
-                  <IconX className="size-4" />
-                </Button>
+                {rowStatus?.[index] ? (
+                  <RowStatusIcon status={rowStatus[index].status} />
+                ) : (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    disabled={locked}
+                    onClick={() => onRemoveFile(index)}
+                    aria-label={`Remove ${file.name}`}
+                  >
+                    <IconX className="size-4" />
+                  </Button>
+                )}
               </div>
               {errors?.[index] && (
                 <p className="text-xs text-destructive">{errors[index]}</p>
+              )}
+              {rowStatus?.[index]?.detail && (
+                <p
+                  className={cn(
+                    "rounded-md border px-3 py-1.5 text-xs font-medium",
+                    BADGE_TONE_STYLES[
+                      DETAIL_TONE[rowStatus[index].status] ?? "neutral"
+                    ],
+                  )}
+                >
+                  {rowStatus[index].detail}
+                </p>
               )}
             </div>
           ))}
