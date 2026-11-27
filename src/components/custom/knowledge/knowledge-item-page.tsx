@@ -366,8 +366,11 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
       ? faqAnswerProblem(answer)
       : undefined;
 
+  // While a save or publish is on its way nothing on the page can be changed.
+  const isBusy = isSaving || isPublishing;
+
   const settingsPanel = (
-    <>
+    <fieldset disabled={isBusy} className="contents">
       <KnowledgeCategoriesField
         options={categoryOptions}
         isLoading={categoriesLoading}
@@ -419,13 +422,19 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
           </dd>
         </dl>
       </section>
-    </>
+    </fieldset>
   );
 
   return (
     <div className="flex min-h-full flex-col">
       <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b px-4 py-2.5">
-        <Button variant="ghost" size="sm" className="-ml-2" onClick={goBack}>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="-ml-2"
+          disabled={isBusy}
+          onClick={goBack}
+        >
           <IconArrowLeft className="size-4" />
           Knowledge
         </Button>
@@ -445,6 +454,7 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
           {belowLg && (
             <KnowledgeSettingsButton
               invalid={Boolean(scopeErrors.aiScope || scopeErrors.selection)}
+              disabled={isBusy}
               onClick={() => setSettingsOpen(true)}
             />
           )}
@@ -476,7 +486,7 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
                   type="button"
                   variant="outline"
                   size="sm"
-                  disabled={!canEditItem}
+                  disabled={!canEditItem || isBusy}
                   title={
                     canEditItem
                       ? undefined
@@ -492,6 +502,7 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
                 <Button
                   type="button"
                   size="sm"
+                  disabled={isBusy}
                   onClick={() => setPublishOpen(true)}
                 >
                   <IconSend className="size-4" />
@@ -505,204 +516,209 @@ export function KnowledgeItemPage({ itemId }: { itemId: string }) {
 
       <div className="grid flex-1 desktop:grid-cols-[minmax(0,1fr)_20rem]">
         <main className="flex min-w-0 flex-col gap-5 p-4 sm:p-6">
-          <dl
-            className={cn(
-              "grid divide-x divide-y rounded-xl border bg-card",
-              item.source === "faq"
-                ? "grid-cols-2 lg:grid-cols-4 lg:divide-y-0"
-                : "grid-cols-2 lg:grid-cols-3 lg:divide-y-0",
-            )}
-          >
-            {item.source === "faq" && (
-              <Stat
-                label="Length"
-                value={`${wordCount(`${item.question} ${item.answer}`).toLocaleString()} words`}
-              />
-            )}
-            {item.source === "file" ? (
-              <Stat
-                label="File"
-                value={[
-                  extension,
-                  item.fileSize ? formatBytes(item.fileSize) : "",
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
-              />
-            ) : (
-              <Stat
-                label="Type"
-                value={
-                  item.source === "faq" ? "Question & Answer" : "Website Page"
-                }
-              />
-            )}
-            <Stat label="Added" value={formatDate(item.createdAt)} />
-            <Stat label="Last Updated" value={formatDate(item.updatedAt)} />
-          </dl>
-
-          {item.status === "failed" && (
-            <p
-              role="alert"
-              className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm text-destructive"
-            >
-              {item.processingError ??
-                "This couldn't be processed, so the assistant isn't using it yet."}
-            </p>
-          )}
-
-          {item.source === "faq" && (
-            <section className="flex flex-col gap-3">
-              <h2 className="text-sm font-semibold">Question And Answer</h2>
-              {editing ? (
-                <div className="flex flex-col gap-4 rounded-xl border p-4">
-                  <div className="flex flex-col gap-1.5">
-                    <label
-                      htmlFor="faq-question"
-                      className="text-xs font-medium"
-                    >
-                      Customer Asks
-                    </label>
-                    <Input
-                      id="faq-question"
-                      value={question}
-                      maxLength={FAQ_QUESTION_MAX_LENGTH}
-                      autoComplete="off"
-                      onChange={(event) => {
-                        setQuestion(event.target.value);
-                        setQuestionLimitHit(false);
-                      }}
-                      {...limitAttemptHandlers<HTMLInputElement>(
-                        FAQ_QUESTION_MAX_LENGTH,
-                        () => setQuestionLimitHit(true),
-                      )}
-                      onBlur={() => {
-                        setQuestionTouched(true);
-                        setQuestionLimitHit(false);
-                      }}
-                      aria-invalid={Boolean(questionProblem)}
-                    />
-                    <div className="flex items-center justify-between gap-2">
-                      {questionProblem ? (
-                        <p className="text-xs text-destructive">
-                          {questionProblem}
-                        </p>
-                      ) : (
-                        <span />
-                      )}
-                      <span
-                        className={cn(
-                          "text-xs text-muted-foreground",
-                          question.length >= FAQ_QUESTION_MAX_LENGTH &&
-                            "text-destructive",
-                        )}
-                      >
-                        {question.length.toLocaleString()} /{" "}
-                        {FAQ_QUESTION_MAX_LENGTH.toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label htmlFor="faq-answer" className="text-xs font-medium">
-                      Your Answer
-                    </label>
-                    <Textarea
-                      id="faq-answer"
-                      className="max-h-96 min-h-28 resize-y"
-                      value={answer}
-                      maxLength={FAQ_ANSWER_MAX_LENGTH}
-                      onChange={(event) => {
-                        setAnswer(event.target.value);
-                        setAnswerLimitHit(false);
-                      }}
-                      {...limitAttemptHandlers<HTMLTextAreaElement>(
-                        FAQ_ANSWER_MAX_LENGTH,
-                        () => setAnswerLimitHit(true),
-                      )}
-                      onBlur={() => {
-                        setAnswerTouched(true);
-                        setAnswerLimitHit(false);
-                      }}
-                      aria-invalid={Boolean(answerProblem)}
-                    />
-                    <div className="flex items-center justify-between gap-2">
-                      {answerProblem ? (
-                        <p className="text-xs text-destructive">
-                          {answerProblem}
-                        </p>
-                      ) : (
-                        <span />
-                      )}
-                      <span
-                        className={cn(
-                          "text-xs text-muted-foreground",
-                          answer.length >= FAQ_ANSWER_MAX_LENGTH &&
-                            "text-destructive",
-                        )}
-                      >
-                        {answer.length.toLocaleString()} /{" "}
-                        {FAQ_ANSWER_MAX_LENGTH.toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-4 rounded-xl border bg-muted/30 p-4 text-sm">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Question</p>
-                    <p className="mt-1 font-medium whitespace-pre-wrap">
-                      {item.question}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Answer</p>
-                    <p className="mt-1 whitespace-pre-wrap">{item.answer}</p>
-                  </div>
-                </div>
+          <fieldset disabled={isBusy} className="contents">
+            <dl
+              className={cn(
+                "grid divide-x divide-y rounded-xl border bg-card",
+                item.source === "faq"
+                  ? "grid-cols-2 lg:grid-cols-4 lg:divide-y-0"
+                  : "grid-cols-2 lg:grid-cols-3 lg:divide-y-0",
               )}
-            </section>
-          )}
-
-          {item.source === "url" &&
-            (editing ? (
-              <section className="flex flex-col gap-2">
-                <h2 className="text-sm font-semibold">Page Address</h2>
-                <Input
-                  value={url}
-                  autoComplete="off"
-                  aria-label="Page address"
-                  onChange={(event) => setUrl(event.target.value)}
-                  aria-invalid={showErrors && !isValidWebsiteUrl(url)}
+            >
+              {item.source === "faq" && (
+                <Stat
+                  label="Length"
+                  value={`${wordCount(`${item.question} ${item.answer}`).toLocaleString()} words`}
                 />
-                {showErrors && !isValidWebsiteUrl(url) ? (
-                  <p className="text-xs text-destructive">
-                    Enter a valid page address
-                  </p>
+              )}
+              {item.source === "file" ? (
+                <Stat
+                  label="File"
+                  value={[
+                    extension,
+                    item.fileSize ? formatBytes(item.fileSize) : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                />
+              ) : (
+                <Stat
+                  label="Type"
+                  value={
+                    item.source === "faq" ? "Question & Answer" : "Website Page"
+                  }
+                />
+              )}
+              <Stat label="Added" value={formatDate(item.createdAt)} />
+              <Stat label="Last Updated" value={formatDate(item.updatedAt)} />
+            </dl>
+
+            {item.status === "failed" && (
+              <p
+                role="alert"
+                className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm text-destructive"
+              >
+                {item.processingError ??
+                  "This couldn't be processed, so the assistant isn't using it yet."}
+              </p>
+            )}
+
+            {item.source === "faq" && (
+              <section className="flex flex-col gap-3">
+                <h2 className="text-sm font-semibold">Question And Answer</h2>
+                {editing ? (
+                  <div className="flex flex-col gap-4 rounded-xl border p-4">
+                    <div className="flex flex-col gap-1.5">
+                      <label
+                        htmlFor="faq-question"
+                        className="text-xs font-medium"
+                      >
+                        Customer Asks
+                      </label>
+                      <Input
+                        id="faq-question"
+                        value={question}
+                        maxLength={FAQ_QUESTION_MAX_LENGTH}
+                        autoComplete="off"
+                        onChange={(event) => {
+                          setQuestion(event.target.value);
+                          setQuestionLimitHit(false);
+                        }}
+                        {...limitAttemptHandlers<HTMLInputElement>(
+                          FAQ_QUESTION_MAX_LENGTH,
+                          () => setQuestionLimitHit(true),
+                        )}
+                        onBlur={() => {
+                          setQuestionTouched(true);
+                          setQuestionLimitHit(false);
+                        }}
+                        aria-invalid={Boolean(questionProblem)}
+                      />
+                      <div className="flex items-center justify-between gap-2">
+                        {questionProblem ? (
+                          <p className="text-xs text-destructive">
+                            {questionProblem}
+                          </p>
+                        ) : (
+                          <span />
+                        )}
+                        <span
+                          className={cn(
+                            "text-xs text-muted-foreground",
+                            question.length >= FAQ_QUESTION_MAX_LENGTH &&
+                              "text-destructive",
+                          )}
+                        >
+                          {question.length.toLocaleString()} /{" "}
+                          {FAQ_QUESTION_MAX_LENGTH.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label
+                        htmlFor="faq-answer"
+                        className="text-xs font-medium"
+                      >
+                        Your Answer
+                      </label>
+                      <Textarea
+                        id="faq-answer"
+                        className="max-h-96 min-h-28 resize-y"
+                        value={answer}
+                        maxLength={FAQ_ANSWER_MAX_LENGTH}
+                        onChange={(event) => {
+                          setAnswer(event.target.value);
+                          setAnswerLimitHit(false);
+                        }}
+                        {...limitAttemptHandlers<HTMLTextAreaElement>(
+                          FAQ_ANSWER_MAX_LENGTH,
+                          () => setAnswerLimitHit(true),
+                        )}
+                        onBlur={() => {
+                          setAnswerTouched(true);
+                          setAnswerLimitHit(false);
+                        }}
+                        aria-invalid={Boolean(answerProblem)}
+                      />
+                      <div className="flex items-center justify-between gap-2">
+                        {answerProblem ? (
+                          <p className="text-xs text-destructive">
+                            {answerProblem}
+                          </p>
+                        ) : (
+                          <span />
+                        )}
+                        <span
+                          className={cn(
+                            "text-xs text-muted-foreground",
+                            answer.length >= FAQ_ANSWER_MAX_LENGTH &&
+                              "text-destructive",
+                          )}
+                        >
+                          {answer.length.toLocaleString()} /{" "}
+                          {FAQ_ANSWER_MAX_LENGTH.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
                 ) : (
-                  <p className="text-xs text-muted-foreground">
-                    Changing it reads the page again.
-                  </p>
+                  <div className="flex flex-col gap-4 rounded-xl border bg-muted/30 p-4 text-sm">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Question</p>
+                      <p className="mt-1 font-medium whitespace-pre-wrap">
+                        {item.question}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Answer</p>
+                      <p className="mt-1 whitespace-pre-wrap">{item.answer}</p>
+                    </div>
+                  </div>
                 )}
               </section>
-            ) : (
-              item.url && (
-                <SourceLink
-                  label="Page"
-                  href={item.url}
-                  text={item.url}
-                  action="Open Page"
-                />
-              )
-            ))}
+            )}
 
-          {item.source === "file" && item.fileUrl && (
-            <SourceLink
-              label="Document"
-              href={item.fileUrl}
-              text={item.fileName || item.title}
-              action="View Document"
-            />
-          )}
+            {item.source === "url" &&
+              (editing ? (
+                <section className="flex flex-col gap-2">
+                  <h2 className="text-sm font-semibold">Page Address</h2>
+                  <Input
+                    value={url}
+                    autoComplete="off"
+                    aria-label="Page address"
+                    onChange={(event) => setUrl(event.target.value)}
+                    aria-invalid={showErrors && !isValidWebsiteUrl(url)}
+                  />
+                  {showErrors && !isValidWebsiteUrl(url) ? (
+                    <p className="text-xs text-destructive">
+                      Enter a valid page address
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      Changing it reads the page again.
+                    </p>
+                  )}
+                </section>
+              ) : (
+                item.url && (
+                  <SourceLink
+                    label="Page"
+                    href={item.url}
+                    text={item.url}
+                    action="Open Page"
+                  />
+                )
+              ))}
+
+            {item.source === "file" && item.fileUrl && (
+              <SourceLink
+                label="Document"
+                href={item.fileUrl}
+                text={item.fileName || item.title}
+                action="View Document"
+              />
+            )}
+          </fieldset>
         </main>
 
         {!belowLg && (

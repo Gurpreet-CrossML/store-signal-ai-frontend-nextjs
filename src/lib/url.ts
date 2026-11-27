@@ -59,7 +59,7 @@ export function isSafeHttpUrl(value: string): boolean {
 }
 
 /** Takes the spaces and tabs out of typed text. Addresses never contain them;
- * several are told apart by a new line (or a comma). */
+ * several are told apart by a new line. */
 export function stripUrlSpaces(value: string): string {
   return value.replace(/[^\S\r\n]+/g, "");
 }
@@ -106,14 +106,15 @@ export type ParsedUrlList = {
   duplicates: string[];
 };
 
-/** Splits the field into addresses: one per line, or comma-separated. */
+/** Splits the field into addresses: one per line. A comma or semicolon is part
+ * of the address ("…?cid=1,2"), not a separator. */
 export function parseUrlList(text: string): ParsedUrlList {
   const urls: string[] = [];
   const invalid: string[] = [];
   const duplicates: string[] = [];
   const seen = new Map<string, string>();
 
-  for (const piece of text.split(/[\r\n,;]+/)) {
+  for (const piece of text.split(/[\r\n]+/)) {
     const token = piece.trim();
     if (!token) continue;
     if (

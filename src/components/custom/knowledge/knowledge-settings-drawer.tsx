@@ -19,10 +19,13 @@ import { cn } from "@/lib/utils";
  */
 export function KnowledgeSettingsButton({
   invalid = false,
+  disabled = false,
   onClick,
 }: {
   /** Something in the panel needs fixing; the icon turns red. */
   invalid?: boolean;
+  /** Off while the page is saving. */
+  disabled?: boolean;
   onClick: () => void;
 }) {
   return (
@@ -30,6 +33,7 @@ export function KnowledgeSettingsButton({
       type="button"
       variant="outline"
       size="sm"
+      disabled={disabled}
       className={cn(
         invalid && "border-destructive text-destructive hover:text-destructive",
       )}
