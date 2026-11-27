@@ -14,7 +14,7 @@ import type { Permission } from "@/lib/tenant-types";
 import { isSessionActive } from "@/lib/session-verify";
 import {
   decodeQuery,
-  encodeResponse,
+  encodeData,
   InvalidToken,
   toRawId,
 } from "@/lib/public-ids";
@@ -84,7 +84,7 @@ export function withTenantRoute(
       return res.status(404).json(createAPIResponse(false, "Not found.", null));
     }
     const json = res.json.bind(res);
-    res.json = (body) => json(encodeResponse(req.url ?? "", body));
+    res.json = (body) => json(encodeData(body));
 
     // Central backstop: any error escaping the handler (or the tenant
     // transaction) is logged server-side and returned as a generic 500 — never

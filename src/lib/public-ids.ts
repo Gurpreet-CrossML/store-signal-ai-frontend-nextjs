@@ -6,60 +6,79 @@ import {
 } from "node:crypto";
 
 /**
- * Encrypted public ids — this app's half of the backend's `core/public_ids.py`,
- * and it must stay in step with it.
+ * Public ids: this app's half of the backend's `core/public_ids.py`. Both
+ * follow the same rules and make the same tokens; change them together.
  *
- * No API caller sees a database id: every record id travels as an encrypted
- * token, `id_…`. Django swaps them at its boundary (PublicIdMiddleware); this
- * module does the same for this app's own boundary: the `/api` routes
- * (`withTenantRoute`), the page URLs (`proxy.ts`) and the session.
+ * Out (`/api` responses): the value of an id key becomes a token, `id_…`,
+ * when it is an integer or a uuid. An id key is `id`, any key ending in `_id`
+ * or `_ids`, and the relation names in `RELATIONS`. Under JSON columns
+ * (`JSON_KEYS`) the data is the shops' own, so only `JSON_ID_KEYS` there are
+ * ours.
  *
- * A token is `id_<base64url(IV + ciphertext + tag)>`: the text
- * `"<model label>:<id>"` (e.g. `"support.SupportTicket:31"`) encrypted with
- * AES-256-GCM under URL_ID_KEY. Without the key it cannot be read or forged,
- * and the record type sealed inside it stops a ticket's token from being used
- * as a customer's id.
+ * In (`/api` query and path params, page URLs): every token becomes the id
+ * again. Real ids are still accepted.
  *
- * The model labels must be Django's (`app.Model`), so a record gets the same
- * token from this app as from Django. `NAMES` lists the id keys this app's
- * routes return or read; add one when a route starts returning a new id key.
- *
- * Server only: URL_ID_KEY must never reach the browser.
+ * A token is `id_<base64url(IV + ciphertext + tag)>`: the id encrypted with
+ * AES-256-GCM under URL_ID_KEY; the IV comes from the id, so one id always
+ * gives the same token. Server only: URL_ID_KEY must never reach the browser.
  */
 
 /**
- * The id keys this app's `/api` routes return or read: key -> [model label,
- * holds many records]. Keys whose model depends on the route are in `ROUTES`.
+ * Relation names (keys with no `id` in them) this app's routes return: key ->
+ * [holds a list of ids, the kind of id]. A to-many name holds a list
+ * ("tickets": 5 is a count), and a key holds only its kind of id (our
+ * products have uuids, so a number under `product_id` is the shop's).
  */
-const NAMES: Record<string, [string, boolean]> = {
-  customer: ["chat.Customer", false],
-  chat_handler_user: ["auth.User", false],
-  store: ["store.Store", false],
-  thread: ["chat.Thread", false],
-  thread_id: ["chat.Thread", false],
-  before_thread_id: ["chat.Thread", false],
-  // A handover's anchor message (thread details' handler_events).
-  after_message_id: ["chat.ChatHistory", false],
-  // Thread details' handovers; the live socket's `assignment.id` is the same
-  // record's token, which the support screen matches against.
-  handler_events: ["chat.ThreadAssignment", true],
-  // Catalogue products inside a chat message's json_content. Only our own
-  // products (uuid keys) are ids: the shop's numbers there are left as is.
-  products: ["products.Product", true],
-  related_products: ["products.Product", true],
-  product_id: ["products.Product", false],
-  tags: ["support.TicketTag", true],
-  preset: ["core.TonePreset", false],
-  word_replacements: ["chat.WordReplacement", true],
+const RELATIONS: Record<string, [boolean, "int" | "uuid"]> = {
+  customer: [false, "int"],
+  store: [false, "int"],
+  thread: [false, "uuid"],
+  thread_id: [false, "uuid"],
+  before_thread_id: [false, "uuid"],
+  product_id: [false, "uuid"],
+  chat_handler_user: [false, "int"],
+  preset: [false, "int"],
+  category: [false, "int"],
+  tags: [true, "int"],
+  word_replacements: [true, "int"],
+  products: [true, "uuid"],
+  related_products: [true, "uuid"],
 };
 
-const TOKEN_RE = /^id_([A-Za-z0-9_-]{40,400})$/;
+/** Id-looking keys that hold other things (with any key with "external"). */
+const NOT_ID_KEYS = new Set(["variant_id", "order"]);
+
+/** JSON column names: the shops' own data, so only `JSON_ID_KEYS` in them. */
+const JSON_KEYS = new Set([
+  "metadata",
+  "json_content",
+  "billing_address",
+  "shipping_address",
+  "shipping_lines",
+  "fulfillments",
+  "refunds",
+  "line_items",
+  "discount_codes",
+  "note_attributes",
+  "payment_details",
+  "raw_data",
+  "initial_cart_data",
+  "updated_cart_data",
+  "viewed_products",
+]);
+
+/** Our ids inside JSON columns: one id, or records whose `id` is ours. */
+const JSON_ID_KEYS: Record<string, "one" | "records"> = {
+  knowledge_id: "one",
+  similar_tickets: "records",
+};
+
+const TOKEN_RE = /^id_[A-Za-z0-9_-]{40,400}$/;
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-/** Authenticated with every token (same as the backend's AAD). */
+/** A handover's chat marker id: "<assignment id>-joined". */
+const MARKER_ID_RE = /^(\d+)-([a-z_]+)$/;
 const AAD = Buffer.from("store-signal-public-id");
-/** How deep the walk goes into nested data before leaving the rest as is. */
-const MAX_DEPTH = 12;
 
 const keys = () => {
   const secret = process.env.URL_ID_KEY;
@@ -70,38 +89,24 @@ const keys = () => {
   };
 };
 
-/**
- * Models whose primary key is a uuid; every other model's is an integer
- * (the backend's `pk_kind`). Keep in step with the models.
- */
-const UUID_KEYS = new Set(["chat.Thread", "products.Product"]);
+/** Whether a value can be an id of that kind (either kind when undefined). */
+const isIdValue = (value: unknown, kind?: "int" | "uuid") =>
+  (typeof value === "number" && Number.isInteger(value) && kind !== "uuid") ||
+  (typeof value === "string" && UUID_RE.test(value) && kind !== "int");
 
-/**
- * Whether a value has the shape of that model's primary key (the backend's
- * `is_id`): so a shop's product number under `product_id`, a name or a count
- * is never taken for one of our ids.
- */
-const isIdOf = (label: string, value: unknown) =>
-  UUID_KEYS.has(label)
-    ? typeof value === "string" && UUID_RE.test(value)
-    : typeof value === "number" && Number.isInteger(value);
-
-/**
- * The token for a record id. The IV is an HMAC of the plaintext, so one id
- * always gives the same token. A value that is not an id of that model (null,
- * a name, a count) is returned as is.
- */
-export function encode<T>(label: string, value: T): T | string {
-  if (!isIdOf(label, value)) return value;
+/** The token for an id (an integer or a uuid); anything else as is. */
+export function encode<T>(value: T): T | string {
+  if (!isIdValue(value)) return value;
+  const text = Buffer.from(
+    typeof value === "number"
+      ? `i:${value}`
+      : `u:${String(value).toLowerCase()}`,
+  );
   const key = keys();
-  const plaintext = Buffer.from(`${label}:${String(value)}`);
-  const iv = createHmac("sha256", key.iv)
-    .update(plaintext)
-    .digest()
-    .subarray(0, 12);
+  const iv = createHmac("sha256", key.iv).update(text).digest().subarray(0, 12);
   const cipher = createCipheriv("aes-256-gcm", key.enc, iv);
   cipher.setAAD(AAD);
-  const data = Buffer.concat([cipher.update(plaintext), cipher.final()]);
+  const data = Buffer.concat([cipher.update(text), cipher.final()]);
   const body = Buffer.concat([iv, data, cipher.getAuthTag()]);
   return `id_${body.toString("base64url")}`;
 }
@@ -110,20 +115,11 @@ export function encode<T>(label: string, value: T): T | string {
 export const isToken = (value: unknown): value is string =>
   typeof value === "string" && TOKEN_RE.test(value);
 
-/**
- * The record inside a token: its model label and id (a number for integer
- * keys, a string for the rest). Null when the token is malformed, tampered
- * with or made with another key.
- */
-export function decode(
-  token: string,
-): { label: string; id: number | string } | null {
-  const match = TOKEN_RE.exec(token);
-  if (!match) return null;
-  const data = Buffer.from(match[1], "base64url");
-  // Strict: re-encoding must give the same text, so each id has one token.
-  if (data.toString("base64url") !== match[1] || data.length < 29) return null;
-  let plaintext: string;
+/** The id inside a token (a number or a uuid), or null when it is not ours. */
+export function decode(token: string): number | string | null {
+  if (!isToken(token)) return null;
+  const data = Buffer.from(token.slice(3), "base64url");
+  if (data.length < 29) return null;
   try {
     const decipher = createDecipheriv(
       "aes-256-gcm",
@@ -132,55 +128,31 @@ export function decode(
     );
     decipher.setAAD(AAD);
     decipher.setAuthTag(data.subarray(-16));
-    plaintext = Buffer.concat([
+    const text = Buffer.concat([
       decipher.update(data.subarray(12, -16)),
       decipher.final(),
     ]).toString();
+    return text.startsWith("i:") ? Number(text.slice(2)) : text.slice(2);
   } catch {
     return null;
   }
-  const split = plaintext.indexOf(":");
-  const label = plaintext.slice(0, split);
-  const raw = plaintext.slice(split + 1);
-  if (split < 1) return null;
-  // Integer keys come back as numbers, uuids as strings (as in Django).
-  if (/^\d+$/.test(raw)) return { label, id: Number(raw) };
-  return UUID_RE.test(raw) ? { label, id: raw } : null;
 }
 
-/** Whether a string is a valid token of that model. */
-export const isTokenOf = (label: string, value: string) =>
-  decode(value)?.label === label;
-
-/** The real id behind a token, or the value itself when it is not one. */
+/** The id behind a token, or the value itself when it is not one. */
 export const toRawId = (value: unknown) =>
-  isToken(value) ? (decode(value)?.id ?? value) : value;
+  isToken(value) ? (decode(value) ?? value) : value;
 
 export class InvalidToken extends Error {}
 
-/** The model a key or parameter name holds ids of, when it says so. */
-const expectedLabel = (name: string) => NAMES[name]?.[0];
-
-/**
- * A query value or path parameter (or a comma-separated list of them) with
- * each token replaced by its id, checked to be of the model `name` holds. A
- * real id where a token belongs is refused like a bad token: only for models
- * with uuid keys (a thread), since a number there may be other data.
- */
-function decodeText(value: string, name: string): string {
-  const expected = expectedLabel(name);
+/** A text value (or a comma-separated list) with each token as its id. */
+function decodeText(value: string): string {
   return value
     .split(",")
     .map((part) => {
-      if (expected && UUID_KEYS.has(expected) && UUID_RE.test(part)) {
-        throw new InvalidToken(part);
-      }
-      if (!TOKEN_RE.test(part)) return part;
-      const decoded = decode(part);
-      if (!decoded || (expected && decoded.label !== expected)) {
-        throw new InvalidToken(part);
-      }
-      return String(decoded.id);
+      if (!isToken(part)) return part;
+      const id = decode(part);
+      if (id === null) throw new InvalidToken(part);
+      return String(id);
     })
     .join(",");
 }
@@ -192,188 +164,120 @@ export function decodeQuery(
   const out: Partial<Record<string, string | string[]>> = {};
   for (const [key, value] of Object.entries(query)) {
     out[key] = Array.isArray(value)
-      ? value.map((v) => decodeText(v, key))
+      ? value.map(decodeText)
       : value === undefined
         ? value
-        : decodeText(value, key);
+        : decodeText(value);
   }
   return out;
 }
 
-type Json = unknown;
-/** Key -> model label, for names a route's data uses that the models cannot tell. */
-type KeyHints = Record<string, string>;
+/** Whether a key's value is one of our ids (a list of them, to-many). */
+function isId(key: string, value: unknown): boolean {
+  if (NOT_ID_KEYS.has(key) || key.includes("external")) return false;
+  let many: boolean;
+  let kind: "int" | "uuid" | undefined;
+  if (RELATIONS[key]) [many, kind] = RELATIONS[key];
+  else if (key === "id" || key.endsWith("_id")) many = false;
+  else if (key.endsWith("_ids")) many = true;
+  else return false;
+  return many
+    ? Array.isArray(value) && value.every((x) => isIdValue(x, kind))
+    : isIdValue(value, kind);
+}
 
-/**
- * Encode the ids in a payload, found from the relation names (the mirror of
- * the backend's `walk_plain`): a record's `id` when its model is known (from
- * its key, a route hint, or `ownLabel`), a single id under a singular
- * relation name, a list of ids under a to-many one.
- */
-function walk(
-  value: Json,
-  key: string | null,
-  depth: number,
-  hints: KeyHints,
-  ownLabel?: string,
-): Json {
-  if (depth > MAX_DEPTH) return value;
-  if (Array.isArray(value)) {
-    return value.map((v) => walk(v, key, depth + 1, hints, ownLabel));
-  }
+/** A JSON column's content with only `JSON_ID_KEYS` encoded. */
+function encodeJson(value: unknown, key?: string): unknown {
+  if (Array.isArray(value)) return value.map((v) => encodeJson(v, key));
   if (!value || typeof value !== "object") return value;
-  const label =
-    ownLabel ?? (key ? (hints[key] ?? expectedLabel(key)) : undefined);
-  const out: Record<string, Json> = {};
-  for (const [k, v] of Object.entries(value as Record<string, Json>)) {
-    const relation = hints[k] ? undefined : NAMES[k];
-    if (k === "id" && label) {
-      out[k] = encode(label, v);
-    } else if (relation && (v === null || typeof v !== "object")) {
-      // A single id, e.g. "customer": 5 — never under a to-many name
-      // ("tickets": 5 is a count, not an id).
-      out[k] = relation[1] ? v : encode(relation[0], v);
-    } else if (
-      relation?.[1] &&
-      Array.isArray(v) &&
-      v.every((x) => x === null || typeof x !== "object")
-    ) {
-      out[k] = v.map((x) => encode(relation[0], x)); // "tags": [1, 2]
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(value)) {
+    const ours =
+      (k === "id" && key !== undefined && JSON_ID_KEYS[key] === "records") ||
+      JSON_ID_KEYS[k] === "one";
+    out[k] = ours ? encode(v) : encodeJson(v, k);
+  }
+  return out;
+}
+
+/** A response body with every id as a token. */
+export function encodeData(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(encodeData);
+  if (!value || typeof value !== "object") return value;
+  const record = value as Record<string, unknown>;
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(record)) {
+    const marker =
+      k === "id" && typeof v === "string" ? MARKER_ID_RE.exec(v) : null;
+    if (marker && record.type === "handler_event") {
+      out[k] = `${encode(Number(marker[1]))}-${marker[2]}`;
+    } else if (JSON_KEYS.has(k)) {
+      out[k] = encodeJson(v);
+    } else if (isId(k, v)) {
+      out[k] = Array.isArray(v) ? v.map(encode) : encode(v);
     } else {
-      out[k] = walk(v, k, depth + 1, hints);
+      out[k] = encodeData(v);
     }
   }
   return out;
 }
 
-/**
- * The records each `/api` route returns (its `data`, each item of a `data`
- * list, or of `data.results`), and the hints for the ambiguous key names in
- * them — the mirror of what Django's views and serializers tell its
- * middleware.
- */
-const ROUTES: [RegExp, { record?: string; hints?: KeyHints }][] = [
-  [/^\/api\/analytics\/chat-history\/?$/, { record: "chat.ChatHistory" }],
-  [/^\/api\/analytics\/threads\/?$/, { record: "chat.Thread" }],
-  [/^\/api\/analytics\/threads\/tags\/?$/, { record: "support.TicketTag" }],
-  [
-    /^\/api\/analytics\/threads\/[^/]+\/?$/,
-    { record: "chat.Thread", hints: { messages: "chat.ChatHistory" } },
-  ],
-  [
-    /^\/api\/analytics\/threads\/[^/]+\/order-data\/?$/,
-    { record: "chat.CustomerOrder" },
-  ],
-  [
-    /^\/api\/analytics\/threads\/[^/]+\/user-metadata\/?$/,
-    { record: "analytics.UserMetadata" },
-  ],
-  [
-    /^\/api\/analytics\/threads\/[^/]+\/ai-insights\/?$/,
-    { record: "analytics.AiInsights" },
-  ],
-  [
-    /^\/api\/analytics\/threads\/[^/]+\/feedback-sequence\/?$/,
-    { hints: { feedback: "chat.ChatbotFeedback" } },
-  ],
-  [
-    /^\/api\/support\/threads\/[^/]+\/tickets\/?$/,
-    { record: "support.SupportTicket" },
-  ],
-  [/^\/api\/store\/list\/?$/, { record: "store.Store" }],
-  [/^\/api\/chat\/tone-presets\/?$/, { record: "core.TonePreset" }],
-  [/^\/api\/chat\/vocabulary-presets\/?$/, { record: "core.VocabularyPreset" }],
-  [
-    /^\/api\/chat\/never-say-rules-presets\/?$/,
-    { record: "core.NeverSayRulesPreset" },
-  ],
-  [/^\/api\/chat\/vocabulary\/?$/, { record: "chat.Vocabulary" }],
-  [/^\/api\/chat\/tone-style\/?$/, { record: "chat.ToneStyle" }],
-  [/^\/api\/chat\/persona-identity\/?$/, { record: "chat.PersonaIdentity" }],
-  [/^\/api\/chat\/never-say-rules\/?$/, { record: "chat.NeverSayRules" }],
-  [
-    /^\/api\/integrations\/?$/,
-    {
-      record: "core.Integration",
-      hints: { category: "core.IntegrationCategory" },
-    },
-  ],
+/** Page routes whose path carries a record id. */
+const PAGE_PATHS = [
+  /^\/crm\/customers\/([^/]+)/,
+  /^\/crm\/orders\/([^/]+)/,
+  /^\/threads\/([^/]+)/,
+  /^\/knowledge\/(?:items|articles)\/([^/]+)/,
+  /^\/campaign\/campaigns\/([^/]+)/,
+  /^\/campaign\/segments\/([^/]+)/,
+  /^\/campaign\/email-templates\/([^/]+)/,
+  /^\/campaign\/whatsapp-templates\/([^/]+)/,
 ];
-
-/** An `/api` route's response body with every record id as a token. */
-export function encodeResponse(path: string, body: Json): Json {
-  const pathname = path.split("?")[0];
-  const route = ROUTES.find(([re]) => re.test(pathname))?.[1] ?? {};
-  const hints = route.hints ?? {};
-  if (!body || typeof body !== "object" || !("data" in body)) {
-    return walk(body, null, 0, hints);
-  }
-  const { data, ...rest } = body as { data: Json };
-  const record = route.record;
-  let encoded: Json;
-  if (
-    data &&
-    typeof data === "object" &&
-    !Array.isArray(data) &&
-    Array.isArray((data as { results?: unknown }).results)
-  ) {
-    // A page: {count, …, results: […]}.
-    const page = walk(data, null, 1, hints) as Record<string, Json>;
-    page.results = walk(
-      (data as { results: Json }).results,
-      null,
-      1,
-      hints,
-      record,
-    );
-    encoded = page;
-  } else {
-    encoded = walk(data, null, 1, hints, record);
-  }
-  return { ...(walk(rest, null, 0, hints) as object), data: encoded };
-}
-
-/** Page routes whose path carries a record's token: pattern -> its model. */
-const PAGE_PATHS: [RegExp, string][] = [
-  [/^\/crm\/customers\/([^/]+)/, "chat.Customer"],
-  [/^\/crm\/orders\/([^/]+)/, "chat.CustomerOrder"],
-  [/^\/threads\/([^/]+)/, "chat.Thread"],
-  [/^\/knowledge\/(?:items|articles)\/([^/]+)/, "knowledge.KnowledgeItem"],
-  [/^\/campaign\/campaigns\/([^/]+)/, "campaign.Campaign"],
-  [/^\/campaign\/segments\/([^/]+)/, "campaign.Segment"],
-  [/^\/campaign\/email-templates\/([^/]+)/, "campaign.EmailTemplate"],
-  [/^\/campaign\/whatsapp-templates\/([^/]+)/, "campaign.WhatsAppTemplate"],
-];
-/** Page query params that carry a record's token: page -> param -> model. */
-const PAGE_PARAMS: Record<string, Record<string, string>> = {
-  "/helpdesk": { ticket: "support.SupportTicket" },
-  "/support": { chat: "chat.Thread" },
-  "/crm/orders": { customer: "chat.Customer" },
-  "/threads": { before_thread_id: "chat.Thread" },
+/** Page query params that carry a record id: page -> params. */
+const PAGE_PARAMS: Record<string, string[]> = {
+  "/helpdesk": ["ticket"],
+  "/support": ["chat"],
+  "/crm/orders": ["customer"],
+  "/threads": ["before_thread_id"],
 };
-/** Segments under those prefixes that are pages of their own, not records. */
-const NOT_RECORDS = new Set(["new", "create"]);
+
+/** Whether URL text is a real id: digits or a uuid. */
+const isRawId = (text: string) => /^\d+$/.test(text) || UUID_RE.test(text);
+/** URL text as an id: digits are a number, a uuid stays text. */
+const toId = (text: string) => (/^\d+$/.test(text) ? Number(text) : text);
 
 /**
- * How a page URL's record tokens check out: `"ok"`, `"not-found"` when the
- * path's record is not a valid token of its model (a raw id included), or the
- * query params to drop because they are not.
+ * How a page URL's ids check out: `"ok"`; `"not-found"` when its path holds a
+ * token that is not ours; or the URL to send the browser to instead, with its
+ * real ids (e.g. from an email link) swapped for tokens and its bad tokens in
+ * query params dropped.
  */
 export function checkPageUrl(
   pathname: string,
   params: URLSearchParams,
-): "ok" | "not-found" | { drop: string[] } {
-  for (const [re, label] of PAGE_PATHS) {
+): "ok" | "not-found" | { redirect: string } {
+  let path = pathname;
+  for (const re of PAGE_PATHS) {
     const segment = re.exec(pathname)?.[1];
-    if (segment === undefined || NOT_RECORDS.has(segment)) continue;
-    if (!isTokenOf(label, decodeURIComponent(segment))) return "not-found";
+    if (segment === undefined) continue;
+    const value = decodeURIComponent(segment);
+    if (isToken(value)) {
+      if (decode(value) === null) return "not-found";
+    } else if (isRawId(value)) {
+      path = path.replace(segment, String(encode(toId(value))));
+    }
   }
-  const page = pathname.replace(/\/+$/, "") || "/";
-  const drop = Object.entries(PAGE_PARAMS[page] ?? {})
-    .filter(([param, label]) => {
-      const value = params.get(param);
-      return value !== null && !isTokenOf(label, value);
-    })
-    .map(([param]) => param);
-  return drop.length ? { drop } : "ok";
+  const query = new URLSearchParams(params);
+  for (const param of PAGE_PARAMS[pathname.replace(/\/+$/, "") || "/"] ?? []) {
+    const value = params.get(param);
+    if (value === null) continue;
+    if (isToken(value)) {
+      if (decode(value) === null) query.delete(param);
+    } else if (isRawId(value)) {
+      query.set(param, String(encode(toId(value))));
+    }
+  }
+  const search = query.toString();
+  if (path === pathname && search === params.toString()) return "ok";
+  return { redirect: search ? `${path}?${search}` : path };
 }

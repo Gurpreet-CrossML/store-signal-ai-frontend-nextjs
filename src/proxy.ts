@@ -67,17 +67,15 @@ export async function proxy(req: NextRequest) {
     return NextResponse.redirect(new URL("/", req.url));
   }
 
-  // Record ids in page URLs are tokens (lib/public-ids). A path whose record
-  // is not one — a raw id, a tampered token — is not found; a query param
-  // that is not one is dropped, so the page opens as it would without it.
+  // Record ids in page URLs are tokens (lib/public-ids): a real id (an email
+  // link's) is swapped for its token, a tampered token in the path is not
+  // found, and one in a query param is dropped.
   const ids = checkPageUrl(pathname, req.nextUrl.searchParams);
   if (ids === "not-found") {
     return NextResponse.rewrite(new URL("/_not-found", req.url));
   }
   if (ids !== "ok") {
-    const url = req.nextUrl.clone();
-    ids.drop.forEach((param) => url.searchParams.delete(param));
-    return NextResponse.redirect(url);
+    return NextResponse.redirect(new URL(ids.redirect, req.url));
   }
 
   // Otherwise, allow the request to continue
