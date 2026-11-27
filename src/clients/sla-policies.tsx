@@ -45,7 +45,6 @@ import {
 
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { serverFieldErrors } from "@/lib/form-errors";
-import { cn } from "@/lib/utils";
 import {
   SLA_MAX_TARGET_MINUTES,
   maxForUnit,
@@ -614,14 +613,7 @@ export default function SlaPolicies() {
                         Add at least one. Each can be up to 30 days.
                       </p>
                     </div>
-                    <div
-                      className={cn(
-                        "space-y-4 rounded-md border p-3",
-                        fieldErrors.targets &&
-                          submitted &&
-                          "border-destructive",
-                      )}
-                    >
+                    <div className="space-y-4 rounded-md border p-3">
                       {TARGET_INPUTS.map((input) => (
                         <div key={input.value} className="space-y-2">
                           <Label htmlFor={input.value}>{input.label}</Label>
