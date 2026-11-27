@@ -9,6 +9,7 @@ import {
   IconPencil,
 } from "@tabler/icons-react";
 
+import { CategoryCoverageChip } from "@/components/custom/knowledge/category-coverage-chip";
 import { getKnowledgeCategoryIcon } from "@/components/custom/knowledge/knowledge-meta";
 import type { KnowledgeCategoryIcon } from "@/components/custom/knowledge/knowledge-meta";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -28,6 +29,7 @@ import type {
   KnowledgeCategories,
   KnowledgeSourceCounts,
 } from "@/redux/api-slice/knowledge-rag-slice";
+import { useAppSelector } from "@/redux/hooks";
 
 /** "2 drafts", or "1 draft". */
 function draftCountLabel(count: number) {
@@ -112,6 +114,7 @@ function CategoryCard({
   draftCount,
   failedCount,
   sourceCounts,
+  coverage,
   dashed = false,
 }: {
   href: string;
@@ -125,6 +128,8 @@ function CategoryCard({
   failedCount: number;
   /** Of `count`, how many of each kind. */
   sourceCounts: KnowledgeSourceCounts;
+  /** How well the knowledge answers customers here; left out until known. */
+  coverage?: React.ReactNode;
   /** A dashed outline sets the card apart from the real categories. */
   dashed?: boolean;
 }) {
@@ -164,6 +169,7 @@ function CategoryCard({
         )}
         {/* What kinds of knowledge are in it. */}
         {count > 0 && <SourceCounts counts={sourceCounts} />}
+        {coverage}
         {/* What needs the user's attention, once there is something. */}
         {(failedCount > 0 || draftCount > 0) && (
           <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-medium">
@@ -198,6 +204,14 @@ export function KnowledgeCategoriesGrid({
   data: KnowledgeCategories | null;
   isLoading: boolean;
 }) {
+  // The coverage the KB Coverage card loaded for its period; each card shows
+  // its own category's share once that is known.
+  const { FetchAnswerCoverageData: coverage } = useAppSelector(
+    (state) => state.GetKnowledgeTestAiReducer.FetchAnswerCoverageState,
+  );
+  const coverageOf = (slug: string) =>
+    coverage?.categories.find((entry) => entry.slug === slug);
+
   if (!data) {
     return isLoading ? (
       <div className={GRID_CLASS} aria-busy="true">
@@ -233,9 +247,18 @@ export function KnowledgeCategoriesGrid({
           draftCount={category.draft_count}
           failedCount={category.failed_count}
           sourceCounts={category.source_counts}
+          coverage={
+            coverage && (
+              <CategoryCoverageChip
+                entry={coverageOf(category.slug)}
+                hasKnowledge={category.count > 0}
+              />
+            )
+          }
         />
       ))}
-      {data.uncategorized_count > 0 && (
+      {/* Also when only customer questions have no category, so those gaps show. */}
+      {(data.uncategorized_count > 0 || coverage?.uncategorized) && (
         <CategoryCard
           href={`/knowledge/categories/${KNOWLEDGE_UNCATEGORIZED_ROUTE}`}
           icon={UNCATEGORIZED_ICON}
@@ -245,6 +268,9 @@ export function KnowledgeCategoriesGrid({
           draftCount={data.uncategorized_draft_count}
           failedCount={data.uncategorized_failed_count}
           sourceCounts={data.uncategorized_source_counts}
+          coverage={
+            coverage && <CategoryCoverageChip entry={coverage.uncategorized} />
+          }
           dashed
         />
       )}

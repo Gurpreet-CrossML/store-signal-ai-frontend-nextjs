@@ -1,11 +1,7 @@
 "use client";
 
 import { type ColumnDef } from "@tanstack/react-table";
-import {
-  IconMail,
-  IconMessage,
-  IconRosetteDiscountCheck,
-} from "@tabler/icons-react";
+import { IconRosetteDiscountCheck } from "@tabler/icons-react";
 
 import { Badge } from "@/components/ui/badge";
 import {
@@ -16,7 +12,6 @@ import {
 import { Typography } from "@/components/ui/typography";
 import { CustomerAvatar } from "@/components/custom/customer-avatar";
 import { CustomerSegmentBadge } from "@/components/custom/customer-segment-badge";
-import { BADGE_TONE_STYLES } from "@/lib/badge-tones";
 import {
   customerLocation,
   customerOrderCount,
@@ -32,52 +27,6 @@ export function customerDisplayName(customer: CustomerRecord) {
   const full =
     `${customer.first_name ?? ""} ${customer.last_name ?? ""}`.trim();
   return full || customer.email || "Guest";
-}
-
-/**
- * Consent as two marks rather than one "Subscribed" pill: email and SMS are
- * separate permissions, and a store that can email but not text a customer
- * needs to see that at a glance before starting a campaign.
- */
-function ConsentMarks({ customer }: { customer: CustomerRecord }) {
-  const channels = [
-    {
-      key: "email",
-      icon: IconMail,
-      granted: customer.accepts_email_marketing,
-      label: "Email Marketing",
-    },
-    {
-      key: "sms",
-      icon: IconMessage,
-      granted: customer.accepts_sms_marketing,
-      label: "SMS Marketing",
-    },
-  ];
-
-  return (
-    <div className="flex items-center gap-1.5">
-      {channels.map((channel) => (
-        <Tooltip key={channel.key}>
-          <TooltipTrigger asChild>
-            <span
-              className={cn(
-                "flex size-6 items-center justify-center rounded-md border",
-                channel.granted
-                  ? BADGE_TONE_STYLES.success
-                  : "border-border text-muted-foreground/50",
-              )}
-            >
-              <channel.icon className="size-3.5" />
-            </span>
-          </TooltipTrigger>
-          <TooltipContent>
-            {channel.label}: {channel.granted ? "Opted In" : "Not Opted In"}
-          </TooltipContent>
-        </Tooltip>
-      ))}
-    </div>
-  );
 }
 
 export function getCustomerColumns(): ColumnDef<CustomerRecord>[] {
@@ -156,11 +105,6 @@ export function getCustomerColumns(): ColumnDef<CustomerRecord>[] {
           <Typography variant="muted">—</Typography>
         );
       },
-    },
-    {
-      id: "consent",
-      header: "Marketing",
-      cell: ({ row }) => <ConsentMarks customer={row.original} />,
     },
     {
       accessorKey: "orders_count",

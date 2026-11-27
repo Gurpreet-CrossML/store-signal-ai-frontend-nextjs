@@ -11,8 +11,10 @@ import {
 } from "@tabler/icons-react";
 
 import { AskQuestionButton } from "@/components/custom/knowledge/test-ai/ask-question-button";
+import { LoadingState } from "@/components/custom/loading-state";
 import { QuestionsDataTablePagination } from "@/components/custom/knowledge/test-ai/questions-data-table-pagination";
 import { QuestionsSearchInput } from "@/components/custom/knowledge/test-ai/questions-search-input";
+import { TestCoverageCard } from "@/components/custom/knowledge/test-ai/test-coverage-card";
 import { getKnowledgeCategoryIcon } from "@/components/custom/knowledge/knowledge-meta";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,7 +33,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -203,6 +204,7 @@ export function TestQuestionsTab({
 
   return (
     <div className="flex flex-col gap-3">
+      <TestCoverageCard />
       <div className="flex flex-wrap items-center gap-2">
         <div className="min-w-48 flex-1">
           <QuestionsSearchInput
@@ -273,7 +275,7 @@ export function TestQuestionsTab({
       </div>
 
       {isLoading ? (
-        <Skeleton className="h-64 rounded-lg" />
+        <LoadingState label="Loading questions…" />
       ) : items.length === 0 ? (
         <Empty className="rounded-lg border">
           <EmptyHeader>

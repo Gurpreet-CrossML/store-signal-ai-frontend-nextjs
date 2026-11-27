@@ -14,6 +14,8 @@ import {
   resolveDashboardRange,
   type DashboardFilterState,
 } from "@/components/custom/dashboard-filters";
+import { LoadingState } from "@/components/custom/loading-state";
+import { useUnansweredQuestionList } from "@/components/custom/knowledge/test-ai/use-unanswered-question-list";
 import { QuestionsDataTablePagination } from "@/components/custom/knowledge/test-ai/questions-data-table-pagination";
 import { QuestionsSearchInput } from "@/components/custom/knowledge/test-ai/questions-search-input";
 import { AskQuestionButton } from "@/components/custom/knowledge/test-ai/ask-question-button";
@@ -25,7 +27,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -34,13 +35,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useDebounce } from "@/hooks/use-debounce";
 import { useIsBelowLg } from "@/hooks/use-narrow-viewport";
-import { KNOWLEDGE_UNANSWERED_PAGE_SIZE } from "@/lib/config";
 import { formatDateTime, getThreadHref } from "@/lib/helpers";
 import { cn } from "@/lib/utils";
 import {
-  FetchUnansweredQuestions,
   FetchUnansweredWorkflows,
   ResetUnansweredQuestions,
   type UnansweredWorkflow,
@@ -74,13 +72,7 @@ function WorkflowRows({
   );
 
   if (workflows === null) {
-    return (
-      <div className="flex flex-col gap-2">
-        {[0, 1, 2].map((key) => (
-          <Skeleton key={key} className="h-12 rounded-lg" />
-        ))}
-      </div>
-    );
+    return <LoadingState label="Loading workflows…" />;
   }
 
   if (workflows.length === 0) {
@@ -164,53 +156,22 @@ function WorkflowQuestions({
   /** Goes back to the list of workflows. */
   onBack: () => void;
 }) {
-  const dispatch = useAppDispatch();
-  const storeCode = useAppSelector(
-    (state) => state.GetStoresReducer.selectedStore,
-  );
   const {
-    FetchUnansweredQuestionsData: data,
-    FetchUnansweredQuestionsIsLoading: isLoading,
-  } = useAppSelector(
-    (state) => state.GetKnowledgeTestAiReducer.FetchUnansweredQuestionsState,
-  );
-
-  const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(KNOWLEDGE_UNANSWERED_PAGE_SIZE);
-  const debouncedSearch = useDebounce(search);
-
-  useEffect(() => {
-    if (!storeCode) return;
-    dispatch(
-      FetchUnansweredQuestions({
-        storeCode,
-        page,
-        pageSize,
-        search: debouncedSearch,
-        workflow: workflow.code,
-        dateFrom: range.from,
-        dateTo: range.to,
-      }),
-    );
-  }, [
-    dispatch,
-    storeCode,
+    data,
+    questions,
     page,
     pageSize,
-    debouncedSearch,
-    workflow.code,
-    range.from,
-    range.to,
-  ]);
-
-  const questions = data?.results ?? [];
-  // Before the first answer there is nothing to say "none" about.
-  const showSkeleton = isLoading && data === null;
-  // Also true while the debounce waits to send what was just typed, so the
-  // list never looks settled while a new search is on its way.
-  const isRefreshing = isLoading || search !== debouncedSearch;
-  const hasSearch = debouncedSearch.trim() !== "";
+    search,
+    showLoading,
+    isRefreshing,
+    hasSearch,
+    changeSearch,
+    changePagination,
+  } = useUnansweredQuestionList({
+    workflow: workflow.code,
+    dateFrom: range.from,
+    dateTo: range.to,
+  });
 
   return (
     <div className="flex flex-col gap-3">
@@ -233,20 +194,13 @@ function WorkflowQuestions({
 
       <QuestionsSearchInput
         value={search}
-        onChange={(value) => {
-          setSearch(value);
-          setPage(1);
-        }}
+        onChange={changeSearch}
         placeholder="Search questions"
         isRefreshing={isRefreshing}
       />
 
-      {showSkeleton ? (
-        <div className="flex flex-col gap-2">
-          {[0, 1, 2, 3].map((key) => (
-            <Skeleton key={key} className="h-20 rounded-lg" />
-          ))}
-        </div>
+      {showLoading ? (
+        <LoadingState label="Loading questions…" />
       ) : questions.length === 0 ? (
         <Empty className="rounded-lg border">
           <EmptyHeader>
@@ -356,10 +310,7 @@ function WorkflowQuestions({
         totalCount={data?.count ?? 0}
         pageSize={pageSize}
         page={page}
-        onPaginationChange={(next) => {
-          setPage(next.page);
-          setPageSize(next.pageSize);
-        }}
+        onPaginationChange={changePagination}
       />
     </div>
   );
