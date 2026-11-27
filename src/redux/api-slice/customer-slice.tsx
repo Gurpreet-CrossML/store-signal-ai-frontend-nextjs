@@ -82,23 +82,6 @@ export type CustomerRecord = {
 /** Only the daily analysis's segments get a badge. */
 export type CustomerBadge = "at_risk" | "vip";
 
-/**
- * How the customer buys, worked out by the backend. `days` is the usual gap
- * (every, and lapsed when known), how overdue, or for never_ordered how long
- * ago they signed up; otherwise null.
- */
-export type BuyingRhythm = {
-  kind:
-    | "never_ordered"
-    | "unknown"
-    | "waiting"
-    | "lapsed"
-    | "first_order"
-    | "overdue"
-    | "every";
-  days: number | null;
-};
-
 /** One row of the Customers page table (GET /chat/customers/table/). */
 export type CustomerListRow = Pick<
   CustomerRecord,
@@ -110,7 +93,6 @@ export type CustomerListRow = Pick<
   lifetime_value: string;
   average_order: string | null;
   last_order_at: string | null;
-  buying_rhythm: BuyingRhythm;
 };
 
 export type CustomerListResponse = {

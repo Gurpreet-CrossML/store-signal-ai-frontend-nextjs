@@ -120,8 +120,6 @@ export type OrderFilters = {
   /** ISO instants bounding when the order was placed. */
   placed_from?: string;
   placed_to?: string;
-  /** Narrow to one shopper — how the customer page drills through. */
-  customer?: number;
   /** Sort key, e.g. "-created_at" — leading "-" is descending. */
   ordering?: string;
 };
@@ -342,15 +340,10 @@ export const SyncCustomerOrders = createAsyncThunk(
 
 export const FetchOrderSummary = createAsyncThunk(
   "FetchOrderSummary",
-  async (
-    { storeCode, customerId }: { storeCode: string; customerId?: number },
-    thunkAPI,
-  ) => {
+  async ({ storeCode }: { storeCode: string }, thunkAPI) => {
     try {
-      // One customer's list counts only their orders.
-      const customer = customerId ? `&customer=${customerId}` : "";
       const response = await axiosInstance.get(
-        `${ENDPOINTS.fetchOrderSummary()}?store_code=${storeCode}${customer}`,
+        `${ENDPOINTS.fetchOrderSummary()}?store_code=${storeCode}`,
         { useBackend: true },
       );
       return (response.data?.data ?? null) as OrderSummary | null;

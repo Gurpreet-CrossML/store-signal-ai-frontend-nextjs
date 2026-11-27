@@ -65,14 +65,15 @@ function OrderTotal({ order }: { order: OrderTableRow }) {
 // the order and its total.
 const FROM_TABLET = "max-md:hidden";
 const FROM_DESKTOP = "max-xl:hidden";
+// Fixed widths keep the gaps between columns even; the customer column takes
+// the rest. The badge columns start with extra room after the right-aligned
+// total.
+const BADGE_COLUMN = "w-40 pl-8";
 
 export function getOrderColumns({
-  showCustomer,
   showPayment,
   showFulfillment,
 }: {
-  /** Off when the list is one customer's: their name is above the table. */
-  showCustomer: boolean;
   /** Off when every row would say the same payment state. */
   showPayment: boolean;
   /** Off on a fulfillment tab, for the same reason. */
@@ -82,6 +83,7 @@ export function getOrderColumns({
     {
       id: "order",
       header: "Order",
+      meta: { headClassName: "md:w-28" },
       cell: ({ row }) => {
         const order = row.original;
         return (
@@ -91,7 +93,7 @@ export function getOrderColumns({
             </Typography>
             {/* A phone has no other columns, so the row carries their gist. */}
             <div className="mt-1 flex min-w-0 items-center gap-2 md:hidden">
-              {showCustomer && order.customer ? (
+              {order.customer ? (
                 <Typography variant="muted" className="truncate">
                   {order.customer.name}
                 </Typography>
@@ -109,10 +111,13 @@ export function getOrderColumns({
     {
       id: "placed",
       header: "Placed",
-      meta: { headClassName: FROM_DESKTOP, cellClassName: FROM_DESKTOP },
+      meta: {
+        headClassName: `w-36 ${FROM_DESKTOP}`,
+        cellClassName: FROM_DESKTOP,
+      },
       cell: ({ row }) => formatDate(row.original.created_at),
     },
-    showCustomer && {
+    {
       id: "customer",
       header: "Customer",
       meta: { headClassName: FROM_TABLET, cellClassName: FROM_TABLET },
@@ -143,27 +148,37 @@ export function getOrderColumns({
     },
     {
       id: "items",
-      header: () => <div className="text-right">Items</div>,
-      meta: { headClassName: FROM_DESKTOP, cellClassName: FROM_DESKTOP },
+      header: "Items",
+      meta: {
+        headClassName: `w-20 text-right ${FROM_DESKTOP}`,
+        cellClassName: FROM_DESKTOP,
+      },
       cell: ({ row }) => (
         <div className="text-right tabular-nums">{row.original.items}</div>
       ),
     },
     {
       id: "total",
-      header: () => <div className="text-right">Total</div>,
+      header: "Total",
+      meta: { headClassName: "text-right md:w-36" },
       cell: ({ row }) => <OrderTotal order={row.original} />,
     },
     showPayment && {
       id: "payment",
       header: "Payment",
-      meta: { headClassName: FROM_DESKTOP, cellClassName: FROM_DESKTOP },
+      meta: {
+        headClassName: `${BADGE_COLUMN} ${FROM_DESKTOP}`,
+        cellClassName: `pl-8 ${FROM_DESKTOP}`,
+      },
       cell: ({ row }) => <StatusBadge status={row.original.financial_status} />,
     },
     showFulfillment && {
       id: "fulfillment",
       header: "Fulfillment",
-      meta: { headClassName: FROM_TABLET, cellClassName: FROM_TABLET },
+      meta: {
+        headClassName: `${BADGE_COLUMN} ${FROM_TABLET}`,
+        cellClassName: `pl-8 ${FROM_TABLET}`,
+      },
       cell: ({ row }) => <OrderFulfillment order={row.original} />,
     },
   ];

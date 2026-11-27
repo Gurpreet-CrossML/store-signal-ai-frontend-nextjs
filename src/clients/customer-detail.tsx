@@ -107,25 +107,6 @@ function shippingText(shipping: OrderShipping) {
   };
 }
 
-/**
- * How the customer is doing against their usual gap. Not the last order
- * date: the orders table already shows that.
- */
-function scheduleText({ buying_rhythm: rhythm }: CustomerProfile) {
-  const days = rhythm.days ?? 0;
-  switch (rhythm.kind) {
-    case "every":
-      return "On their usual schedule";
-    case "overdue":
-      return `Overdue by ${days} day${days === 1 ? "" : "s"}`;
-    case "lapsed":
-      return "Stopped ordering";
-    // Waiting, one order or none: the orders table and card already say so.
-    default:
-      return "";
-  }
-}
-
 /** The four headline numbers. */
 function KpiStrip({ profile }: { profile: CustomerProfile }) {
   const { currency } = profile;
@@ -154,7 +135,7 @@ function KpiStrip({ profile }: { profile: CustomerProfile }) {
       value: profile.usual_gap_days
         ? `${profile.usual_gap_days} day${profile.usual_gap_days === 1 ? "" : "s"}`
         : "—",
-      detail: scheduleText(profile),
+      detail: "",
     },
     {
       label: "Help Desk",
@@ -199,13 +180,7 @@ function OrderSignals({
   );
 }
 
-function OrdersPanel({
-  profile,
-  customerId,
-}: {
-  profile: CustomerProfile;
-  customerId: number;
-}) {
+function OrdersPanel({ profile }: { profile: CustomerProfile }) {
   const router = useRouter();
   const orders = profile.recent_orders;
   const openOrder = (id: number) => router.push(`/crm/orders/${id}`);
@@ -216,7 +191,7 @@ function OrdersPanel({
       action={
         profile.order_count > 0 ? (
           <Link
-            href={`/crm/orders?customer=${customerId}`}
+            href={`/crm/orders?search=${encodeURIComponent(profile.email)}`}
             className="flex items-center gap-1 text-sm text-primary hover:underline"
           >
             All Orders
@@ -679,7 +654,7 @@ export default function CustomerDetail({ customerId }: { customerId: number }) {
         <div className="flex min-w-0 flex-col gap-4">
           {numbers ? (
             <>
-              <OrdersPanel profile={numbers} customerId={customerId} />
+              <OrdersPanel profile={numbers} />
               <ActivityPanel profile={numbers} />
             </>
           ) : null}

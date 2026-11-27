@@ -9,7 +9,6 @@ import { CountTabs, type CountTab } from "@/components/custom/count-tabs";
 import { DataTable } from "@/components/custom/data-table";
 import { getOrderColumns } from "@/components/custom/crm/orders-columns";
 import { DateRangePicker } from "@/components/custom/date-range-picker";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -57,13 +56,6 @@ export default function Orders() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Set when arriving from a customer's page: the list is that shopper's.
-  const customerParam = Number(searchParams?.get("customer") ?? "");
-  const customerId =
-    Number.isInteger(customerParam) && customerParam > 0
-      ? customerParam
-      : undefined;
-
   const storeCode = useAppSelector(
     (state) => state.GetStoresReducer.selectedStore,
   );
@@ -79,7 +71,8 @@ export default function Orders() {
     pageIndex: 0,
     pageSize: 25,
   });
-  // A ticket's "View orders" link opens the list searched by email.
+  // "View All Orders" links (customer page, Live Support, Help Desk) open
+  // the list searched by the customer's email.
   const [searchInput, setSearchInput] = useState(
     () => searchParams?.get("search")?.trim() ?? "",
   );
@@ -94,7 +87,6 @@ export default function Orders() {
   // fetch below never asks for a page past the end).
   const querySignature = JSON.stringify([
     storeCode,
-    customerId,
     search,
     ordering,
     tab,
@@ -110,7 +102,6 @@ export default function Orders() {
   const requestFilters = useMemo<OrderFilters>(
     () => ({
       ...(search ? { search } : {}),
-      ...(customerId ? { customer: customerId } : {}),
       ...(tab !== "all" ? { tab } : {}),
       ...(payment !== "all" ? { payment } : {}),
       // The picker gives whole days; the range covers all of its last one.
@@ -118,7 +109,7 @@ export default function Orders() {
       ...(placed.to ? { placed_to: endOfDay(placed.to) } : {}),
       ordering,
     }),
-    [search, customerId, tab, payment, placed, ordering],
+    [search, tab, payment, placed, ordering],
   );
 
   useEffect(() => {
@@ -133,24 +124,22 @@ export default function Orders() {
     );
   }, [dispatch, storeCode, pagination, requestFilters]);
 
-  // The tab counts are for the whole store (or the one customer), so they
-  // only reload with those.
+  // The tab counts are for the whole store, so they only reload with it.
   useEffect(() => {
     if (!storeCode) return;
-    dispatch(FetchOrderSummary({ storeCode, customerId }));
-  }, [dispatch, storeCode, customerId]);
+    dispatch(FetchOrderSummary({ storeCode }));
+  }, [dispatch, storeCode]);
 
   // A column that would say the same on every row is left out.
   const columns = useMemo(
     () =>
       getOrderColumns({
-        showCustomer: !customerId,
         // Pending and Refunded each cover several states (authorized,
         // partially refunded…), so only Paid makes the column redundant.
         showPayment: payment !== "paid",
         showFulfillment: tab === "all",
       }),
-    [customerId, payment, tab],
+    [payment, tab],
   );
 
   const tabs: CountTab<OrderTab | "all">[] = [
@@ -172,37 +161,18 @@ export default function Orders() {
   const hasRange = Boolean(placed.from || placed.to);
   const hasQuery =
     Boolean(search) || tab !== "all" || payment !== "all" || hasRange;
-  const customerName = customerId
-    ? FetchOrdersData.results[0]?.customer?.name
-    : undefined;
 
   return (
     <div className="flex flex-col gap-4">
       <CountTabs tabs={tabs} tab={tab} onChange={setTab} />
 
       <div className="flex flex-wrap items-center gap-2">
-        {customerId ? (
-          <Badge variant="outline" className="h-8 gap-1.5 px-2.5 font-normal">
-            {customerName ? `Customer: ${customerName}` : "One Customer"}
-            <button
-              type="button"
-              onClick={() => router.replace("/crm/orders", { scroll: false })}
-              aria-label="Show every customer's orders"
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <IconX className="size-3.5" />
-            </button>
-          </Badge>
-        ) : null}
-
         <div className="relative min-w-56 flex-1 sm:max-w-sm">
           <IconSearch className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={searchInput}
             onChange={(event) => setSearchInput(event.target.value)}
-            placeholder={
-              customerId ? "Search order" : "Search order, customer or email"
-            }
+            placeholder="Search order, customer or email"
             aria-label="Search orders"
             className={cn("h-8 pl-9", searchInput && ACTIVE_FILTER_STYLE)}
           />
