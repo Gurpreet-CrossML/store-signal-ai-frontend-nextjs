@@ -2,6 +2,7 @@
 
 import { Fragment, useState } from "react";
 import Link from "next/link";
+import { InfoIcon } from "@/components/custom/info-icon";
 import { LoadingState } from "@/components/custom/loading-state";
 import { CardTitle } from "@/components/ui/card";
 import { Typography } from "@/components/ui/typography";
@@ -22,7 +23,6 @@ import {
   IconEye,
   IconTicket,
   IconExternalLink,
-  IconInfoCircle,
 } from "@tabler/icons-react";
 import { FulfillmentBadge } from "@/components/ui/status-badge";
 import { OrderDetails } from "@/components/custom/order-details";
@@ -439,23 +439,8 @@ export function OrdersSummary({
 
   return (
     <div
-      className={`relative grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border ${className ?? ""}`}
+      className={`grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border ${className ?? ""}`}
     >
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button
-            type="button"
-            className="absolute right-1 top-1 z-10 inline-flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            aria-label="How customer order totals are calculated"
-          >
-            <IconInfoCircle className="size-4" />
-          </button>
-        </TooltipTrigger>
-        <TooltipContent className="max-w-72 text-center">
-          Lifetime value and total orders are calculated excluding canceled and
-          refunded orders.
-        </TooltipContent>
-      </Tooltip>
       <div className="flex flex-col gap-0.5 bg-background px-3 py-2">
         <Typography variant="muted">Lifetime Value</Typography>
         <Typography variant="small" as="p" className="truncate tabular-nums">
@@ -463,7 +448,11 @@ export function OrdersSummary({
         </Typography>
       </div>
       <div className="flex flex-col gap-0.5 bg-background px-3 py-2">
-        <Typography variant="muted">Orders</Typography>
+        {/* The info icon follows the heading, as on the dashboard. */}
+        <div className="flex items-center gap-1.5">
+          <Typography variant="muted">Orders</Typography>
+          <InfoIcon text="Lifetime value and total orders are calculated excluding canceled and refunded orders." />
+        </div>
         <Typography variant="small" as="p" className="truncate tabular-nums">
           {String(orderCount)}
         </Typography>
